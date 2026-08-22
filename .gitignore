@@ -9,3 +9,15 @@ yarn-error.log*
 Thumbs.db
 backend/pg_data/
 coverage/
+
+# Python & Liveness artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+*.dat
+*.dat.bz2
+liveness_server/shape_predictor_68_face_landmarks.dat
+liveness_server/shape_5.dat
+backend/audit*.json
