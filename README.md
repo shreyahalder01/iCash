@@ -255,3 +255,5 @@ npm test
 ## 📄 License
 
 MIT License. Developed for enterprise biometric banking and financial digital security.
+#   i C a s h  
+ 
