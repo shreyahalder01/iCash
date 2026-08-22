@@ -1944,58 +1944,6 @@ input:focus, select:focus, textarea:focus {
   .table-panel { border: 1px solid #000; }
 }
 
-/* ---------------------------------------------------------------- */
-/* Phone.email Sign-in Widget                                        */
-/* The button itself is rendered by a third-party script we don't    */
-/* control the internal DOM of, so we constrain and center its       */
-/* container to match the rest of the design system instead of       */
-/* trying to override its internal styles directly.                  */
-/* ---------------------------------------------------------------- */
-.phone-email-wrap {
-  margin-top: 16px;
-  background: var(--bg-inset);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 14px 12px;
-  text-align: center;
-}
-
-.phone-email-eyebrow {
-  font-size: 10.5px;
-  font-family: var(--font-mono);
-  color: var(--text-muted);
-  margin-bottom: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.pe_signin_button {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  min-height: 44px;
-  overflow: hidden;
-  border-radius: var(--radius-md);
-}
-
-/* The widget injects its own <button>/<a> as a direct child; force it
-   to fill the card width like every other .btn on this screen so it
-   never renders undersized, oversized, or left-aligned. */
-.pe_signin_button > * {
-  width: 100% !important;
-  max-width: 100% !important;
-  box-sizing: border-box !important;
-  font-family: var(--font-body) !important;
-}
-
-.phone-email-status {
-  font-size: 11px;
-  margin-top: 8px;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  min-height: 14px;
-}
 
 /* ---------------------------------------------------------------- */
 /* Camera error / fallback messaging                                 */

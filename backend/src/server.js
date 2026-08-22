@@ -24,8 +24,6 @@ const app = express();
 const PORT = Number(process.env.PORT) || 4000;
 const FRONTEND_DIR = path.join(__dirname, '..', '..', 'frontend');
 
-// Allow the phone.email widget's iframe/script and inline handlers used by the
-// existing frontend (onclick="..." attributes throughout index.html).
 app.use(
   helmet({
     contentSecurityPolicy: false,
