@@ -7,12 +7,14 @@ class SecurityController {
       const recentEvents = await prisma.securityEvent.findMany({
         where: { user_id: req.user.id },
         orderBy: { created_at: 'desc' },
-        take: 10
+        take: 10,
       });
 
-      const duressEvents = recentEvents.filter(e => e.event_type === 'DURESS_ALERT');
-      const multiFaceEvents = recentEvents.filter(e => e.event_type === 'MULTIPLE_FACE_DETECTED');
-      const isLocked = req.user.status === 'LOCKED' || Boolean(req.user.locked_until && req.user.locked_until > new Date());
+      const duressEvents = recentEvents.filter((e) => e.event_type === 'DURESS_ALERT');
+      const multiFaceEvents = recentEvents.filter((e) => e.event_type === 'MULTIPLE_FACE_DETECTED');
+      const isLocked =
+        req.user.status === 'LOCKED' ||
+        Boolean(req.user.locked_until && req.user.locked_until > new Date());
 
       res.json({
         ok: true,
@@ -23,9 +25,9 @@ class SecurityController {
           hasActiveDuressAlert: duressEvents.length > 0,
           duressAlertCount: duressEvents.length,
           multiFaceAlertCount: multiFaceEvents.length,
-          lastLoginAt: req.user.last_login_at
+          lastLoginAt: req.user.last_login_at,
         },
-        recentEvents
+        recentEvents,
       });
     } catch (err) {
       next(err);
@@ -38,12 +40,12 @@ class SecurityController {
       const events = await prisma.securityEvent.findMany({
         where: { user_id: req.user.id },
         orderBy: { created_at: 'desc' },
-        take: Number(limit)
+        take: Number(limit),
       });
 
       res.json({
         ok: true,
-        events
+        events,
       });
     } catch (err) {
       next(err);
@@ -61,13 +63,13 @@ class SecurityController {
         severity: severity || 'MEDIUM',
         description,
         ipAddress: req.ip,
-        deviceReference: deviceReference || req.headers['user-agent']
+        deviceReference: deviceReference || req.headers['user-agent'],
       });
 
       res.status(201).json({
         ok: true,
         message: 'Security event recorded.',
-        event
+        event,
       });
     } catch (err) {
       next(err);

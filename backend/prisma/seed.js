@@ -41,8 +41,8 @@ async function main() {
       password_hash: adminPinHash,
       emergency_pin_hash: adminDuressHash,
       role: 'ADMIN',
-      status: 'ACTIVE'
-    }
+      status: 'ACTIVE',
+    },
   });
 
   const adminAccount = await prisma.bankAccount.create({
@@ -52,10 +52,10 @@ async function main() {
       account_number_masked: '•••• 9999',
       account_reference: 'ACC_ADMIN_CENTRAL',
       account_type: 'SAVINGS',
-      balance: 1000000.00,
+      balance: 1000000.0,
       is_primary: true,
-      status: 'ACTIVE'
-    }
+      status: 'ACTIVE',
+    },
   });
 
   console.log('✅ Created Admin Account: admin@icash.bank / PIN 9999');
@@ -75,8 +75,8 @@ async function main() {
       password_hash: merchantPinHash,
       emergency_pin_hash: merchantDuressHash,
       role: 'MERCHANT',
-      status: 'ACTIVE'
-    }
+      status: 'ACTIVE',
+    },
   });
 
   const merchantAccount = await prisma.bankAccount.create({
@@ -86,10 +86,10 @@ async function main() {
       account_number_masked: '•••• 8888',
       account_reference: 'ACC_MERCHANT_COMMERCIAL',
       account_type: 'CURRENT',
-      balance: 145000.00,
+      balance: 145000.0,
       is_primary: true,
-      status: 'ACTIVE'
-    }
+      status: 'ACTIVE',
+    },
   });
 
   const merchantProfile = await prisma.merchantProfile.create({
@@ -97,20 +97,20 @@ async function main() {
       user_id: merchantUser.id,
       business_name: 'Metro HyperMarket Pvt Ltd',
       settlement_acct: '•••• 8888',
-      settled_balance: 145000.00,
-      pending_balance: 12500.00
-    }
+      settled_balance: 145000.0,
+      pending_balance: 12500.0,
+    },
   });
 
   await prisma.paymentRequest.create({
     data: {
       merchant_id: merchantProfile.id,
-      amount: 1500.00,
+      amount: 1500.0,
       description: 'Grocery Billing Counter #3',
       reference_code: 'PAY_METRO_501',
       status: 'PENDING',
-      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000)
-    }
+      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    },
   });
 
   console.log('✅ Created Merchant Account: merchant@icash.bank / PIN 8888');
@@ -133,8 +133,8 @@ async function main() {
       age: 30,
       is_senior: false,
       role: 'USER',
-      status: 'ACTIVE'
-    }
+      status: 'ACTIVE',
+    },
   });
 
   const siddSavings = await prisma.bankAccount.create({
@@ -144,10 +144,10 @@ async function main() {
       account_number_masked: '•••• 4821',
       account_reference: 'ACC_SIDD_PRIMARY_SAVINGS',
       account_type: 'SAVINGS',
-      balance: 25000.00,
+      balance: 25000.0,
       is_primary: true,
-      status: 'ACTIVE'
-    }
+      status: 'ACTIVE',
+    },
   });
 
   const siddVirtual = await prisma.bankAccount.create({
@@ -157,10 +157,10 @@ async function main() {
       account_number_masked: '•••• 0912',
       account_reference: 'ACC_SIDD_VIRTUAL_WALLET',
       account_type: 'VIRTUAL',
-      balance: 5000.00,
+      balance: 5000.0,
       is_primary: false,
-      status: 'ACTIVE'
-    }
+      status: 'ACTIVE',
+    },
   });
 
   // Seed sample transactions
@@ -169,11 +169,11 @@ async function main() {
       user_id: siddUser.id,
       account_id: siddSavings.id,
       transaction_type: 'DEPOSIT',
-      amount: 25000.00,
+      amount: 25000.0,
       description: 'Account opened · Aadhaar verified demo funds',
       status: 'COMPLETED',
-      reference_number: 'TX_SIDD_OPEN_01'
-    }
+      reference_number: 'TX_SIDD_OPEN_01',
+    },
   });
 
   await prisma.transaction.create({
@@ -181,17 +181,17 @@ async function main() {
       user_id: siddUser.id,
       account_id: siddSavings.id,
       transaction_type: 'WITHDRAWAL',
-      amount: 2000.00,
+      amount: 2000.0,
       description: 'ATM cash withdrawal (biometric verified)',
       status: 'COMPLETED',
-      reference_number: 'TX_SIDD_ATM_02'
-    }
+      reference_number: 'TX_SIDD_ATM_02',
+    },
   });
 
   // Update balance after withdrawal
   await prisma.bankAccount.update({
     where: { id: siddSavings.id },
-    data: { balance: 23000.00 }
+    data: { balance: 23000.0 },
   });
 
   // Seed biometric profile stub
@@ -201,11 +201,13 @@ async function main() {
       biometric_provider: 'DEMO_FACIAL_EMBEDDINGS',
       biometric_reference: 'BIO_DEMO_SIDD_4821',
       enrollment_status: 'ENROLLED',
-      face_descriptors: []
-    }
+      face_descriptors: [],
+    },
   });
 
-  console.log('✅ Created User Account: Sidd Paul (Phone: 9876543210, Aadhaar last4: 4821, PIN: 4821)');
+  console.log(
+    '✅ Created User Account: Sidd Paul (Phone: 9876543210, Aadhaar last4: 4821, PIN: 4821)'
+  );
 
   // 4. SENIOR CITIZEN DEMO ACCOUNT (Ramesh Kumar)
   // Phone: 9811122233 / Aadhaar last4: 7712 / PIN: 7712 / Age: 68 / Trusted Contact: Amit Kumar (9811199999)
@@ -227,8 +229,8 @@ async function main() {
       emergency_contact_name: 'Amit Kumar',
       emergency_contact_phone: '9811199999',
       role: 'USER',
-      status: 'ACTIVE'
-    }
+      status: 'ACTIVE',
+    },
   });
 
   const rameshAccount = await prisma.bankAccount.create({
@@ -238,10 +240,10 @@ async function main() {
       account_number_masked: '•••• 7712',
       account_reference: 'ACC_RAMESH_SENIOR',
       account_type: 'SAVINGS',
-      balance: 40000.00,
+      balance: 40000.0,
       is_primary: true,
-      status: 'ACTIVE'
-    }
+      status: 'ACTIVE',
+    },
   });
 
   await prisma.transaction.create({
@@ -249,11 +251,11 @@ async function main() {
       user_id: rameshUser.id,
       account_id: rameshAccount.id,
       transaction_type: 'DEPOSIT',
-      amount: 40000.00,
+      amount: 40000.0,
       description: 'Monthly Senior Citizen Pension Deposit',
       status: 'COMPLETED',
-      reference_number: 'TX_RAMESH_PENSION_01'
-    }
+      reference_number: 'TX_RAMESH_PENSION_01',
+    },
   });
 
   // Seed delegation OTP (valid 5 min)
@@ -262,14 +264,16 @@ async function main() {
   await prisma.delegatedWithdrawal.create({
     data: {
       user_id: rameshUser.id,
-      amount: 5000.00,
+      amount: 5000.0,
       otp_hash: delegationOtpHash,
       status: 'PENDING',
-      expires_at: new Date(Date.now() + 60 * 60 * 1000)
-    }
+      expires_at: new Date(Date.now() + 60 * 60 * 1000),
+    },
   });
 
-  console.log('✅ Created Senior Citizen Account: Ramesh Kumar (PIN: 7712, Delegation OTP: 654321)');
+  console.log(
+    '✅ Created Senior Citizen Account: Ramesh Kumar (PIN: 7712, Delegation OTP: 654321)'
+  );
 
   // 5. SEED INITIAL SECURITY EVENTS
   await prisma.securityEvent.create({
@@ -278,8 +282,8 @@ async function main() {
       event_type: 'LOGIN_SUCCESS',
       severity: 'LOW',
       description: 'Successful face biometric match on authorized device.',
-      ip_address: '127.0.0.1'
-    }
+      ip_address: '127.0.0.1',
+    },
   });
 
   await prisma.securityEvent.create({
@@ -288,8 +292,8 @@ async function main() {
       event_type: 'BIOMETRIC_SUCCESS',
       severity: 'LOW',
       description: 'Biometric liveness verification passed (confidence: 94%).',
-      ip_address: '127.0.0.1'
-    }
+      ip_address: '127.0.0.1',
+    },
   });
 
   console.log('🎉 Seeding completed successfully!');

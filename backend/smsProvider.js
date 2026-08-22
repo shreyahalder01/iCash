@@ -10,7 +10,9 @@ const fetch = require('node-fetch');
 const PROVIDER = process.env.SMS_PROVIDER || 'console';
 
 async function sendViaConsole(mobile, code) {
-  console.log(`\n[DEV MODE] Would send SMS to +91 ${mobile}: "Your iCash OTP is ${code}. Valid 5 minutes."\n`);
+  console.log(
+    `\n[DEV MODE] Would send SMS to +91 ${mobile}: "Your iCash OTP is ${code}. Valid 5 minutes."\n`
+  );
   return { devMode: true };
 }
 
@@ -28,11 +30,15 @@ async function sendVia2Factor(mobile, code) {
 async function sendViaMsg91(mobile, code) {
   const authKey = process.env.MSG91_AUTH_KEY;
   const templateId = process.env.MSG91_TEMPLATE_ID;
-  if (!authKey || !templateId) throw new Error('MSG91_AUTH_KEY / MSG91_TEMPLATE_ID not set in .env');
+  if (!authKey || !templateId)
+    throw new Error('MSG91_AUTH_KEY / MSG91_TEMPLATE_ID not set in .env');
   const url = 'https://control.msg91.com/api/v5/otp';
-  const res = await fetch(`${url}?template_id=${templateId}&mobile=91${mobile}&otp=${code}&authkey=${authKey}`, {
-    method: 'POST'
-  });
+  const res = await fetch(
+    `${url}?template_id=${templateId}&mobile=91${mobile}&otp=${code}&authkey=${authKey}`,
+    {
+      method: 'POST',
+    }
+  );
   const data = await res.json();
   if (data.type !== 'success') throw new Error('MSG91 send failed: ' + JSON.stringify(data));
   return data;
@@ -47,15 +53,15 @@ async function sendViaTwilio(mobile, code) {
   const body = new URLSearchParams({
     To: `+91${mobile}`,
     From: from,
-    Body: `Your iCash OTP is ${code}. Valid 5 minutes.`
+    Body: `Your iCash OTP is ${code}. Valid 5 minutes.`,
   });
   const res = await fetch(url, {
     method: 'POST',
     headers: {
       Authorization: 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64'),
-      'Content-Type': 'application/x-www-form-urlencoded'
+      'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body
+    body,
   });
   const data = await res.json();
   if (!res.ok) throw new Error('Twilio send failed: ' + JSON.stringify(data));
@@ -66,7 +72,7 @@ const providers = {
   console: sendViaConsole,
   twofactor: sendVia2Factor,
   msg91: sendViaMsg91,
-  twilio: sendViaTwilio
+  twilio: sendViaTwilio,
 };
 
 async function sendOtpSms(mobile, code) {

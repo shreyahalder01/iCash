@@ -11,20 +11,22 @@
  */
 
 const FACEAPI_MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
-const MATCH_THRESHOLD   = 0.50;   // Euclidean < 0.50 = same person
-const ENROLL_SAMPLES    = 5;       // Auto-collected enrollment samples
-const ENROLL_INTERVAL   = 1200;    // ms between auto-captures during enrollment
-const VERIFY_INTERVAL   = 800;     // ms between frames during verification
-const REQUIRED_MATCHES  = 3;       // Consecutive matching frames to confirm identity
+const MATCH_THRESHOLD = 0.5; // Euclidean < 0.50 = same person
+const ENROLL_SAMPLES = 5; // Auto-collected enrollment samples
+const ENROLL_INTERVAL = 1200; // ms between auto-captures during enrollment
+const VERIFY_INTERVAL = 800; // ms between frames during verification
+const REQUIRED_MATCHES = 3; // Consecutive matching frames to confirm identity
 
 function _getDetectOptions() {
   return new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.55 });
 }
 
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
 // ── Model loader ──────────────────────────────────────────────────────────────
-window._bioModelsLoaded  = false;
+window._bioModelsLoaded = false;
 window._bioModelsLoading = false;
 
 async function ensureBioModels() {
@@ -41,7 +43,7 @@ async function ensureBioModels() {
     await Promise.all([
       faceapi.nets.tinyFaceDetector.loadFromUri(FACEAPI_MODEL_URL),
       faceapi.nets.faceLandmark68Net.loadFromUri(FACEAPI_MODEL_URL),
-      faceapi.nets.faceRecognitionNet.loadFromUri(FACEAPI_MODEL_URL)
+      faceapi.nets.faceRecognitionNet.loadFromUri(FACEAPI_MODEL_URL),
     ]);
     window._bioModelsLoaded = true;
     window._bioModelsLoading = false;
@@ -58,7 +60,10 @@ async function ensureBioModels() {
 function euclidean(a, b) {
   if (!a || !b || a.length !== b.length) return Infinity;
   let s = 0;
-  for (let i = 0; i < a.length; i++) { const d = a[i] - b[i]; s += d * d; }
+  for (let i = 0; i < a.length; i++) {
+    const d = a[i] - b[i];
+    s += d * d;
+  }
   return Math.sqrt(s);
 }
 
@@ -77,7 +82,8 @@ function getOrCreateOverlayCanvas(id, parentEl) {
   if (!oc) {
     oc = document.createElement('canvas');
     oc.id = id;
-    oc.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;width:100%;height:100%;z-index:2;';
+    oc.style.cssText =
+      'position:absolute;top:0;left:0;pointer-events:none;width:100%;height:100%;z-index:2;';
     parentEl.style.position = 'relative';
     parentEl.appendChild(oc);
   }
@@ -88,7 +94,7 @@ function drawOverlay(canvas, video, detections, state, progress) {
   if (!canvas || !video) return;
   const w = video.videoWidth || 640;
   const h = video.videoHeight || 480;
-  canvas.width  = w;
+  canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, w, h);
@@ -96,20 +102,20 @@ function drawOverlay(canvas, video, detections, state, progress) {
   if (!detections || detections.length === 0) return;
 
   const resized = faceapi.resizeResults(detections, { width: w, height: h });
-  resized.forEach(det => {
-    const box   = det.detection.box;
+  resized.forEach((det) => {
+    const box = det.detection.box;
     const score = det.detection.score;
 
     let color = '#2DD4BF'; // cyan = scanning
-    if (state === 'GOOD')  color = '#22C55E'; // green = matched
-    if (state === 'BAD')   color = '#EF4444'; // red = mismatch
+    if (state === 'GOOD') color = '#22C55E'; // green = matched
+    if (state === 'BAD') color = '#EF4444'; // red = mismatch
     if (state === 'MULTI') color = '#F59E0B'; // amber = multiple people
 
     // Glow box
     ctx.save();
     ctx.strokeStyle = color;
-    ctx.lineWidth   = 2.5;
-    ctx.shadowBlur  = 12;
+    ctx.lineWidth = 2.5;
+    ctx.shadowBlur = 12;
     ctx.shadowColor = color;
     ctx.strokeRect(box.x, box.y, box.width, box.height);
     ctx.restore();
@@ -120,25 +126,29 @@ function drawOverlay(canvas, video, detections, state, progress) {
       [box.x, box.y, 1, 1],
       [box.x + box.width, box.y, -1, 1],
       [box.x, box.y + box.height, 1, -1],
-      [box.x + box.width, box.y + box.height, -1, -1]
+      [box.x + box.width, box.y + box.height, -1, -1],
     ];
     ctx.strokeStyle = color;
-    ctx.lineWidth   = 3;
+    ctx.lineWidth = 3;
     corners.forEach(([cx, cy, dx, dy]) => {
       ctx.beginPath();
-      ctx.moveTo(cx, cy + dy * s); ctx.lineTo(cx, cy); ctx.lineTo(cx + dx * s, cy);
+      ctx.moveTo(cx, cy + dy * s);
+      ctx.lineTo(cx, cy);
+      ctx.lineTo(cx + dx * s, cy);
       ctx.stroke();
     });
 
     // Detection confidence label
-    ctx.font      = 'bold 11px monospace';
+    ctx.font = 'bold 11px monospace';
     ctx.fillStyle = color;
     ctx.fillText(`${Math.round(score * 100)}%`, box.x + 4, box.y - 6);
 
     // Progress bar (enrollment)
     if (progress !== undefined && progress >= 0) {
-      const bx = box.x, by = box.y + box.height + 10;
-      const bw = box.width, bh = 5;
+      const bx = box.x,
+        by = box.y + box.height + 10;
+      const bw = box.width,
+        bh = 5;
       ctx.fillStyle = 'rgba(0,0,0,0.45)';
       ctx.fillRect(bx, by, bw, bh);
       ctx.fillStyle = color;
@@ -153,16 +163,22 @@ function drawOverlay(canvas, video, detections, state, progress) {
 let regAutoLoop = null;
 
 async function beginRegisterScan() {
-  const video    = document.getElementById('reg-video');
-  const errEl    = document.getElementById('reg-cam-error');
+  const video = document.getElementById('reg-video');
+  const errEl = document.getElementById('reg-cam-error');
   const statusEl = document.getElementById('reg-scan-status');
-  const btn      = document.getElementById('reg-capture-btn');
+  const btn = document.getElementById('reg-capture-btn');
   const retryBtn = document.getElementById('reg-retry-cam-btn');
 
   // Hide manual button — fully automatic
-  if (btn)      { btn.style.display = 'none'; btn.disabled = true; }
+  if (btn) {
+    btn.style.display = 'none';
+    btn.disabled = true;
+  }
   if (retryBtn) retryBtn.style.display = 'none';
-  if (errEl)    { errEl.textContent = ''; errEl.classList.remove('active'); }
+  if (errEl) {
+    errEl.textContent = '';
+    errEl.classList.remove('active');
+  }
   clearInterval(regAutoLoop);
   statusEl.textContent = 'Loading face recognition models…';
   statusEl.classList.remove('bad');
@@ -174,7 +190,10 @@ async function beginRegisterScan() {
   if (!modelsOk) {
     statusEl.textContent = '⚠ Models unavailable — click button to use fingerprint fallback.';
     statusEl.classList.add('bad');
-    if (btn) { btn.style.display = ''; btn.disabled = false; }
+    if (btn) {
+      btn.style.display = '';
+      btn.disabled = false;
+    }
     return;
   }
 
@@ -189,12 +208,15 @@ async function beginRegisterScan() {
   }
 
   // Wait for video to be ready
-  await new Promise(r => { video.onloadedmetadata = r; setTimeout(r, 2000); });
+  await new Promise((r) => {
+    video.onloadedmetadata = r;
+    setTimeout(r, 2000);
+  });
   statusEl.textContent = '👁  Look at camera — auto-capturing face samples…';
 
   const collected = [];
-  let   attempts  = 0;
-  const TIMEOUT   = 60; // 60 × 1200ms = 72s
+  let attempts = 0;
+  const TIMEOUT = 60; // 60 × 1200ms = 72s
 
   regAutoLoop = setInterval(async () => {
     attempts++;
@@ -212,7 +234,9 @@ async function beginRegisterScan() {
         .detectAllFaces(video, _getDetectOptions())
         .withFaceLandmarks()
         .withFaceDescriptors();
-    } catch (e) { return; }
+    } catch (e) {
+      return;
+    }
 
     const progress = collected.length / ENROLL_SAMPLES;
 
@@ -224,26 +248,28 @@ async function beginRegisterScan() {
 
     if (detections.length > 1) {
       drawOverlay(overlayCanvas, video, detections, 'MULTI', progress);
-      statusEl.textContent = '⚠ Multiple faces detected — only the registering person should be in frame.';
+      statusEl.textContent =
+        '⚠ Multiple faces detected — only the registering person should be in frame.';
       return;
     }
 
-    const det   = detections[0];
-    const desc  = det.descriptor;   // Float32Array[128]
+    const det = detections[0];
+    const desc = det.descriptor; // Float32Array[128]
     const score = det.detection.score;
 
     if (score < 0.62) {
       drawOverlay(overlayCanvas, video, detections, 'BAD', progress);
-      statusEl.textContent = `😕 Low confidence (${Math.round(score*100)}%) — improve lighting or move closer.`;
+      statusEl.textContent = `😕 Low confidence (${Math.round(score * 100)}%) — improve lighting or move closer.`;
       return;
     }
 
     // Consistency check: new sample must be close to first collected sample
     if (collected.length > 0) {
       const dist = euclidean(Array.from(collected[0]), Array.from(desc));
-      if (dist > 0.80) {
+      if (dist > 0.8) {
         drawOverlay(overlayCanvas, video, detections, 'BAD', progress);
-        statusEl.textContent = '⚠ Face changed between samples — ensure only the same person stays in frame.';
+        statusEl.textContent =
+          '⚠ Face changed between samples — ensure only the same person stays in frame.';
         collected.length = 0; // reset
         return;
       }
@@ -258,7 +284,7 @@ async function beginRegisterScan() {
       clearInterval(regAutoLoop);
       drawOverlay(overlayCanvas, video, detections, 'GOOD', 1.0);
       statusEl.textContent = '✅ Enrollment complete — registering account…';
-      await _finalizeRegistration(collected.map(d => Array.from(d)));
+      await _finalizeRegistration(collected.map((d) => Array.from(d)));
     }
   }, ENROLL_INTERVAL);
 }
@@ -289,11 +315,17 @@ async function captureRegisterFace() {
   const statusEl = document.getElementById('reg-scan-status');
   statusEl.textContent = 'Using fingerprint fallback — generating reference vector…';
   const t = Date.now();
-  const desc = Array.from({ length: 128 }, (_, i) => Math.sin(i * 0.314 + t * 0.0001) * 0.15 + Math.cos(i * 0.157) * 0.1);
+  const desc = Array.from(
+    { length: 128 },
+    (_, i) => Math.sin(i * 0.314 + t * 0.0001) * 0.15 + Math.cos(i * 0.157) * 0.1
+  );
   await _finalizeRegistration([desc, desc, desc]);
 }
 
-function cancelRegisterScan() { teardownRegisterScan(); goTo('screen-welcome'); }
+function cancelRegisterScan() {
+  teardownRegisterScan();
+  goTo('screen-welcome');
+}
 
 function teardownRegisterScan() {
   clearInterval(regAutoLoop);
@@ -310,15 +342,21 @@ function teardownRegisterScan() {
 let loginAutoLoop = null;
 
 async function beginLoginScan() {
-  const video    = document.getElementById('login-video');
-  const errEl    = document.getElementById('login-cam-error');
+  const video = document.getElementById('login-video');
+  const errEl = document.getElementById('login-cam-error');
   const statusEl = document.getElementById('login-scan-status');
-  const btn      = document.getElementById('login-capture-btn');
+  const btn = document.getElementById('login-capture-btn');
   const retryBtn = document.getElementById('login-retry-cam-btn');
 
-  if (btn)      { btn.style.display = 'none'; btn.disabled = true; }
+  if (btn) {
+    btn.style.display = 'none';
+    btn.disabled = true;
+  }
   if (retryBtn) retryBtn.style.display = 'none';
-  if (errEl)    { errEl.textContent = ''; errEl.classList.remove('active'); }
+  if (errEl) {
+    errEl.textContent = '';
+    errEl.classList.remove('active');
+  }
   clearInterval(loginAutoLoop);
   window._loginStoredDescriptors = null;
   statusEl.textContent = 'Loading biometric engine…';
@@ -330,7 +368,10 @@ async function beginLoginScan() {
   if (!modelsOk) {
     statusEl.textContent = '⚠ Face models unavailable — use PIN login instead.';
     statusEl.classList.add('bad');
-    if (btn) { btn.style.display = ''; btn.disabled = false; }
+    if (btn) {
+      btn.style.display = '';
+      btn.disabled = false;
+    }
     return;
   }
 
@@ -343,7 +384,10 @@ async function beginLoginScan() {
     return;
   }
 
-  await new Promise(r => { video.onloadedmetadata = r; setTimeout(r, 2000); });
+  await new Promise((r) => {
+    video.onloadedmetadata = r;
+    setTimeout(r, 2000);
+  });
 
   const targetUser = window._loginTargetUser;
   statusEl.textContent = `👁  Verifying identity of ${targetUser ? targetUser.name : 'user'}…`;
@@ -353,9 +397,11 @@ async function beginLoginScan() {
   if (targetUser) {
     try {
       const bioRes = await window.iCashApi.getBiometricProfile(targetUser.id);
-      storedDescriptors = (bioRes.descriptors || []).map(d => Float32Array.from(d));
+      storedDescriptors = (bioRes.descriptors || []).map((d) => Float32Array.from(d));
       window._loginStoredDescriptors = storedDescriptors;
-    } catch { storedDescriptors = []; }
+    } catch {
+      storedDescriptors = [];
+    }
   }
 
   let consecutiveMatches = 0;
@@ -366,7 +412,8 @@ async function beginLoginScan() {
     attempts++;
     if (attempts > TIMEOUT) {
       clearInterval(loginAutoLoop);
-      statusEl.textContent = '⏱ Authentication timeout. Click "Camera unavailable? Sign in with PIN" or retry.';
+      statusEl.textContent =
+        '⏱ Authentication timeout. Click "Camera unavailable? Sign in with PIN" or retry.';
       statusEl.classList.add('bad');
       if (retryBtn) retryBtn.style.display = '';
       return;
@@ -378,7 +425,9 @@ async function beginLoginScan() {
         .detectAllFaces(video, _getDetectOptions())
         .withFaceLandmarks()
         .withFaceDescriptors();
-    } catch (e) { return; }
+    } catch (e) {
+      return;
+    }
 
     if (!detections || detections.length === 0) {
       consecutiveMatches = 0;
@@ -390,7 +439,8 @@ async function beginLoginScan() {
     if (detections.length > 1) {
       consecutiveMatches = 0;
       drawOverlay(overlayCanvas, video, detections, 'MULTI');
-      statusEl.textContent = '⚠ Multiple people in frame — only the account holder should be present.';
+      statusEl.textContent =
+        '⚠ Multiple people in frame — only the account holder should be present.';
       return;
     }
 
@@ -403,7 +453,7 @@ async function beginLoginScan() {
       return;
     }
 
-    const dist    = bestMatch(storedDescriptors, live);
+    const dist = bestMatch(storedDescriptors, live);
     const matched = dist < MATCH_THRESHOLD;
 
     drawOverlay(overlayCanvas, video, detections, matched ? 'GOOD' : 'BAD');
@@ -433,11 +483,12 @@ async function _serverVerifyLogin(liveDescriptor, targetUser, overlayCanvas, vid
   try {
     const verifyRes = await window.iCashApi.verifyBiometric({
       liveDescriptor: Array.from(liveDescriptor),
-      userId: targetUser.id
+      userId: targetUser.id,
     });
     if (!verifyRes.matched) {
       drawOverlay(overlayCanvas, video, detections, 'BAD');
-      statusEl.textContent = '❌ Biometric mismatch — access denied. This does not match the registered face.';
+      statusEl.textContent =
+        '❌ Biometric mismatch — access denied. This does not match the registered face.';
       statusEl.classList.add('bad');
       return;
     }
@@ -451,22 +502,38 @@ async function _serverVerifyLogin(liveDescriptor, targetUser, overlayCanvas, vid
 
 // Fallback manual capture (only when face models failed)
 async function captureLoginFace() {
-  const statusEl  = document.getElementById('login-scan-status');
+  const statusEl = document.getElementById('login-scan-status');
   const targetUser = window._loginTargetUser;
   if (!targetUser) return;
   statusEl.textContent = 'Verifying…';
   const video = document.getElementById('login-video');
   let detections;
   try {
-    detections = await faceapi.detectAllFaces(video, _getDetectOptions()).withFaceLandmarks().withFaceDescriptors();
-  } catch { detections = []; }
-  if (!detections || detections.length === 0) { statusEl.textContent = '⚠ No face detected.'; statusEl.classList.add('bad'); return; }
-  if (detections.length > 1) { statusEl.textContent = '⚠ Multiple faces — only you should be in frame.'; statusEl.classList.add('bad'); return; }
+    detections = await faceapi
+      .detectAllFaces(video, _getDetectOptions())
+      .withFaceLandmarks()
+      .withFaceDescriptors();
+  } catch {
+    detections = [];
+  }
+  if (!detections || detections.length === 0) {
+    statusEl.textContent = '⚠ No face detected.';
+    statusEl.classList.add('bad');
+    return;
+  }
+  if (detections.length > 1) {
+    statusEl.textContent = '⚠ Multiple faces — only you should be in frame.';
+    statusEl.classList.add('bad');
+    return;
+  }
   const oc = document.getElementById('login-overlay-canvas');
   await _serverVerifyLogin(detections[0].descriptor, targetUser, oc, video, detections);
 }
 
-function cancelLoginScan() { teardownLoginScan(); goTo('screen-welcome'); }
+function cancelLoginScan() {
+  teardownLoginScan();
+  goTo('screen-welcome');
+}
 
 function teardownLoginScan() {
   clearInterval(loginAutoLoop);
@@ -485,22 +552,28 @@ let verifyAutoLoop = null;
 
 async function launchBiometricGate(title, lead) {
   document.getElementById('verify-title').textContent = title;
-  document.getElementById('verify-lead').textContent  = lead;
-  document.getElementById('verify-msg').textContent   = '';
+  document.getElementById('verify-lead').textContent = lead;
+  document.getElementById('verify-msg').textContent = '';
   document.getElementById('verify-pin-block').style.display = 'none';
 
   openModal('verify');
 
-  const video    = document.getElementById('verify-video');
-  const errEl    = document.getElementById('verify-cam-error');
+  const video = document.getElementById('verify-video');
+  const errEl = document.getElementById('verify-cam-error');
   const statusEl = document.getElementById('verify-scan-status');
-  const btn      = document.getElementById('verify-capture-btn');
+  const btn = document.getElementById('verify-capture-btn');
   const retryBtn = document.getElementById('verify-retry-cam-btn');
-  const msg      = document.getElementById('verify-msg');
+  const msg = document.getElementById('verify-msg');
 
-  if (btn)      { btn.style.display = 'none'; btn.disabled = true; }
+  if (btn) {
+    btn.style.display = 'none';
+    btn.disabled = true;
+  }
   if (retryBtn) retryBtn.style.display = 'none';
-  if (errEl)    { errEl.textContent = ''; errEl.classList.remove('active'); }
+  if (errEl) {
+    errEl.textContent = '';
+    errEl.classList.remove('active');
+  }
   clearInterval(verifyAutoLoop);
   statusEl.textContent = 'Initializing biometric gate…';
   statusEl.classList.remove('bad');
@@ -511,7 +584,10 @@ async function launchBiometricGate(title, lead) {
   if (!modelsOk) {
     statusEl.textContent = '⚠ Face models unavailable — use PIN to authorize.';
     statusEl.classList.add('bad');
-    if (btn) { btn.style.display = ''; btn.disabled = false; }
+    if (btn) {
+      btn.style.display = '';
+      btn.disabled = false;
+    }
     return;
   }
 
@@ -520,11 +596,17 @@ async function launchBiometricGate(title, lead) {
   } catch (e) {
     statusEl.textContent = cameraErrorMessage(e);
     statusEl.classList.add('bad');
-    if (btn) { btn.style.display = ''; btn.disabled = false; }
+    if (btn) {
+      btn.style.display = '';
+      btn.disabled = false;
+    }
     return;
   }
 
-  await new Promise(r => { video.onloadedmetadata = r; setTimeout(r, 2000); });
+  await new Promise((r) => {
+    video.onloadedmetadata = r;
+    setTimeout(r, 2000);
+  });
   statusEl.textContent = '👁  Look at camera to authorize transaction…';
 
   // Load current account holder's descriptors
@@ -532,8 +614,10 @@ async function launchBiometricGate(title, lead) {
   if (currentUser) {
     try {
       const bioRes = await window.iCashApi.getBiometricProfile(currentUser.id);
-      storedDescriptors = (bioRes.descriptors || []).map(d => Float32Array.from(d));
-    } catch { storedDescriptors = []; }
+      storedDescriptors = (bioRes.descriptors || []).map((d) => Float32Array.from(d));
+    } catch {
+      storedDescriptors = [];
+    }
   }
 
   let consecutiveMatches = 0;
@@ -545,7 +629,10 @@ async function launchBiometricGate(title, lead) {
       clearInterval(verifyAutoLoop);
       statusEl.textContent = '⏱ Authorization timeout — use PIN to continue.';
       statusEl.classList.add('bad');
-      if (btn) { btn.style.display = ''; btn.disabled = false; }
+      if (btn) {
+        btn.style.display = '';
+        btn.disabled = false;
+      }
       return;
     }
 
@@ -555,7 +642,9 @@ async function launchBiometricGate(title, lead) {
         .detectAllFaces(video, _getDetectOptions())
         .withFaceLandmarks()
         .withFaceDescriptors();
-    } catch (e) { return; }
+    } catch (e) {
+      return;
+    }
 
     if (!detections || detections.length === 0) {
       consecutiveMatches = 0;
@@ -568,9 +657,10 @@ async function launchBiometricGate(title, lead) {
     if (detections.length > 1) {
       consecutiveMatches = 0;
       drawOverlay(overlayCanvas, video, detections, 'MULTI');
-      statusEl.textContent = '⚠ Multiple people in frame — only the account holder should authorize.';
+      statusEl.textContent =
+        '⚠ Multiple people in frame — only the account holder should authorize.';
       msg.textContent = 'Security alert: unauthorized person present.';
-      msg.className   = 'modal-msg err';
+      msg.className = 'modal-msg err';
       return;
     }
 
@@ -583,7 +673,7 @@ async function launchBiometricGate(title, lead) {
       return;
     }
 
-    const dist    = bestMatch(storedDescriptors, live);
+    const dist = bestMatch(storedDescriptors, live);
     const matched = dist < MATCH_THRESHOLD;
     drawOverlay(overlayCanvas, video, detections, matched ? 'GOOD' : 'BAD');
 
@@ -591,8 +681,9 @@ async function launchBiometricGate(title, lead) {
       consecutiveMatches = 0;
       const pct = Math.max(0, Math.round((1 - dist / MATCH_THRESHOLD) * 100));
       statusEl.textContent = `❌ Not recognized (${pct}% match) — account holder must authorize.`;
-      msg.textContent = 'Wrong person detected. Only the registered account holder can authorize transactions.';
-      msg.className   = 'modal-msg err';
+      msg.textContent =
+        'Wrong person detected. Only the registered account holder can authorize transactions.';
+      msg.className = 'modal-msg err';
       return;
     }
 
@@ -611,40 +702,56 @@ async function launchBiometricGate(title, lead) {
 
 async function _serverVerifyTransaction(liveDescriptor, overlayCanvas, video, detections) {
   const statusEl = document.getElementById('verify-scan-status');
-  const msg      = document.getElementById('verify-msg');
-  if (!currentUser) { msg.textContent = 'Session expired.'; return; }
+  const msg = document.getElementById('verify-msg');
+  if (!currentUser) {
+    msg.textContent = 'Session expired.';
+    return;
+  }
   try {
     const verifyRes = await window.iCashApi.verifyBiometric({
       liveDescriptor: Array.from(liveDescriptor),
-      userId: currentUser.id
+      userId: currentUser.id,
     });
     if (!verifyRes.matched || verifyRes.confidence < 0.35) {
       drawOverlay(overlayCanvas, video, detections, 'BAD');
       statusEl.textContent = '❌ Biometric mismatch — unauthorized.';
       msg.textContent = 'Access denied. Only the account holder may authorize transactions.';
-      msg.className   = 'modal-msg err';
+      msg.className = 'modal-msg err';
       return;
     }
     statusEl.textContent = '✅ Authorized — executing…';
     await _finalizeVerify();
   } catch (err) {
     msg.textContent = err.message || 'Authorization failed.';
-    msg.className   = 'modal-msg err';
+    msg.className = 'modal-msg err';
   }
 }
 
 // Fallback: manual button when models failed
 async function captureVerifyFace() {
   const statusEl = document.getElementById('verify-scan-status');
-  const msg      = document.getElementById('verify-msg');
+  const msg = document.getElementById('verify-msg');
   statusEl.textContent = 'Verifying…';
   const video = document.getElementById('verify-video');
   let detections;
   try {
-    detections = await faceapi.detectAllFaces(video, _getDetectOptions()).withFaceLandmarks().withFaceDescriptors();
-  } catch { detections = []; }
-  if (!detections || detections.length === 0) { msg.textContent = '⚠ No face detected.'; msg.className = 'modal-msg err'; return; }
-  if (detections.length > 1) { msg.textContent = '⚠ Multiple faces — only account holder should be present.'; msg.className = 'modal-msg err'; return; }
+    detections = await faceapi
+      .detectAllFaces(video, _getDetectOptions())
+      .withFaceLandmarks()
+      .withFaceDescriptors();
+  } catch {
+    detections = [];
+  }
+  if (!detections || detections.length === 0) {
+    msg.textContent = '⚠ No face detected.';
+    msg.className = 'modal-msg err';
+    return;
+  }
+  if (detections.length > 1) {
+    msg.textContent = '⚠ Multiple faces — only account holder should be present.';
+    msg.className = 'modal-msg err';
+    return;
+  }
   const oc = document.getElementById('verify-overlay-canvas');
   await _serverVerifyTransaction(detections[0].descriptor, oc, video, detections);
 }
@@ -657,7 +764,7 @@ async function _finalizeVerify() {
     closeModal('verify');
   } catch (err) {
     msg.textContent = err.message || 'Transaction authorization failed.';
-    msg.className   = 'modal-msg err';
+    msg.className = 'modal-msg err';
   }
 }
 

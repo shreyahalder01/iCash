@@ -9,8 +9,8 @@ const authLimiter = rateLimit({
   message: {
     ok: false,
     error: 'TooManyRequests',
-    message: 'Too many authentication attempts. Please wait 15 minutes before trying again.'
-  }
+    message: 'Too many authentication attempts. Please wait 15 minutes before trying again.',
+  },
 });
 
 // Sensitive transactions rate limiter
@@ -22,8 +22,8 @@ const transactionLimiter = rateLimit({
   message: {
     ok: false,
     error: 'TooManyRequests',
-    message: 'Rate limit exceeded for financial operations. Please wait a few minutes.'
-  }
+    message: 'Rate limit exceeded for financial operations. Please wait a few minutes.',
+  },
 });
 
 // General API rate limiter
@@ -35,12 +35,12 @@ const generalApiLimiter = rateLimit({
   message: {
     ok: false,
     error: 'TooManyRequests',
-    message: 'Too many requests. Please slow down.'
-  }
+    message: 'Too many requests. Please slow down.',
+  },
 });
 
 module.exports = {
   authLimiter,
   transactionLimiter,
-  generalApiLimiter
+  generalApiLimiter,
 };

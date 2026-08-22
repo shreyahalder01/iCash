@@ -11,11 +11,15 @@ describe('User Account Isolation Tests', () => {
   beforeAll(async () => {
     // Look up Sidd Paul (User A)
     userA = await prisma.user.findFirst({ where: { phone: '9876543210' } });
-    accountA = await prisma.bankAccount.findFirst({ where: { user_id: userA.id, is_primary: true } });
+    accountA = await prisma.bankAccount.findFirst({
+      where: { user_id: userA.id, is_primary: true },
+    });
 
     // Look up Ramesh Kumar (User B)
     userB = await prisma.user.findFirst({ where: { phone: '9811122233' } });
-    accountB = await prisma.bankAccount.findFirst({ where: { user_id: userB.id, is_primary: true } });
+    accountB = await prisma.bankAccount.findFirst({
+      where: { user_id: userB.id, is_primary: true },
+    });
 
     tokenA = signToken({ userId: userA.id, role: userA.role });
     tokenB = signToken({ userId: userB.id, role: userB.role });
@@ -32,7 +36,7 @@ describe('User Account Isolation Tests', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
-    const accountIds = res.body.accounts.map(a => a.id);
+    const accountIds = res.body.accounts.map((a) => a.id);
     expect(accountIds).toContain(accountA.id);
     expect(accountIds).not.toContain(accountB.id);
   });

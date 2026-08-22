@@ -1,6 +1,6 @@
 /**
  * Biometric Provider Interface & Abstraction
- * 
+ *
  * In this deployment, we implement:
  * 1. DemoBiometricProvider (Server-side Euclidean distance verification on 128D facial feature vectors)
  * 2. ProductionBiometricProvider (Stub/Interface for UIDAI RD Service or certified biometric HSM)
@@ -40,7 +40,7 @@ class DemoBiometricProvider extends IBiometricProvider {
     return {
       provider: this.name,
       reference,
-      descriptors: descriptors || []
+      descriptors: descriptors || [],
     };
   }
 
@@ -50,7 +50,7 @@ class DemoBiometricProvider extends IBiometricProvider {
         matched: false,
         confidence: 0,
         distance: Infinity,
-        reason: 'No biometric profile found for comparison.'
+        reason: 'No biometric profile found for comparison.',
       };
     }
 
@@ -59,7 +59,7 @@ class DemoBiometricProvider extends IBiometricProvider {
         matched: false,
         confidence: 0,
         distance: Infinity,
-        reason: 'Invalid live biometric descriptor format.'
+        reason: 'Invalid live biometric descriptor format.',
       };
     }
 
@@ -72,13 +72,13 @@ class DemoBiometricProvider extends IBiometricProvider {
     }
 
     const matched = minDistance < this.matchThreshold;
-    const confidence = Math.max(0, Math.min(1, 1 - (minDistance / this.matchThreshold)));
+    const confidence = Math.max(0, Math.min(1, 1 - minDistance / this.matchThreshold));
 
     return {
       matched,
       distance: Number(minDistance.toFixed(4)),
       confidence: Number(confidence.toFixed(4)),
-      provider: this.name
+      provider: this.name,
     };
   }
 }
@@ -99,23 +99,29 @@ class ProductionBiometricProvider extends IBiometricProvider {
     return {
       provider: this.name,
       reference: `UIDAI_REF_${userId.slice(0, 8)}`,
-      descriptors: null // Raw biometric data is never stored in DB in production
+      descriptors: null, // Raw biometric data is never stored in DB in production
     };
   }
 
   async verify(storedReference, liveAuthToken) {
     // Real UIDAI Auth 2.5 API request via signed XML/JSON payload
-    throw new Error('Production UIDAI integration requires active license and certified HSM token.');
+    throw new Error(
+      'Production UIDAI integration requires active license and certified HSM token.'
+    );
   }
 }
 
 // Active provider selection
-const activeProvider = process.env.BIOMETRIC_PROVIDER === 'production'
-  ? new ProductionBiometricProvider(process.env.BIOMETRIC_PROVIDER_URL, process.env.BIOMETRIC_API_KEY)
-  : new DemoBiometricProvider(0.6);
+const activeProvider =
+  process.env.BIOMETRIC_PROVIDER === 'production'
+    ? new ProductionBiometricProvider(
+        process.env.BIOMETRIC_PROVIDER_URL,
+        process.env.BIOMETRIC_API_KEY
+      )
+    : new DemoBiometricProvider(0.6);
 
 module.exports = {
   biometricService: activeProvider,
   DemoBiometricProvider,
-  ProductionBiometricProvider
+  ProductionBiometricProvider,
 };

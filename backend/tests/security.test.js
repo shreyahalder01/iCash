@@ -23,7 +23,7 @@ describe('Security Events & Biometrics APIs', () => {
       .send({
         eventType: 'MULTIPLE_FACE_DETECTED',
         severity: 'HIGH',
-        description: 'Two faces detected during biometric scan.'
+        description: 'Two faces detected during biometric scan.',
       });
 
     expect(res.status).toBe(201);
@@ -32,8 +32,8 @@ describe('Security Events & Biometrics APIs', () => {
     const saved = await prisma.securityEvent.findFirst({
       where: {
         user_id: regularUser.id,
-        event_type: 'MULTIPLE_FACE_DETECTED'
-      }
+        event_type: 'MULTIPLE_FACE_DETECTED',
+      },
     });
     expect(saved).not.toBeNull();
     expect(saved.severity).toBe('HIGH');
@@ -59,7 +59,7 @@ describe('Security Events & Biometrics APIs', () => {
       .post('/api/biometric/enroll')
       .set('Cookie', [`icash_session=${userToken}`])
       .send({
-        descriptors: [mockVector]
+        descriptors: [mockVector],
       });
 
     expect(enrollRes.status).toBe(200);
@@ -70,7 +70,7 @@ describe('Security Events & Biometrics APIs', () => {
       .post('/api/biometric/verify')
       .set('Cookie', [`icash_session=${userToken}`])
       .send({
-        liveDescriptor: mockVector
+        liveDescriptor: mockVector,
       });
 
     expect(verifyRes.status).toBe(200);

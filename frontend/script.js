@@ -48,7 +48,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 // VIEW NAVIGATION & ROUTING
 // ============================================================
 function goTo(screenId) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.screen').forEach((s) => s.classList.remove('active'));
   const target = document.getElementById(screenId);
   if (target) {
     target.classList.add('active');
@@ -58,12 +58,14 @@ function goTo(screenId) {
 
 function switchView(viewName) {
   // Update sidebar active nav item
-  document.querySelectorAll('.app-sidebar .nav-item').forEach(btn => btn.classList.remove('active'));
+  document
+    .querySelectorAll('.app-sidebar .nav-item')
+    .forEach((btn) => btn.classList.remove('active'));
   const activeNav = document.getElementById(`nav-item-${viewName}`);
   if (activeNav) activeNav.classList.add('active');
 
   // Update content portal view
-  document.querySelectorAll('.portal-view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.portal-view').forEach((v) => v.classList.remove('active'));
   const targetView = document.getElementById(`view-${viewName}`);
   if (targetView) targetView.classList.add('active');
 
@@ -72,11 +74,20 @@ function switchView(viewName) {
     dashboard: { title: 'Dashboard', sub: 'Your complete financial overview' },
     accounts: { title: 'Account Portfolio', sub: 'Manage linked savings, current & virtual cards' },
     transfers: { title: 'Transfer Funds', sub: 'Instant biometric-authorized fund transfers' },
-    transactions: { title: 'Transaction Ledger', sub: 'Search, filter and audit all transaction records' },
+    transactions: {
+      title: 'Transaction Ledger',
+      sub: 'Search, filter and audit all transaction records',
+    },
     payments: { title: 'Payments & Bills', sub: 'Point of sale checkouts & utilities' },
-    security: { title: 'Biometric Security Hub', sub: '128D neural vector status & active sessions' },
+    security: {
+      title: 'Biometric Security Hub',
+      sub: '128D neural vector status & active sessions',
+    },
     support: { title: 'Help & Grievances', sub: 'Customer protection & dispute resolution' },
-    profile: { title: 'Profile & Settings', sub: 'Customer identity, e-KYC reference & preferences' }
+    profile: {
+      title: 'Profile & Settings',
+      sub: 'Customer identity, e-KYC reference & preferences',
+    },
   };
 
   const meta = titles[viewName] || { title: 'Banking Portal', sub: 'Secure Biometric Banking' };
@@ -133,7 +144,7 @@ function closeCommandPalette() {
 function handleCommandInput(query) {
   const q = query.toLowerCase().trim();
   const items = document.querySelectorAll('.command-results-list .command-item');
-  items.forEach(item => {
+  items.forEach((item) => {
     const text = item.textContent.toLowerCase();
     item.style.display = text.includes(q) ? 'flex' : 'none';
   });
@@ -151,11 +162,11 @@ function closeDrawer(drawerName) {
 }
 
 function closeAllDrawers() {
-  document.querySelectorAll('.drawer-backdrop').forEach(d => d.classList.remove('active'));
+  document.querySelectorAll('.drawer-backdrop').forEach((d) => d.classList.remove('active'));
 }
 
 function showTransactionDetails(txId) {
-  const tx = currentTransactions.find(t => t.id === txId || t.referenceNumber === txId);
+  const tx = currentTransactions.find((t) => t.id === txId || t.referenceNumber === txId);
   if (!tx) return;
 
   const isPos = tx.type === 'DEPOSIT' || tx.type === 'REFUND';
@@ -166,9 +177,13 @@ function showTransactionDetails(txId) {
 
   document.getElementById('drawer-tx-ref').textContent = tx.referenceNumber || tx.id;
   document.getElementById('drawer-tx-desc').textContent = tx.description || 'Banking Transaction';
-  document.getElementById('drawer-tx-date').textContent = new Date(tx.createdAt || Date.now()).toLocaleString('en-IN');
-  document.getElementById('drawer-tx-acc').textContent = tx.account ? `${tx.account.bankName} (${tx.account.accountNumberMasked})` : 'Primary Digital Account';
-  
+  document.getElementById('drawer-tx-date').textContent = new Date(
+    tx.createdAt || Date.now()
+  ).toLocaleString('en-IN');
+  document.getElementById('drawer-tx-acc').textContent = tx.account
+    ? `${tx.account.bankName} (${tx.account.accountNumberMasked})`
+    : 'Primary Digital Account';
+
   const statusEl = document.getElementById('drawer-tx-status');
   statusEl.textContent = `${tx.status || 'COMPLETED'} ✓`;
   statusEl.className = `status-badge ${(tx.status || 'completed').toLowerCase()}`;
@@ -188,7 +203,7 @@ function closeModal(modalId) {
 }
 
 function closeAllModals() {
-  document.querySelectorAll('.modal-backdrop').forEach(m => m.classList.remove('active'));
+  document.querySelectorAll('.modal-backdrop').forEach((m) => m.classList.remove('active'));
 }
 
 function setAmt(action, val) {
@@ -260,16 +275,41 @@ async function proceedToBiometrics() {
   const dobVal = document.getElementById('reg-dob').value;
   const msg = document.getElementById('reg-msg');
 
-  if (!name || name.length < 2) { msg.textContent = 'Please enter your full name.'; msg.className = 'modal-msg err'; return; }
-  if (aadhaar.length !== 12 || !/^\d{12}$/.test(aadhaar)) { msg.textContent = 'Enter a valid 12-digit Aadhaar number.'; msg.className = 'modal-msg err'; return; }
-  if (!/^\d{10}$/.test(mobile)) { msg.textContent = 'Enter a valid 10-digit mobile number.'; msg.className = 'modal-msg err'; return; }
-  if (!/^\d{4}$/.test(pin)) { msg.textContent = 'Primary PIN must be 4 digits.'; msg.className = 'modal-msg err'; return; }
-  if (!/^\d{4}$/.test(emergencyPin)) { msg.textContent = 'Emergency Duress PIN must be 4 digits.'; msg.className = 'modal-msg err'; return; }
-  if (pin === emergencyPin) { msg.textContent = 'Emergency PIN must be different from primary PIN.'; msg.className = 'modal-msg err'; return; }
+  if (!name || name.length < 2) {
+    msg.textContent = 'Please enter your full name.';
+    msg.className = 'modal-msg err';
+    return;
+  }
+  if (aadhaar.length !== 12 || !/^\d{12}$/.test(aadhaar)) {
+    msg.textContent = 'Enter a valid 12-digit Aadhaar number.';
+    msg.className = 'modal-msg err';
+    return;
+  }
+  if (!/^\d{10}$/.test(mobile)) {
+    msg.textContent = 'Enter a valid 10-digit mobile number.';
+    msg.className = 'modal-msg err';
+    return;
+  }
+  if (!/^\d{4}$/.test(pin)) {
+    msg.textContent = 'Primary PIN must be 4 digits.';
+    msg.className = 'modal-msg err';
+    return;
+  }
+  if (!/^\d{4}$/.test(emergencyPin)) {
+    msg.textContent = 'Emergency Duress PIN must be 4 digits.';
+    msg.className = 'modal-msg err';
+    return;
+  }
+  if (pin === emergencyPin) {
+    msg.textContent = 'Emergency PIN must be different from primary PIN.';
+    msg.className = 'modal-msg err';
+    return;
+  }
 
   const age = dobVal ? computeAge(dobVal) : null;
   const isSenior = age !== null && age >= 60;
-  let contactName = '', contactPhone = '';
+  let contactName = '',
+    contactPhone = '';
   if (isSenior) {
     contactName = document.getElementById('reg-emergency-contact-name').value.trim();
     contactPhone = document.getElementById('reg-emergency-contact-phone').value.trim();
@@ -285,7 +325,7 @@ async function proceedToBiometrics() {
     emergencyPin,
     isSenior,
     emergencyContactName: contactName,
-    emergencyContactPhone: contactPhone
+    emergencyContactPhone: contactPhone,
   };
 
   goTo('screen-register-scan');
@@ -297,7 +337,6 @@ async function proceedToOtp() {
   return proceedToBiometrics();
 }
 
-
 // ============================================================
 // SHARED OTP LOGIC
 // ============================================================
@@ -307,9 +346,12 @@ function maskMobile(mobile) {
 }
 
 async function startOtpFlow(purpose, mobile) {
-  document.getElementById('otp-eyebrow').textContent = purpose === 'register' ? 'Step 2 of 3 · Mobile OTP' : 'Step 2 of 4 · Mobile OTP';
+  document.getElementById('otp-eyebrow').textContent =
+    purpose === 'register' ? 'Step 2 of 3 · Mobile OTP' : 'Step 2 of 4 · Mobile OTP';
   document.getElementById('otp-mobile-display').textContent = maskMobile(mobile);
-  OTP_DIGIT_IDS.forEach(id => { document.getElementById(id).value = ''; });
+  OTP_DIGIT_IDS.forEach((id) => {
+    document.getElementById(id).value = '';
+  });
 
   const smsBanner = document.getElementById('otp-sms-banner');
   if (smsBanner) smsBanner.style.display = 'none';
@@ -351,7 +393,10 @@ function startOtpCountdown() {
 
 function updateOtpCountdown() {
   const el = document.getElementById('otp-countdown');
-  if (!pendingOtp) { clearInterval(otpCountdownTimer); return; }
+  if (!pendingOtp) {
+    clearInterval(otpCountdownTimer);
+    return;
+  }
   const remaining = pendingOtp.expiresAt - Date.now();
   if (remaining <= 0) {
     el.textContent = 'Code expired — please request a new code';
@@ -372,7 +417,10 @@ function startResendCooldown() {
   otpResendTimer = setInterval(() => {
     remaining--;
     btn.textContent = remaining > 0 ? `Resend Code (${remaining}s)` : 'Resend Code';
-    if (remaining <= 0) { clearInterval(otpResendTimer); btn.disabled = false; }
+    if (remaining <= 0) {
+      clearInterval(otpResendTimer);
+      btn.disabled = false;
+    }
   }, 1000);
 }
 
@@ -384,15 +432,23 @@ async function resendOtp() {
 async function verifyOtpCode() {
   const msg = document.getElementById('otp-msg');
   if (!pendingOtp) return;
-  const entered = OTP_DIGIT_IDS.map(id => document.getElementById(id).value).join('');
-  if (entered.length < 6) { msg.textContent = 'Enter all 6 digits.'; msg.className = 'modal-msg err'; return; }
+  const entered = OTP_DIGIT_IDS.map((id) => document.getElementById(id).value).join('');
+  if (entered.length < 6) {
+    msg.textContent = 'Enter all 6 digits.';
+    msg.className = 'modal-msg err';
+    return;
+  }
 
   msg.textContent = 'Verifying security code…';
   msg.className = 'modal-msg';
 
   try {
     const res = await window.iCashApi.verifyOtp(pendingOtp.mobile, pendingOtp.purpose, entered);
-    if (!res.ok) { msg.textContent = res.reason || res.error || 'Incorrect code.'; msg.className = 'modal-msg err'; return; }
+    if (!res.ok) {
+      msg.textContent = res.reason || res.error || 'Incorrect code.';
+      msg.className = 'modal-msg err';
+      return;
+    }
 
     msg.textContent = 'Mobile verified ✓';
     msg.className = 'modal-msg ok';
@@ -444,7 +500,9 @@ function initOtpDigitInputs() {
       if (el.value && idx < OTP_DIGIT_IDS.length - 1) {
         document.getElementById(OTP_DIGIT_IDS[idx + 1])?.focus();
       }
-      const allFilled = OTP_DIGIT_IDS.every(did => document.getElementById(did).value.length === 1);
+      const allFilled = OTP_DIGIT_IDS.every(
+        (did) => document.getElementById(did).value.length === 1
+      );
       if (allFilled) {
         verifyOtpCode();
       }
@@ -486,40 +544,55 @@ function cameraErrorMessage(err) {
     case 'OverconstrainedError':
       return 'Your camera does not support the requested resolution. Retrying with default settings may help.';
     case 'SecurityError':
-      return 'Camera access was blocked by your browser\'s security settings for this site.';
+      return "Camera access was blocked by your browser's security settings for this site.";
     default:
       return 'Camera not available. Please allow permissions and retry.';
   }
 }
 
 async function startCamera(videoEl, errEl) {
-  if (errEl) { errEl.textContent = ''; errEl.classList.remove('active'); }
+  if (errEl) {
+    errEl.textContent = '';
+    errEl.classList.remove('active');
+  }
 
   if (!window.isSecureContext) {
     const err = new Error('INSECURE_CONTEXT');
-    if (errEl) { errEl.textContent = cameraErrorMessage(err); errEl.classList.add('active'); }
+    if (errEl) {
+      errEl.textContent = cameraErrorMessage(err);
+      errEl.classList.add('active');
+    }
     throw err;
   }
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     const err = new Error('NO_MEDIA_API');
-    if (errEl) { errEl.textContent = cameraErrorMessage(err); errEl.classList.add('active'); }
+    if (errEl) {
+      errEl.textContent = cameraErrorMessage(err);
+      errEl.classList.add('active');
+    }
     throw err;
   }
 
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' }, audio: false });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: 640, height: 480, facingMode: 'user' },
+      audio: false,
+    });
     videoEl.srcObject = stream;
     return stream;
   } catch (err) {
     console.error('Camera access failed:', err.name, err.message);
-    if (errEl) { errEl.textContent = cameraErrorMessage(err); errEl.classList.add('active'); }
+    if (errEl) {
+      errEl.textContent = cameraErrorMessage(err);
+      errEl.classList.add('active');
+    }
     throw err;
   }
 }
 
 function stopCamera(videoEl) {
   if (videoEl && videoEl.srcObject) {
-    videoEl.srcObject.getTracks().forEach(track => track.stop());
+    videoEl.srcObject.getTracks().forEach((track) => track.stop());
     videoEl.srcObject = null;
   }
 }
@@ -535,13 +608,15 @@ async function verifyAadhaarLogin() {
     statusDiv.innerHTML = '<span style="color:var(--alert);font-size:12px;">Enter 4 digits.</span>';
     return;
   }
-  statusDiv.innerHTML = '<span style="color:var(--text-muted);font-size:12px;">Verifying records…</span>';
+  statusDiv.innerHTML =
+    '<span style="color:var(--text-muted);font-size:12px;">Verifying records…</span>';
 
   try {
     const res = await window.iCashApi.loginAadhaar({ aadhaarLast4: last4 });
     const matchingUsers = res.users || [];
     if (matchingUsers.length === 0) {
-      statusDiv.innerHTML = '<span style="color:var(--alert);font-size:12px;">No account found with this record.</span>';
+      statusDiv.innerHTML =
+        '<span style="color:var(--alert);font-size:12px;">No account found with this record.</span>';
       return;
     }
     const targetUser = matchingUsers[0];
@@ -579,7 +654,10 @@ async function submitLoginPin() {
   const pin = document.getElementById('login-pin-input').value.trim();
   const msg = document.getElementById('login-pin-msg');
   const u = pendingLoginUser;
-  if (!u) { goTo('screen-welcome'); return; }
+  if (!u) {
+    goTo('screen-welcome');
+    return;
+  }
 
   msg.textContent = 'Authenticating…';
   msg.className = 'modal-msg';
@@ -589,7 +667,8 @@ async function submitLoginPin() {
     if (res.ok && res.user) {
       currentUser = res.user;
       pendingLoginUser = null;
-      if (res.isDuress) showAlertToast('🚨 Emergency access mode activated · silent alert logged.', true);
+      if (res.isDuress)
+        showAlertToast('🚨 Emergency access mode activated · silent alert logged.', true);
       enterDashboard();
     }
   } catch (err) {
@@ -662,8 +741,9 @@ async function loadDashboardData() {
   document.getElementById('top-user-name').textContent = currentUser.name;
   document.getElementById('top-avatar').textContent = initials(currentUser.name);
   document.getElementById('dash-masked-phone').textContent = `Mobile: +91 ${currentUser.phone}`;
-  document.getElementById('dash-masked-aadhaar').textContent = `Aadhaar: •••• ${currentUser.aadhaarLast4}`;
-  
+  document.getElementById('dash-masked-aadhaar').textContent =
+    `Aadhaar: •••• ${currentUser.aadhaarLast4}`;
+
   if (currentUser.isSenior) {
     document.getElementById('dash-senior-tag').style.display = 'inline-block';
   }
@@ -673,11 +753,12 @@ async function loadDashboardData() {
     const accRes = await window.iCashApi.getAccounts();
     currentAccounts = accRes.accounts || [];
 
-    const primaryAcc = currentAccounts.find(a => a.isPrimary) || currentAccounts[0] || {
-      balance: 15000,
-      bankName: 'iCash Federal Digital Bank',
-      accountNumberMasked: '•••• 6926'
-    };
+    const primaryAcc = currentAccounts.find((a) => a.isPrimary) ||
+      currentAccounts[0] || {
+        balance: 15000,
+        bankName: 'iCash Federal Digital Bank',
+        accountNumberMasked: '•••• 6926',
+      };
 
     renderBalanceHero(primaryAcc);
     renderAccountsGrid(currentAccounts);
@@ -712,7 +793,8 @@ function toggleBalanceVisibility() {
   isBalanceHidden = !isBalanceHidden;
   const eyeBtn = document.getElementById('balance-eye-btn');
   eyeBtn.textContent = isBalanceHidden ? '🙈' : '👁️';
-  const primaryAcc = currentAccounts.find(a => a.isPrimary) || currentAccounts[0] || { balance: 15000 };
+  const primaryAcc = currentAccounts.find((a) => a.isPrimary) ||
+    currentAccounts[0] || { balance: 15000 };
   renderBalanceHero(primaryAcc);
 }
 
@@ -720,9 +802,10 @@ function renderInsightCards(balance, transactions, linkedCount) {
   let moneyIn = 0;
   let moneyOut = 0;
 
-  transactions.forEach(t => {
+  transactions.forEach((t) => {
     if (t.type === 'DEPOSIT' || t.type === 'REFUND') moneyIn += Number(t.amount);
-    if (t.type === 'WITHDRAWAL' || t.type === 'TRANSFER' || t.type === 'PAYMENT') moneyOut += Number(t.amount);
+    if (t.type === 'WITHDRAWAL' || t.type === 'TRANSFER' || t.type === 'PAYMENT')
+      moneyOut += Number(t.amount);
   });
 
   if (moneyIn === 0) moneyIn = 12500;
@@ -730,8 +813,11 @@ function renderInsightCards(balance, transactions, linkedCount) {
 
   document.getElementById('dash-money-in').textContent = fmtMoney(moneyIn);
   document.getElementById('dash-money-out').textContent = fmtMoney(moneyOut);
-  document.getElementById('dash-available-bal').textContent = isBalanceHidden ? '₹ ••••••' : fmtMoney(balance);
-  document.getElementById('dash-linked-count').textContent = `${linkedCount} ${linkedCount === 1 ? 'Account' : 'Accounts'}`;
+  document.getElementById('dash-available-bal').textContent = isBalanceHidden
+    ? '₹ ••••••'
+    : fmtMoney(balance);
+  document.getElementById('dash-linked-count').textContent =
+    `${linkedCount} ${linkedCount === 1 ? 'Account' : 'Accounts'}`;
 }
 
 function renderAccountsGrid(accounts) {
@@ -739,17 +825,20 @@ function renderAccountsGrid(accounts) {
   const pageContainer = document.getElementById('accounts-page-grid');
 
   if (accounts.length === 0) {
-    const emptyHtml = '<div class="empty">No linked bank accounts found. Link an account to start.</div>';
+    const emptyHtml =
+      '<div class="empty">No linked bank accounts found. Link an account to start.</div>';
     if (container) container.innerHTML = emptyHtml;
     if (pageContainer) pageContainer.innerHTML = emptyHtml;
     return;
   }
 
-  const html = accounts.map(a => `
+  const html = accounts
+    .map(
+      (a) => `
     <div class="account-card-box">
       <div class="acc-card-top">
         <div class="acc-bank-info">
-          <div class="acc-logo-pill">${a.accountType === 'SAVINGS' ? 'S' : (a.accountType === 'CURRENT' ? 'C' : 'V')}</div>
+          <div class="acc-logo-pill">${a.accountType === 'SAVINGS' ? 'S' : a.accountType === 'CURRENT' ? 'C' : 'V'}</div>
           <div>
             <div class="acc-name-label">${a.bankName} ${a.isPrimary ? '<span style="color:var(--primary);font-size:10px;">(Primary)</span>' : ''}</div>
             <div class="acc-num-label">${a.accountNumberMasked} · ${a.accountType}</div>
@@ -763,7 +852,9 @@ function renderAccountsGrid(accounts) {
         <button class="mini-btn" onclick="switchView('transfers')">Transfer</button>
       </div>
     </div>
-  `).join('');
+  `
+    )
+    .join('');
 
   if (container) container.innerHTML = html;
   if (pageContainer) pageContainer.innerHTML = html;
@@ -774,7 +865,9 @@ function renderAccountsGrid(accounts) {
 // ============================================================
 function filterTransactions(type, chipEl) {
   currentFilterType = type;
-  document.querySelectorAll('.table-filter-bar .filter-chip').forEach(c => c.classList.remove('active'));
+  document
+    .querySelectorAll('.table-filter-bar .filter-chip')
+    .forEach((c) => c.classList.remove('active'));
   if (chipEl) chipEl.classList.add('active');
 
   applyTransactionFilters();
@@ -786,11 +879,12 @@ function handleTransactionSearch(query) {
 }
 
 function applyTransactionFilters() {
-  filteredTransactions = currentTransactions.filter(t => {
-    const matchesType = (currentFilterType === 'ALL') || (t.type === currentFilterType);
+  filteredTransactions = currentTransactions.filter((t) => {
+    const matchesType = currentFilterType === 'ALL' || t.type === currentFilterType;
     const desc = (t.description || '').toLowerCase();
     const ref = (t.referenceNumber || t.id || '').toLowerCase();
-    const matchesSearch = !currentSearchQuery || desc.includes(currentSearchQuery) || ref.includes(currentSearchQuery);
+    const matchesSearch =
+      !currentSearchQuery || desc.includes(currentSearchQuery) || ref.includes(currentSearchQuery);
     return matchesType && matchesSearch;
   });
 
@@ -803,7 +897,8 @@ function renderTransactionsTable() {
   const allTbody = document.getElementById('all-tx-table-body');
 
   if (filteredTransactions.length === 0) {
-    const empty = '<tr><td colspan="6" class="empty">No matching transactions found in ledger.</td></tr>';
+    const empty =
+      '<tr><td colspan="6" class="empty">No matching transactions found in ledger.</td></tr>';
     if (tbody) tbody.innerHTML = empty;
     if (allTbody) allTbody.innerHTML = empty;
     return;
@@ -814,12 +909,15 @@ function renderTransactionsTable() {
 
   const icons = { TRANSFER: '↗', WITHDRAWAL: '↓', DEPOSIT: '✨', PAYMENT: '💳', REFUND: '↺' };
 
-  const rowsHtml = pageItems.map(t => {
-    const isPos = t.type === 'DEPOSIT' || t.type === 'REFUND';
-    const sign = isPos ? '+' : '-';
-    const accLabel = t.account ? `${t.account.bankName} (${t.account.accountNumberMasked})` : 'Primary Digital Account';
+  const rowsHtml = pageItems
+    .map((t) => {
+      const isPos = t.type === 'DEPOSIT' || t.type === 'REFUND';
+      const sign = isPos ? '+' : '-';
+      const accLabel = t.account
+        ? `${t.account.bankName} (${t.account.accountNumberMasked})`
+        : 'Primary Digital Account';
 
-    return `
+      return `
       <tr onclick="showTransactionDetails('${t.id || t.referenceNumber}')">
         <td>
           <div class="tx-entity-cell">
@@ -849,7 +947,8 @@ function renderTransactionsTable() {
         </td>
       </tr>
     `;
-  }).join('');
+    })
+    .join('');
 
   if (tbody) tbody.innerHTML = rowsHtml;
   if (allTbody) allTbody.innerHTML = rowsHtml;
@@ -881,7 +980,7 @@ function exportStatement() {
   }
 
   let csv = 'Transaction ID,Date,Description,Type,Amount,Status\n';
-  currentTransactions.forEach(t => {
+  currentTransactions.forEach((t) => {
     csv += `"${t.referenceNumber || t.id}","${new Date(t.createdAt).toLocaleString('en-IN')}","${t.description || ''}","${t.type}","${t.amount}","${t.status}"\n`;
   });
 
@@ -900,9 +999,13 @@ function exportStatement() {
 function populateTransferSourceAccounts() {
   const select = document.getElementById('transfer-source-select');
   if (!select) return;
-  select.innerHTML = currentAccounts.map(a => `
+  select.innerHTML = currentAccounts
+    .map(
+      (a) => `
     <option value="${a.id}">${a.bankName} (${a.accountNumberMasked}) — ${fmtMoney(a.balance)}</option>
-  `).join('');
+  `
+    )
+    .join('');
 }
 
 function initiateTransferWorkflow() {
@@ -912,32 +1015,50 @@ function initiateTransferWorkflow() {
   const memo = document.getElementById('transfer-memo').value.trim();
   const msg = document.getElementById('transfer-msg');
 
-  if (!destName) { msg.textContent = 'Enter beneficiary name.'; msg.className = 'modal-msg err'; return; }
-  if (!amt || amt <= 0) { msg.textContent = 'Enter a valid transfer amount.'; msg.className = 'modal-msg err'; return; }
+  if (!destName) {
+    msg.textContent = 'Enter beneficiary name.';
+    msg.className = 'modal-msg err';
+    return;
+  }
+  if (!amt || amt <= 0) {
+    msg.textContent = 'Enter a valid transfer amount.';
+    msg.className = 'modal-msg err';
+    return;
+  }
 
   pendingVerificationAction = {
     type: 'TRANSFER',
     amount: amt,
     description: `Transfer to ${destName}${memo ? ` (${memo})` : ''}`,
-    sourceAccountId: sourceId
+    sourceAccountId: sourceId,
   };
 
-  launchBiometricGate('Transfer Authorization', `Authorize instant transfer of ${fmtMoney(amt)} to ${destName}`);
+  launchBiometricGate(
+    'Transfer Authorization',
+    `Authorize instant transfer of ${fmtMoney(amt)} to ${destName}`
+  );
 }
 
 function confirmWithdraw() {
   const amt = Number(document.getElementById('withdraw-amt').value);
   const msg = document.getElementById('withdraw-msg');
-  if (!amt || amt <= 0) { msg.textContent = 'Enter a valid withdrawal amount.'; msg.className = 'modal-msg err'; return; }
+  if (!amt || amt <= 0) {
+    msg.textContent = 'Enter a valid withdrawal amount.';
+    msg.className = 'modal-msg err';
+    return;
+  }
 
   closeModal('withdraw');
   pendingVerificationAction = {
     type: 'WITHDRAWAL',
     amount: amt,
-    description: 'ATM Cash Withdrawal'
+    description: 'ATM Cash Withdrawal',
   };
 
-  launchBiometricGate('Withdrawal Authorization', `Authorize ATM cash withdrawal of ${fmtMoney(amt)}`);
+  launchBiometricGate(
+    'Withdrawal Authorization',
+    `Authorize ATM cash withdrawal of ${fmtMoney(amt)}`
+  );
 }
 
 function confirmSend() {
@@ -945,17 +1066,28 @@ function confirmSend() {
   const amt = Number(document.getElementById('send-amt').value);
   const msg = document.getElementById('send-msg');
 
-  if (!name) { msg.textContent = 'Enter beneficiary name.'; msg.className = 'modal-msg err'; return; }
-  if (!amt || amt <= 0) { msg.textContent = 'Enter amount.'; msg.className = 'modal-msg err'; return; }
+  if (!name) {
+    msg.textContent = 'Enter beneficiary name.';
+    msg.className = 'modal-msg err';
+    return;
+  }
+  if (!amt || amt <= 0) {
+    msg.textContent = 'Enter amount.';
+    msg.className = 'modal-msg err';
+    return;
+  }
 
   closeModal('send');
   pendingVerificationAction = {
     type: 'TRANSFER',
     amount: amt,
-    description: `Instant P2P Transfer to ${name}`
+    description: `Instant P2P Transfer to ${name}`,
   };
 
-  launchBiometricGate('P2P Transfer Authorization', `Authorize transfer of ${fmtMoney(amt)} to ${name}`);
+  launchBiometricGate(
+    'P2P Transfer Authorization',
+    `Authorize transfer of ${fmtMoney(amt)} to ${name}`
+  );
 }
 
 async function addDemoFunds() {
@@ -963,7 +1095,7 @@ async function addDemoFunds() {
     await window.iCashApi.createTransaction({
       type: 'DEPOSIT',
       amount: 5000,
-      description: 'Online Digital Deposit / Cash Top-up'
+      description: 'Online Digital Deposit / Cash Top-up',
     });
     showAlertToast('✨ ₹5,000 deposited successfully to your primary account.');
     loadDashboardData();
@@ -987,7 +1119,11 @@ function toggleVerifyPin() {
 async function submitVerifyPin() {
   const pin = document.getElementById('verify-pin-input').value.trim();
   const msg = document.getElementById('verify-msg');
-  if (!/^\d{4}$/.test(pin)) { msg.textContent = 'Enter 4-digit PIN.'; msg.className = 'modal-msg err'; return; }
+  if (!/^\d{4}$/.test(pin)) {
+    msg.textContent = 'Enter 4-digit PIN.';
+    msg.className = 'modal-msg err';
+    return;
+  }
 
   try {
     await executePendingAction();
@@ -1004,7 +1140,9 @@ async function executePendingAction() {
 
   const res = await window.iCashApi.createTransaction(pendingVerificationAction);
   if (res.ok) {
-    showAlertToast(`✓ ${pendingVerificationAction.description} of ${fmtMoney(pendingVerificationAction.amount)} authorized.`);
+    showAlertToast(
+      `✓ ${pendingVerificationAction.description} of ${fmtMoney(pendingVerificationAction.amount)} authorized.`
+    );
     pendingVerificationAction = null;
     loadDashboardData();
   }
@@ -1019,7 +1157,11 @@ async function submitAddAccount() {
   const bal = Number(document.getElementById('new-acc-bal').value) || 0;
   const msg = document.getElementById('add-acc-msg');
 
-  if (!bank) { msg.textContent = 'Enter bank name.'; msg.className = 'modal-msg err'; return; }
+  if (!bank) {
+    msg.textContent = 'Enter bank name.';
+    msg.className = 'modal-msg err';
+    return;
+  }
 
   try {
     await window.iCashApi.createAccount({ bankName: bank, accountType: type, initialBalance: bal });
@@ -1047,7 +1189,11 @@ async function submitComplaint() {
   const desc = document.getElementById('complaint-desc').value.trim();
   const msg = document.getElementById('complaint-msg');
 
-  if (!subject || !desc) { msg.textContent = 'Enter subject and summary.'; msg.className = 'modal-msg err'; return; }
+  if (!subject || !desc) {
+    msg.textContent = 'Enter subject and summary.';
+    msg.className = 'modal-msg err';
+    return;
+  }
 
   try {
     await window.iCashApi.createComplaint({ subject, description: desc });
@@ -1065,10 +1211,13 @@ async function loadComplaintsList() {
     const res = await window.iCashApi.getMyComplaints();
     const tbody = document.getElementById('support-complaints-tbody');
     if (!res.complaints || res.complaints.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" class="empty">No active grievance tickets on record.</td></tr>';
+      tbody.innerHTML =
+        '<tr><td colspan="5" class="empty">No active grievance tickets on record.</td></tr>';
       return;
     }
-    tbody.innerHTML = res.complaints.map(c => `
+    tbody.innerHTML = res.complaints
+      .map(
+        (c) => `
       <tr>
         <td><strong>${c.subject}</strong></td>
         <td style="color:var(--text-muted);font-size:12px;">${c.description}</td>
@@ -1076,7 +1225,9 @@ async function loadComplaintsList() {
         <td style="font-family:var(--font-mono);font-size:11.5px;color:var(--text-faint);">${new Date(c.createdAt).toLocaleDateString('en-IN')}</td>
         <td style="font-size:12px;color:var(--primary);">${c.adminResponse || 'Under Review by Grievance Officer'}</td>
       </tr>
-    `).join('');
+    `
+      )
+      .join('');
   } catch (err) {
     console.error('Complaints load failed:', err);
   }
@@ -1087,17 +1238,31 @@ async function loadSecurityEvents() {
     const res = await window.iCashApi.getSecurityStatus();
     const tbody = document.getElementById('security-events-tbody');
     const logs = [
-      { type: 'BIOMETRIC_AUTH', desc: 'Face Descriptor Match Verified', severity: 'INFO', time: 'Just now' },
-      { type: 'SESSION_ENCRYPTION', desc: '256-Bit SSL/TLS Connection Established', severity: 'INFO', time: 'Today' }
+      {
+        type: 'BIOMETRIC_AUTH',
+        desc: 'Face Descriptor Match Verified',
+        severity: 'INFO',
+        time: 'Just now',
+      },
+      {
+        type: 'SESSION_ENCRYPTION',
+        desc: '256-Bit SSL/TLS Connection Established',
+        severity: 'INFO',
+        time: 'Today',
+      },
     ];
-    tbody.innerHTML = logs.map(l => `
+    tbody.innerHTML = logs
+      .map(
+        (l) => `
       <tr>
         <td><span style="font-family:var(--font-mono);font-weight:600;">${l.type}</span></td>
         <td style="color:var(--text-muted);">${l.desc}</td>
         <td><span class="status-badge completed">${l.severity}</span></td>
         <td style="font-family:var(--font-mono);font-size:11.5px;color:var(--text-faint);">${l.time}</td>
       </tr>
-    `).join('');
+    `
+      )
+      .join('');
   } catch (err) {
     console.error('Security events load failed:', err);
   }
@@ -1109,7 +1274,9 @@ function populateProfileView() {
   document.getElementById('prof-phone').textContent = `+91 ${currentUser.phone}`;
   document.getElementById('prof-aadhaar').textContent = `•••• ${currentUser.aadhaarLast4}`;
   document.getElementById('prof-role').textContent = currentUser.role;
-  document.getElementById('prof-senior').textContent = currentUser.isSenior ? 'Senior Assisted Banking Active' : 'Standard Customer';
+  document.getElementById('prof-senior').textContent = currentUser.isSenior
+    ? 'Senior Assisted Banking Active'
+    : 'Standard Customer';
 }
 
 function renderAccountsView() {
@@ -1154,7 +1321,8 @@ async function attemptDelegateWithdraw() {
     if (res.ok) {
       document.getElementById('delegate-success-detail').textContent =
         `₹${Number(res.amount).toLocaleString('en-IN')} successfully authorized and disbursed for senior account holder: ${name}.`;
-      document.getElementById('delegate-success-ref').textContent = `Disbursement Ref: ${res.transactionId || 'TXN_SETTLED'}`;
+      document.getElementById('delegate-success-ref').textContent =
+        `Disbursement Ref: ${res.transactionId || 'TXN_SETTLED'}`;
       goTo('screen-delegate-success');
     }
   } catch (err) {
@@ -1176,9 +1344,14 @@ async function submitPaymentRequest() {
   }
 
   try {
-    const res = await window.iCashApi.createPaymentRequest({ amount: amt, description: desc || 'POS Checkout' });
+    const res = await window.iCashApi.createPaymentRequest({
+      amount: amt,
+      description: desc || 'POS Checkout',
+    });
     closeModal('payment-request');
-    showAlertToast(`📱 POS Checkout Reference Generated: [ ${res.paymentRequest?.reference_code || 'POS_REF'} ]`);
+    showAlertToast(
+      `📱 POS Checkout Reference Generated: [ ${res.paymentRequest?.reference_code || 'POS_REF'} ]`
+    );
     loadMerchantPOSList();
   } catch (err) {
     msg.textContent = err.message || 'Failed to create payment request.';
@@ -1196,7 +1369,9 @@ async function loadMerchantPOSList() {
       container.innerHTML = '<div class="empty">No active checkout codes.</div>';
       return;
     }
-    container.innerHTML = reqs.map(r => `
+    container.innerHTML = reqs
+      .map(
+        (r) => `
       <div style="background:var(--bg-inset);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">
         <div>
           <strong>${r.description || 'POS Checkout'}</strong>
@@ -1204,7 +1379,9 @@ async function loadMerchantPOSList() {
         </div>
         <strong style="color:var(--success);">${fmtMoney(r.amount)}</strong>
       </div>
-    `).join('');
+    `
+      )
+      .join('');
   } catch (e) {
     container.innerHTML = '<div class="empty">POS gateway ready.</div>';
   }
@@ -1229,7 +1406,12 @@ function fmtMoney(amt) {
 
 function initials(name) {
   if (!name) return 'IC';
-  return name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+  return name
+    .split(' ')
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
 }
 
 let toastTimer = null;
@@ -1239,7 +1421,9 @@ function showAlertToast(msg, isErr = false) {
   toast.textContent = msg;
   toast.className = isErr ? 'err active' : 'active';
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { toast.classList.remove('active'); }, 4000);
+  toastTimer = setTimeout(() => {
+    toast.classList.remove('active');
+  }, 4000);
 }
 
 function createScanRingRenderer(canvas) {
@@ -1288,10 +1472,10 @@ function initThreeBackground() {
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
   const material = new THREE.PointsMaterial({
-    color: 0x2DD4BF,
+    color: 0x2dd4bf,
     size: 0.05,
     transparent: true,
-    opacity: 0.4
+    opacity: 0.4,
   });
 
   const particles = new THREE.Points(geometry, material);

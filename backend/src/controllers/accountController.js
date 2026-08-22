@@ -6,7 +6,7 @@ class AccountController {
       const accounts = await AccountService.getUserAccounts(req.user.id);
       res.json({
         ok: true,
-        accounts
+        accounts,
       });
     } catch (err) {
       next(err);
@@ -19,7 +19,7 @@ class AccountController {
       res.status(201).json({
         ok: true,
         message: 'Account linked successfully.',
-        account
+        account,
       });
     } catch (err) {
       next(err);
@@ -32,7 +32,7 @@ class AccountController {
       res.json({
         ok: true,
         message: 'Account updated successfully.',
-        account
+        account,
       });
     } catch (err) {
       next(err);
@@ -44,7 +44,7 @@ class AccountController {
       await AccountService.deleteAccount(req.user.id, req.params.id);
       res.json({
         ok: true,
-        message: 'Account closed successfully.'
+        message: 'Account closed successfully.',
       });
     } catch (err) {
       next(err);

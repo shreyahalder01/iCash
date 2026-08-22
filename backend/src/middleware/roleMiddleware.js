@@ -9,7 +9,7 @@ function requireRole(...allowedRoles) {
       return res.status(401).json({
         ok: false,
         error: 'Unauthorized',
-        message: 'Your secure session has expired. Please authenticate again.'
+        message: 'Your secure session has expired. Please authenticate again.',
       });
     }
 
@@ -17,7 +17,7 @@ function requireRole(...allowedRoles) {
       return res.status(403).json({
         ok: false,
         error: 'Forbidden',
-        message: 'You do not have authorization to access this banking resource.'
+        message: 'You do not have authorization to access this banking resource.',
       });
     }
 
@@ -26,5 +26,5 @@ function requireRole(...allowedRoles) {
 }
 
 module.exports = {
-  requireRole
+  requireRole,
 };

@@ -17,15 +17,15 @@ class BiometricController {
           biometric_provider: enrollment.provider,
           biometric_reference: enrollment.reference,
           enrollment_status: 'ENROLLED',
-          face_descriptors: enrollment.descriptors
+          face_descriptors: enrollment.descriptors,
         },
         create: {
           user_id: req.user.id,
           biometric_provider: enrollment.provider,
           biometric_reference: enrollment.reference,
           enrollment_status: 'ENROLLED',
-          face_descriptors: enrollment.descriptors
-        }
+          face_descriptors: enrollment.descriptors,
+        },
       });
 
       await SecurityService.recordEvent({
@@ -34,14 +34,14 @@ class BiometricController {
         severity: 'LOW',
         description: `Facial biometric profile updated with ${descriptors.length} sample(s).`,
         ipAddress: req.ip,
-        deviceReference: req.headers['user-agent']
+        deviceReference: req.headers['user-agent'],
       });
 
       res.json({
         ok: true,
         message: 'Biometric profile enrolled successfully.',
         provider: profile.biometric_provider,
-        reference: profile.biometric_reference
+        reference: profile.biometric_reference,
       });
     } catch (err) {
       next(err);
@@ -57,18 +57,21 @@ class BiometricController {
       const targetUserId = userId || (req.user && req.user.id);
 
       if (!targetUserId) {
-        return res.status(400).json({ ok: false, message: 'Target user identity is required for biometric verification.' });
+        return res.status(400).json({
+          ok: false,
+          message: 'Target user identity is required for biometric verification.',
+        });
       }
 
       const profile = await prisma.biometricProfile.findUnique({
-        where: { user_id: targetUserId }
+        where: { user_id: targetUserId },
       });
 
       if (!profile || !profile.face_descriptors) {
         return res.status(404).json({
           ok: false,
           matched: false,
-          message: 'No registered face template found for this user.'
+          message: 'No registered face template found for this user.',
         });
       }
 
@@ -81,7 +84,7 @@ class BiometricController {
           severity: 'LOW',
           description: `Live facial match confirmed (confidence: ${Math.round(verifyResult.confidence * 100)}%).`,
           ipAddress: req.ip,
-          deviceReference: req.headers['user-agent']
+          deviceReference: req.headers['user-agent'],
         });
       } else {
         await SecurityService.recordEvent({
@@ -90,7 +93,7 @@ class BiometricController {
           severity: 'MEDIUM',
           description: `Face verification failed — descriptor distance (${verifyResult.distance}) exceeded threshold.`,
           ipAddress: req.ip,
-          deviceReference: req.headers['user-agent']
+          deviceReference: req.headers['user-agent'],
         });
       }
 
@@ -99,7 +102,7 @@ class BiometricController {
         matched: verifyResult.matched,
         confidence: verifyResult.confidence,
         distance: verifyResult.distance,
-        provider: verifyResult.provider
+        provider: verifyResult.provider,
       });
     } catch (err) {
       next(err);
@@ -116,7 +119,7 @@ class BiometricController {
 
       const profile = await prisma.biometricProfile.findUnique({
         where: { user_id: userId },
-        select: { face_descriptors: true, enrollment_status: true }
+        select: { face_descriptors: true, enrollment_status: true },
       });
 
       if (!profile) {
@@ -126,7 +129,7 @@ class BiometricController {
       res.json({
         ok: true,
         enrolled: profile.enrollment_status === 'ENROLLED',
-        descriptors: profile.face_descriptors || []
+        descriptors: profile.face_descriptors || [],
       });
     } catch (err) {
       next(err);
@@ -135,4 +138,3 @@ class BiometricController {
 }
 
 module.exports = BiometricController;
-

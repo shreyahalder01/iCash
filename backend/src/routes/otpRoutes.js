@@ -12,8 +12,10 @@ function isValidPurpose(purpose) {
 
 router.post('/send', authLimiter, async (req, res) => {
   const { mobile, purpose } = req.body || {};
-  if (!isValidMobile(mobile)) return res.status(400).json({ ok: false, error: 'Mobile must be a 10-digit number.' });
-  if (!isValidPurpose(purpose)) return res.status(400).json({ ok: false, error: 'Purpose must be "register" or "login".' });
+  if (!isValidMobile(mobile))
+    return res.status(400).json({ ok: false, error: 'Mobile must be a 10-digit number.' });
+  if (!isValidPurpose(purpose))
+    return res.status(400).json({ ok: false, error: 'Purpose must be "register" or "login".' });
 
   try {
     const result = await issueOtp(purpose, mobile);
@@ -22,11 +24,13 @@ router.post('/send', authLimiter, async (req, res) => {
       expiresAt: result.expiresAt,
       devMode: result.devMode,
       code: result.code,
-      devCode: result.code
+      devCode: result.code,
     });
   } catch (err) {
     if (err.code === 'COOLDOWN') {
-      return res.status(429).json({ ok: false, error: err.message, retryAfterMs: err.retryAfterMs });
+      return res
+        .status(429)
+        .json({ ok: false, error: err.message, retryAfterMs: err.retryAfterMs });
     }
     console.error('OTP send failed:', err.message);
     res.status(502).json({ ok: false, error: 'Could not send OTP. Try again shortly.' });
@@ -35,8 +39,10 @@ router.post('/send', authLimiter, async (req, res) => {
 
 router.post('/verify', authLimiter, (req, res) => {
   const { mobile, purpose, code } = req.body || {};
-  if (!isValidMobile(mobile)) return res.status(400).json({ ok: false, error: 'Mobile must be a 10-digit number.' });
-  if (!isValidPurpose(purpose)) return res.status(400).json({ ok: false, error: 'Purpose must be "register" or "login".' });
+  if (!isValidMobile(mobile))
+    return res.status(400).json({ ok: false, error: 'Mobile must be a 10-digit number.' });
+  if (!isValidPurpose(purpose))
+    return res.status(400).json({ ok: false, error: 'Purpose must be "register" or "login".' });
   if (!code) return res.status(400).json({ ok: false, error: 'Code is required.' });
 
   const result = verifyOtp(purpose, mobile, code);

@@ -25,18 +25,18 @@ class AdminController {
               bank_name: true,
               account_number_masked: true,
               balance: true,
-              is_primary: true
-            }
-          }
-        }
+              is_primary: true,
+            },
+          },
+        },
       });
 
       res.json({
         ok: true,
-        users: users.map(u => ({
+        users: users.map((u) => ({
           ...u,
-          totalBalance: u.accounts.reduce((sum, a) => sum + Number(a.balance), 0)
-        }))
+          totalBalance: u.accounts.reduce((sum, a) => sum + Number(a.balance), 0),
+        })),
       });
     } catch (err) {
       next(err);
@@ -52,8 +52,10 @@ class AdminController {
           transactions: { take: 20, orderBy: { created_at: 'desc' } },
           security_events: { take: 20, orderBy: { created_at: 'desc' } },
           complaints: true,
-          biometric_profile: { select: { biometric_provider: true, enrollment_status: true, updated_at: true } }
-        }
+          biometric_profile: {
+            select: { biometric_provider: true, enrollment_status: true, updated_at: true },
+          },
+        },
       });
 
       if (!user) {
@@ -65,7 +67,7 @@ class AdminController {
 
       res.json({
         ok: true,
-        user: safeData
+        user: safeData,
       });
     } catch (err) {
       next(err);
@@ -86,8 +88,8 @@ class AdminController {
         data: {
           status,
           failed_login_attempts: status === 'ACTIVE' ? 0 : user.failed_login_attempts,
-          locked_until: status === 'ACTIVE' ? null : user.locked_until
-        }
+          locked_until: status === 'ACTIVE' ? null : user.locked_until,
+        },
       });
 
       await SecurityService.recordEvent({
@@ -96,13 +98,13 @@ class AdminController {
         severity: 'HIGH',
         description: `Admin (${req.user.full_name}) updated user status from ${user.status} to ${status}.`,
         ipAddress: req.ip,
-        deviceReference: req.headers['user-agent']
+        deviceReference: req.headers['user-agent'],
       });
 
       res.json({
         ok: true,
         message: `User status changed to ${status}.`,
-        user: { id: updated.id, status: updated.status }
+        user: { id: updated.id, status: updated.status },
       });
     } catch (err) {
       next(err);
@@ -116,13 +118,13 @@ class AdminController {
         take: 100,
         include: {
           user: { select: { full_name: true, phone: true, aadhaar_last4: true } },
-          account: { select: { bank_name: true, account_number_masked: true } }
-        }
+          account: { select: { bank_name: true, account_number_masked: true } },
+        },
       });
 
       res.json({
         ok: true,
-        transactions
+        transactions,
       });
     } catch (err) {
       next(err);
@@ -135,13 +137,13 @@ class AdminController {
         orderBy: { created_at: 'desc' },
         take: 100,
         include: {
-          user: { select: { full_name: true, phone: true, aadhaar_last4: true } }
-        }
+          user: { select: { full_name: true, phone: true, aadhaar_last4: true } },
+        },
       });
 
       res.json({
         ok: true,
-        events
+        events,
       });
     } catch (err) {
       next(err);
@@ -154,13 +156,13 @@ class AdminController {
         orderBy: { created_at: 'desc' },
         include: {
           user: { select: { full_name: true, phone: true } },
-          transaction: { select: { reference_number: true, amount: true, transaction_type: true } }
-        }
+          transaction: { select: { reference_number: true, amount: true, transaction_type: true } },
+        },
       });
 
       res.json({
         ok: true,
-        complaints
+        complaints,
       });
     } catch (err) {
       next(err);
@@ -174,14 +176,14 @@ class AdminController {
         where: { id: req.params.id },
         data: {
           status,
-          admin_response: adminResponse
-        }
+          admin_response: adminResponse,
+        },
       });
 
       res.json({
         ok: true,
         message: 'Complaint resolved.',
-        complaint
+        complaint,
       });
     } catch (err) {
       next(err);

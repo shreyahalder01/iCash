@@ -14,21 +14,21 @@ function validateRequest(schema) {
           ok: false,
           error: 'ValidationError',
           message: err.errors[0]?.message || 'Invalid input data provided.',
-          details: err.errors.map(e => ({
+          details: err.errors.map((e) => ({
             field: e.path.join('.'),
-            message: e.message
-          }))
+            message: e.message,
+          })),
         });
       }
       return res.status(400).json({
         ok: false,
         error: 'ValidationError',
-        message: 'Invalid request data provided.'
+        message: 'Invalid request data provided.',
       });
     }
   };
 }
 
 module.exports = {
-  validateRequest
+  validateRequest,
 };

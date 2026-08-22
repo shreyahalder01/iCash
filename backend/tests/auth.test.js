@@ -9,30 +9,28 @@ describe('Auth & Session APIs', () => {
   beforeAll(async () => {
     // Clean up any existing test user with test phone
     await prisma.user.deleteMany({
-      where: { phone: testPhone }
+      where: { phone: testPhone },
     });
   });
 
   afterAll(async () => {
     await prisma.user.deleteMany({
-      where: { phone: testPhone }
+      where: { phone: testPhone },
     });
     await prisma.$disconnect();
   });
 
   test('POST /api/auth/register - Successfully registers user with masked Aadhaar and primary account', async () => {
-    const res = await request(app)
-      .post('/api/auth/register')
-      .send({
-        fullName: 'Test Verification User',
-        phone: testPhone,
-        email: 'test.verify@icash.bank',
-        aadhaarNumber: testAadhaar,
-        pin: '5566',
-        emergencyPin: '9988',
-        isSenior: false,
-        dob: '1995-01-01'
-      });
+    const res = await request(app).post('/api/auth/register').send({
+      fullName: 'Test Verification User',
+      phone: testPhone,
+      email: 'test.verify@icash.bank',
+      aadhaarNumber: testAadhaar,
+      pin: '5566',
+      emergencyPin: '9988',
+      isSenior: false,
+      dob: '1995-01-01',
+    });
 
     expect(res.status).toBe(201);
     expect(res.body.ok).toBe(true);
@@ -46,24 +44,20 @@ describe('Auth & Session APIs', () => {
   });
 
   test('POST /api/auth/register - Rejects duplicate phone number with 409 Conflict', async () => {
-    const res = await request(app)
-      .post('/api/auth/register')
-      .send({
-        fullName: 'Duplicate User',
-        phone: testPhone,
-        aadhaarNumber: '999988887777',
-        pin: '5566',
-        emergencyPin: '1122'
-      });
+    const res = await request(app).post('/api/auth/register').send({
+      fullName: 'Duplicate User',
+      phone: testPhone,
+      aadhaarNumber: '999988887777',
+      pin: '5566',
+      emergencyPin: '1122',
+    });
 
     expect(res.status).toBe(409);
     expect(res.body.ok).toBe(false);
   });
 
   test('POST /api/auth/login-aadhaar - Finds user by Aadhaar last 4 digits', async () => {
-    const res = await request(app)
-      .post('/api/auth/login-aadhaar')
-      .send({ aadhaarLast4: '9012' });
+    const res = await request(app).post('/api/auth/login-aadhaar').send({ aadhaarLast4: '9012' });
 
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
@@ -78,9 +72,7 @@ describe('Auth & Session APIs', () => {
 
     const userId = lookup.body.users[0].id;
 
-    const res = await request(app)
-      .post('/api/auth/login-pin')
-      .send({ userId, pin: '5566' });
+    const res = await request(app).post('/api/auth/login-pin').send({ userId, pin: '5566' });
 
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
@@ -95,9 +87,7 @@ describe('Auth & Session APIs', () => {
 
     const userId = lookup.body.users[0].id;
 
-    const res = await request(app)
-      .post('/api/auth/login-pin')
-      .send({ userId, pin: '9988' });
+    const res = await request(app).post('/api/auth/login-pin').send({ userId, pin: '9988' });
 
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
@@ -105,7 +95,7 @@ describe('Auth & Session APIs', () => {
 
     // Verify duress event logged in DB
     const event = await prisma.securityEvent.findFirst({
-      where: { user_id: userId, event_type: 'DURESS_ALERT' }
+      where: { user_id: userId, event_type: 'DURESS_ALERT' },
     });
     expect(event).not.toBeNull();
     expect(event.severity).toBe('CRITICAL');
@@ -120,23 +110,17 @@ describe('Auth & Session APIs', () => {
 
     // 5 failed PIN attempts
     for (let i = 0; i < 4; i++) {
-      const failRes = await request(app)
-        .post('/api/auth/login-pin')
-        .send({ userId, pin: '0000' });
+      const failRes = await request(app).post('/api/auth/login-pin').send({ userId, pin: '0000' });
       expect(failRes.status).toBe(401);
     }
 
     // 5th attempt locks the account
-    const fifthRes = await request(app)
-      .post('/api/auth/login-pin')
-      .send({ userId, pin: '0000' });
+    const fifthRes = await request(app).post('/api/auth/login-pin').send({ userId, pin: '0000' });
     expect(fifthRes.status).toBe(401);
     expect(fifthRes.body.message).toContain('restricted');
 
     // 6th attempt should be rejected with 403 AccountLocked
-    const sixthRes = await request(app)
-      .post('/api/auth/login-pin')
-      .send({ userId, pin: '5566' }); // even with correct PIN
+    const sixthRes = await request(app).post('/api/auth/login-pin').send({ userId, pin: '5566' }); // even with correct PIN
     expect(sixthRes.status).toBe(403);
   });
 });

@@ -21,12 +21,12 @@ class AuthService {
       emergencyContactName,
       emergencyContactPhone,
       descriptors,
-      role = 'USER'
+      role = 'USER',
     } = data;
 
     // Check if phone already registered
     const existingPhone = await prisma.user.findUnique({
-      where: { phone }
+      where: { phone },
     });
     if (existingPhone) {
       const err = new Error('A user with this mobile number is already registered.');
@@ -74,12 +74,12 @@ class AuthService {
           emergency_contact_name: computedSenior ? emergencyContactName : null,
           emergency_contact_phone: computedSenior ? emergencyContactPhone : null,
           role: role || 'USER',
-          status: 'ACTIVE'
-        }
+          status: 'ACTIVE',
+        },
       });
 
       // Primary Savings account with initial starting balance
-      const initialBalance = 25000.00;
+      const initialBalance = 25000.0;
       const accountMasked = `•••• ${Math.floor(1000 + Math.random() * 9000)}`;
       const accountReference = `ACC_REF_${user.id.slice(0, 8).toUpperCase()}_SAVINGS`;
 
@@ -92,8 +92,8 @@ class AuthService {
           account_type: 'SAVINGS',
           balance: initialBalance,
           is_primary: true,
-          status: 'ACTIVE'
-        }
+          status: 'ACTIVE',
+        },
       });
 
       // Initial account opening transaction record
@@ -105,8 +105,8 @@ class AuthService {
           amount: initialBalance,
           description: 'Initial account opening balance (Aadhaar verified)',
           status: 'COMPLETED',
-          reference_number: `TX_OPEN_${Date.now()}`
-        }
+          reference_number: `TX_OPEN_${Date.now()}`,
+        },
       });
 
       // Biometric profile
@@ -117,8 +117,8 @@ class AuthService {
           biometric_provider: bioEnrollment.provider,
           biometric_reference: bioEnrollment.reference,
           enrollment_status: 'ENROLLED',
-          face_descriptors: bioEnrollment.descriptors
-        }
+          face_descriptors: bioEnrollment.descriptors,
+        },
       });
 
       // If registered as MERCHANT, create Merchant Profile
@@ -127,8 +127,8 @@ class AuthService {
           data: {
             user_id: user.id,
             business_name: `${fullName}'s Enterprise`,
-            settlement_acct: accountMasked
-          }
+            settlement_acct: accountMasked,
+          },
         });
       }
 
@@ -142,7 +142,7 @@ class AuthService {
       severity: 'LOW',
       description: `New user identity registered (Aadhaar: ****${aadhaarLast4}).`,
       ipAddress: req?.ip,
-      deviceReference: req?.headers['user-agent']
+      deviceReference: req?.headers['user-agent'],
     });
 
     // Create session token
@@ -153,13 +153,13 @@ class AuthService {
         session_reference: `SES_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
         ip_address: req?.ip,
         user_agent: req?.headers['user-agent'],
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000)
-      }
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      },
     });
 
     return {
       user: this.toSafeUser(result.user, result.primaryAccount),
-      token
+      token,
     };
   }
 
@@ -170,7 +170,7 @@ class AuthService {
     const users = await prisma.user.findMany({
       where: {
         aadhaar_last4: aadhaarLast4,
-        status: { not: 'SUSPENDED' }
+        status: { not: 'SUSPENDED' },
       },
       select: {
         id: true,
@@ -181,18 +181,18 @@ class AuthService {
         role: true,
         status: true,
         failed_login_attempts: true,
-        locked_until: true
-      }
+        locked_until: true,
+      },
     });
 
-    return users.map(u => ({
+    return users.map((u) => ({
       id: u.id,
       name: u.full_name,
       phone: u.phone,
       aadhaarLast4: u.aadhaar_last4,
       isSenior: u.is_senior,
       role: u.role,
-      isLocked: u.status === 'LOCKED' || (u.locked_until && u.locked_until > new Date())
+      isLocked: u.status === 'LOCKED' || (u.locked_until && u.locked_until > new Date()),
     }));
   }
 
@@ -205,11 +205,11 @@ class AuthService {
       include: {
         accounts: {
           where: { status: 'ACTIVE' },
-          orderBy: { is_primary: 'desc' }
+          orderBy: { is_primary: 'desc' },
         },
         biometric_profile: true,
-        merchant_profile: true
-      }
+        merchant_profile: true,
+      },
     });
 
     if (!user) {
@@ -220,16 +220,20 @@ class AuthService {
 
     // Check lock status
     if (user.status === 'LOCKED' || (user.locked_until && user.locked_until > new Date())) {
-      const err = new Error('For your protection, access to this account has been temporarily restricted.');
+      const err = new Error(
+        'For your protection, access to this account has been temporarily restricted.'
+      );
       err.status = 403;
       throw err;
     }
 
     // Verify Primary PIN
     const isPrimaryPin = await compareValue(pin, user.password_hash);
-    
+
     // Check if Emergency Duress PIN was entered
-    const isDuressPin = user.emergency_pin_hash ? await compareValue(pin, user.emergency_pin_hash) : false;
+    const isDuressPin = user.emergency_pin_hash
+      ? await compareValue(pin, user.emergency_pin_hash)
+      : false;
 
     if (!isPrimaryPin && !isDuressPin) {
       const lockStatus = await SecurityService.handleFailedLogin(user, req);
@@ -255,14 +259,14 @@ class AuthService {
         session_reference: `SES_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
         ip_address: req?.ip,
         user_agent: req?.headers['user-agent'],
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000)
-      }
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      },
     });
 
     return {
       user: this.toSafeUser(user, user.accounts[0]),
       token,
-      isDuress: isDuressPin
+      isDuress: isDuressPin,
     };
   }
 
@@ -277,11 +281,11 @@ class AuthService {
     await prisma.loginSession.updateMany({
       where: {
         user_id: userId,
-        revoked_at: null
+        revoked_at: null,
       },
       data: {
-        revoked_at: new Date()
-      }
+        revoked_at: new Date(),
+      },
     });
   }
 
@@ -299,21 +303,25 @@ class AuthService {
       dob: user.dob,
       age: user.age,
       isSenior: user.is_senior,
-      emergencyContact: user.is_senior ? {
-        name: user.emergency_contact_name,
-        phone: user.emergency_contact_phone
-      } : null,
+      emergencyContact: user.is_senior
+        ? {
+            name: user.emergency_contact_name,
+            phone: user.emergency_contact_phone,
+          }
+        : null,
       role: user.role,
       status: user.status,
       lastLoginAt: user.last_login_at,
-      primaryAccount: primaryAccount ? {
-        id: primaryAccount.id,
-        bankName: primaryAccount.bank_name,
-        accountNumberMasked: primaryAccount.account_number_masked,
-        accountType: primaryAccount.account_type,
-        balance: Number(primaryAccount.balance),
-        currency: primaryAccount.currency
-      } : null
+      primaryAccount: primaryAccount
+        ? {
+            id: primaryAccount.id,
+            bankName: primaryAccount.bank_name,
+            accountNumberMasked: primaryAccount.account_number_masked,
+            accountType: primaryAccount.account_type,
+            balance: Number(primaryAccount.balance),
+            currency: primaryAccount.currency,
+          }
+        : null,
     };
   }
 }

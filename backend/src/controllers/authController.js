@@ -10,7 +10,7 @@ class AuthController {
         ok: true,
         message: 'Registration completed successfully.',
         user,
-        token
+        token,
       });
     } catch (err) {
       next(err);
@@ -23,7 +23,7 @@ class AuthController {
       const matchingUsers = await AuthService.findByAadhaarLast4(aadhaarLast4);
       res.json({
         ok: true,
-        users: matchingUsers
+        users: matchingUsers,
       });
     } catch (err) {
       next(err);
@@ -40,7 +40,7 @@ class AuthController {
         message: isDuress ? 'Emergency access mode active.' : 'Authenticated successfully.',
         user,
         token,
-        isDuress
+        isDuress,
       });
     } catch (err) {
       next(err);
@@ -53,7 +53,7 @@ class AuthController {
       const safeUser = AuthService.toSafeUser(req.user, primaryAccount);
       res.json({
         ok: true,
-        user: safeUser
+        user: safeUser,
       });
     } catch (err) {
       next(err);
@@ -68,7 +68,7 @@ class AuthController {
       res.clearCookie(COOKIE_NAME, getCookieOptions());
       res.json({
         ok: true,
-        message: 'Logged out successfully.'
+        message: 'Logged out successfully.',
       });
     } catch (err) {
       next(err);
@@ -80,11 +80,14 @@ class AuthController {
       if (!req.user) {
         return res.status(401).json({ ok: false, message: 'Session expired.' });
       }
-      const token = require('../utils/token').signToken({ userId: req.user.id, role: req.user.role });
+      const token = require('../utils/token').signToken({
+        userId: req.user.id,
+        role: req.user.role,
+      });
       res.cookie(COOKIE_NAME, token, getCookieOptions());
       res.json({
         ok: true,
-        token
+        token,
       });
     } catch (err) {
       next(err);

@@ -3,10 +3,7 @@ const router = express.Router();
 const BiometricController = require('../controllers/biometricController');
 const { authenticate } = require('../middleware/authMiddleware');
 const { validateRequest } = require('../middleware/validateMiddleware');
-const {
-  biometricEnrollSchema,
-  biometricVerifySchema
-} = require('../utils/validator');
+const { biometricEnrollSchema, biometricVerifySchema } = require('../utils/validator');
 
 // Face verification endpoint (can be called during login before session exists with target userId, or during active session)
 router.post('/verify', validateRequest(biometricVerifySchema), (req, res, next) => {
@@ -18,11 +15,15 @@ router.post('/verify', validateRequest(biometricVerifySchema), (req, res, next) 
 });
 
 // Enrollment requires authentication
-router.post('/enroll', authenticate, validateRequest(biometricEnrollSchema), BiometricController.enroll);
+router.post(
+  '/enroll',
+  authenticate,
+  validateRequest(biometricEnrollSchema),
+  BiometricController.enroll
+);
 
 // Fetch stored descriptors for a given userId (used by client-side matcher).
 // Accessible during login (no session) — only returns descriptors, no PII.
 router.get('/profile/:userId', BiometricController.getProfile);
 
 module.exports = router;
-

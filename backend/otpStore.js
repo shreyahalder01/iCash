@@ -6,9 +6,9 @@
  * restart, swap this for Redis or a database table keyed the same way.
  */
 
-const OTP_TTL_MS = 5 * 60 * 1000;      // OTP valid for 5 minutes
-const RESEND_COOLDOWN_MS = 30 * 1000;   // must wait 30s between sends
-const MAX_ATTEMPTS = 5;                 // wrong-code guesses allowed per OTP
+const OTP_TTL_MS = 5 * 60 * 1000; // OTP valid for 5 minutes
+const RESEND_COOLDOWN_MS = 30 * 1000; // must wait 30s between sends
+const MAX_ATTEMPTS = 5; // wrong-code guesses allowed per OTP
 
 const store = new Map(); // key: `${purpose}:${mobile}` -> { code, expiresAt, attempts, lastSentAt }
 

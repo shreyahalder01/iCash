@@ -9,7 +9,7 @@ function errorHandler(err, req, res, next) {
       message: err.message,
       name: err.name,
       code: err.code,
-      status: err.status || err.statusCode
+      status: err.status || err.statusCode,
     });
   }
 
@@ -19,7 +19,7 @@ function errorHandler(err, req, res, next) {
     return res.status(status).json({
       ok: false,
       error: err.name || 'RequestError',
-      message: err.message || 'An error occurred while processing your request.'
+      message: err.message || 'An error occurred while processing your request.',
     });
   }
 
@@ -27,7 +27,7 @@ function errorHandler(err, req, res, next) {
     return res.status(401).json({
       ok: false,
       error: 'Unauthorized',
-      message: err.message || 'Your secure session has expired. Please authenticate again.'
+      message: err.message || 'Your secure session has expired. Please authenticate again.',
     });
   }
 
@@ -35,7 +35,7 @@ function errorHandler(err, req, res, next) {
     return res.status(403).json({
       ok: false,
       error: 'Forbidden',
-      message: err.message || 'You do not have permission to perform this action.'
+      message: err.message || 'You do not have permission to perform this action.',
     });
   }
 
@@ -44,7 +44,7 @@ function errorHandler(err, req, res, next) {
     return res.status(409).json({
       ok: false,
       error: 'Conflict',
-      message: 'A record with this phone number, email, or Aadhaar identity already exists.'
+      message: 'A record with this phone number, email, or Aadhaar identity already exists.',
     });
   }
 
@@ -53,7 +53,7 @@ function errorHandler(err, req, res, next) {
     return res.status(404).json({
       ok: false,
       error: 'NotFound',
-      message: 'The requested resource was not found.'
+      message: 'The requested resource was not found.',
     });
   }
 
@@ -61,7 +61,7 @@ function errorHandler(err, req, res, next) {
   return res.status(500).json({
     ok: false,
     error: 'ServerError',
-    message: "We're unable to connect to banking services right now. Please try again."
+    message: "We're unable to connect to banking services right now. Please try again.",
   });
 }
 
@@ -72,11 +72,11 @@ function notFoundHandler(req, res) {
   return res.status(404).json({
     ok: false,
     error: 'NotFound',
-    message: `Endpoint ${req.method} ${req.originalUrl} not found.`
+    message: `Endpoint ${req.method} ${req.originalUrl} not found.`,
   });
 }
 
 module.exports = {
   errorHandler,
-  notFoundHandler
+  notFoundHandler,
 };

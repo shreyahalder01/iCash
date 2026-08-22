@@ -11,11 +11,11 @@ describe('Transaction & Balance APIs', () => {
     // Look up seeded users
     userA = await prisma.user.findFirst({ where: { phone: '9876543210' } }); // Sidd Paul
     seniorUser = await prisma.user.findFirst({ where: { phone: '9811122233' } }); // Ramesh Kumar
-    
+
     // Ensure userA primary account has sufficient test balance
     await prisma.bankAccount.updateMany({
       where: { user_id: userA.id, is_primary: true },
-      data: { balance: 25000.00 }
+      data: { balance: 25000.0 },
     });
 
     // Create a temporary User B for transfer tests
@@ -33,11 +33,11 @@ describe('Transaction & Balance APIs', () => {
             account_number_masked: '•••• 2222',
             account_reference: 'ACC_USER_B_PRIM',
             account_type: 'SAVINGS',
-            balance: 5000.00,
-            is_primary: true
-          }
-        }
-      }
+            balance: 5000.0,
+            is_primary: true,
+          },
+        },
+      },
     });
 
     tokenA = signToken({ userId: userA.id, role: userA.role });
@@ -51,7 +51,9 @@ describe('Transaction & Balance APIs', () => {
   });
 
   test('POST /api/transactions - ATM withdrawal deducts balance atomically', async () => {
-    const accountBefore = await prisma.bankAccount.findFirst({ where: { user_id: userA.id, is_primary: true } });
+    const accountBefore = await prisma.bankAccount.findFirst({
+      where: { user_id: userA.id, is_primary: true },
+    });
     const initialBal = Number(accountBefore.balance);
 
     const res = await request(app)
@@ -61,14 +63,16 @@ describe('Transaction & Balance APIs', () => {
         transactionType: 'WITHDRAWAL',
         amount: 3000,
         description: 'ATM withdrawal test',
-        verifyMethod: 'FACE'
+        verifyMethod: 'FACE',
       });
 
     expect(res.status).toBe(201);
     expect(res.body.ok).toBe(true);
     expect(res.body.newBalance).toBe(initialBal - 3000);
 
-    const accountAfter = await prisma.bankAccount.findFirst({ where: { user_id: userA.id, is_primary: true } });
+    const accountAfter = await prisma.bankAccount.findFirst({
+      where: { user_id: userA.id, is_primary: true },
+    });
     expect(Number(accountAfter.balance)).toBe(initialBal - 3000);
   });
 
@@ -79,7 +83,7 @@ describe('Transaction & Balance APIs', () => {
       .send({
         transactionType: 'WITHDRAWAL',
         amount: 99999999, // Way more than balance
-        description: 'Overdraft attempt'
+        description: 'Overdraft attempt',
       });
 
     expect(res.status).toBe(400);
@@ -88,8 +92,12 @@ describe('Transaction & Balance APIs', () => {
   });
 
   test('POST /api/transactions - P2P Transfer credits recipient and debits sender', async () => {
-    const senderAccBefore = await prisma.bankAccount.findFirst({ where: { user_id: userA.id, is_primary: true } });
-    const recipientAccBefore = await prisma.bankAccount.findFirst({ where: { user_id: userB.id, is_primary: true } });
+    const senderAccBefore = await prisma.bankAccount.findFirst({
+      where: { user_id: userA.id, is_primary: true },
+    });
+    const recipientAccBefore = await prisma.bankAccount.findFirst({
+      where: { user_id: userB.id, is_primary: true },
+    });
 
     const transferAmt = 1500;
 
@@ -102,17 +110,23 @@ describe('Transaction & Balance APIs', () => {
         description: 'P2P test transfer',
         recipientName: 'Recipient User B',
         recipientUserId: userB.id,
-        verifyMethod: 'PIN'
+        verifyMethod: 'PIN',
       });
 
     expect(res.status).toBe(201);
     expect(res.body.ok).toBe(true);
 
-    const senderAccAfter = await prisma.bankAccount.findFirst({ where: { user_id: userA.id, is_primary: true } });
-    const recipientAccAfter = await prisma.bankAccount.findFirst({ where: { user_id: userB.id, is_primary: true } });
+    const senderAccAfter = await prisma.bankAccount.findFirst({
+      where: { user_id: userA.id, is_primary: true },
+    });
+    const recipientAccAfter = await prisma.bankAccount.findFirst({
+      where: { user_id: userB.id, is_primary: true },
+    });
 
     expect(Number(senderAccAfter.balance)).toBe(Number(senderAccBefore.balance) - transferAmt);
-    expect(Number(recipientAccAfter.balance)).toBe(Number(recipientAccBefore.balance) + transferAmt);
+    expect(Number(recipientAccAfter.balance)).toBe(
+      Number(recipientAccBefore.balance) + transferAmt
+    );
   });
 
   test('POST /api/transactions/delegate/generate & claim - Senior citizen trusted contact OTP withdrawal', async () => {
@@ -129,12 +143,10 @@ describe('Transaction & Balance APIs', () => {
     const otp = genRes.body.otp;
 
     // 2. Trusted contact claims OTP from public endpoint
-    const claimRes = await request(app)
-      .post('/api/transactions/delegate/claim')
-      .send({
-        seniorName: 'Ramesh Kumar',
-        otp
-      });
+    const claimRes = await request(app).post('/api/transactions/delegate/claim').send({
+      seniorName: 'Ramesh Kumar',
+      otp,
+    });
 
     expect(claimRes.status).toBe(200);
     expect(claimRes.body.ok).toBe(true);

@@ -9,9 +9,9 @@ class MerchantController {
         include: {
           payment_requests: {
             orderBy: { created_at: 'desc' },
-            take: 20
-          }
-        }
+            take: 20,
+          },
+        },
       });
 
       if (!merchant) {
@@ -21,12 +21,12 @@ class MerchantController {
             user_id: req.user.id,
             business_name: `${req.user.full_name}'s Enterprise`,
             settlement_acct: req.user.accounts[0]?.account_number_masked || '•••• 8888',
-            settled_balance: 145000.00,
-            pending_balance: 12500.00
+            settled_balance: 145000.0,
+            pending_balance: 12500.0,
           },
           include: {
-            payment_requests: true
-          }
+            payment_requests: true,
+          },
         });
       }
 
@@ -38,8 +38,8 @@ class MerchantController {
           settlementAcct: merchant.settlement_acct,
           settledBalance: Number(merchant.settled_balance),
           pendingBalance: Number(merchant.pending_balance),
-          paymentRequests: merchant.payment_requests
-        }
+          paymentRequests: merchant.payment_requests,
+        },
       });
     } catch (err) {
       next(err);
@@ -50,7 +50,7 @@ class MerchantController {
     try {
       const { amount, description } = req.body;
       const merchant = await prisma.merchantProfile.findUnique({
-        where: { user_id: req.user.id }
+        where: { user_id: req.user.id },
       });
 
       if (!merchant) {
@@ -64,14 +64,14 @@ class MerchantController {
           amount: Number(amount),
           description: description || 'Merchant point-of-sale payment',
           reference_code: refCode,
-          expires_at: new Date(Date.now() + 60 * 60 * 1000) // 1 hour
-        }
+          expires_at: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
+        },
       });
 
       res.status(201).json({
         ok: true,
         message: 'Payment request created.',
-        paymentRequest
+        paymentRequest,
       });
     } catch (err) {
       next(err);
@@ -83,12 +83,12 @@ class MerchantController {
       const transactions = await prisma.transaction.findMany({
         where: { user_id: req.user.id },
         orderBy: { created_at: 'desc' },
-        take: 50
+        take: 50,
       });
 
       res.json({
         ok: true,
-        transactions
+        transactions,
       });
     } catch (err) {
       next(err);
@@ -98,7 +98,7 @@ class MerchantController {
   static async getSettlements(req, res, next) {
     try {
       const merchant = await prisma.merchantProfile.findUnique({
-        where: { user_id: req.user.id }
+        where: { user_id: req.user.id },
       });
 
       const settlements = [
@@ -107,29 +107,29 @@ class MerchantController {
           date: new Date(Date.now() - 24 * 60 * 60 * 1000),
           amount: 45000,
           status: 'SETTLED',
-          utr: 'UTR98234710293'
+          utr: 'UTR98234710293',
         },
         {
           id: 'SET_002',
           date: new Date(Date.now() - 48 * 60 * 60 * 1000),
           amount: 100000,
           status: 'SETTLED',
-          utr: 'UTR98234710111'
+          utr: 'UTR98234710111',
         },
         {
           id: 'SET_003',
           date: new Date(),
           amount: Number(merchant?.pending_balance || 12500),
           status: 'PROCESSING',
-          utr: 'PENDING_BATCH'
-        }
+          utr: 'PENDING_BATCH',
+        },
       ];
 
       res.json({
         ok: true,
         settlements,
         settledBalance: Number(merchant?.settled_balance || 145000),
-        pendingBalance: Number(merchant?.pending_balance || 12500)
+        pendingBalance: Number(merchant?.pending_balance || 12500),
       });
     } catch (err) {
       next(err);
@@ -140,11 +140,13 @@ class MerchantController {
     try {
       const { transactionId, reason } = req.body;
       const tx = await prisma.transaction.findFirst({
-        where: { id: transactionId, user_id: req.user.id }
+        where: { id: transactionId, user_id: req.user.id },
       });
 
       if (!tx) {
-        return res.status(404).json({ ok: false, message: 'Transaction not found or not owned by merchant.' });
+        return res
+          .status(404)
+          .json({ ok: false, message: 'Transaction not found or not owned by merchant.' });
       }
 
       await SecurityService.recordEvent({
@@ -153,13 +155,13 @@ class MerchantController {
         severity: 'MEDIUM',
         description: `Refund initiated for tx ${tx.reference_number}: ${reason}`,
         ipAddress: req.ip,
-        deviceReference: req.headers['user-agent']
+        deviceReference: req.headers['user-agent'],
       });
 
       res.json({
         ok: true,
         message: `Refund processed for ₹${Number(tx.amount).toLocaleString('en-IN')}.`,
-        transactionId
+        transactionId,
       });
     } catch (err) {
       next(err);

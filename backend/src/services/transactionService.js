@@ -19,13 +19,13 @@ class TransactionService {
         account: {
           select: {
             bank_name: true,
-            account_number_masked: true
-          }
-        }
-      }
+            account_number_masked: true,
+          },
+        },
+      },
     });
 
-    return transactions.map(t => ({
+    return transactions.map((t) => ({
       id: t.id,
       accountId: t.account_id,
       bankName: t.account?.bank_name,
@@ -38,7 +38,7 @@ class TransactionService {
       referenceNumber: t.reference_number,
       recipientName: t.recipient_name,
       recipientAccount: t.recipient_account,
-      createdAt: t.created_at
+      createdAt: t.created_at,
     }));
   }
 
@@ -49,12 +49,12 @@ class TransactionService {
     const tx = await prisma.transaction.findFirst({
       where: {
         id: transactionId,
-        user_id: userId
+        user_id: userId,
       },
       include: {
         account: true,
-        complaints: true
-      }
+        complaints: true,
+      },
     });
 
     if (!tx) {
@@ -77,7 +77,7 @@ class TransactionService {
       recipientName: tx.recipient_name,
       recipientAccount: tx.recipient_account,
       createdAt: tx.created_at,
-      complaints: tx.complaints
+      complaints: tx.complaints,
     };
   }
 
@@ -85,7 +85,16 @@ class TransactionService {
    * Process financial transaction atomically using PostgreSQL transaction block.
    */
   static async processTransaction(userId, payload, req) {
-    const { accountId, transactionType, amount, description, recipientName, recipientAccount, recipientUserId, verifyMethod } = payload;
+    const {
+      accountId,
+      transactionType,
+      amount,
+      description,
+      recipientName,
+      recipientAccount,
+      recipientUserId,
+      verifyMethod,
+    } = payload;
     const numAmount = Number(amount);
 
     if (isNaN(numAmount) || numAmount <= 0) {
@@ -99,11 +108,11 @@ class TransactionService {
       let account;
       if (accountId) {
         account = await tx.bankAccount.findFirst({
-          where: { id: accountId, user_id: userId, status: 'ACTIVE' }
+          where: { id: accountId, user_id: userId, status: 'ACTIVE' },
         });
       } else {
         account = await tx.bankAccount.findFirst({
-          where: { user_id: userId, is_primary: true, status: 'ACTIVE' }
+          where: { user_id: userId, is_primary: true, status: 'ACTIVE' },
         });
       }
 
@@ -119,7 +128,9 @@ class TransactionService {
       // 2. Handle specific transaction types
       if (transactionType === 'WITHDRAWAL') {
         if (currentBalance < numAmount) {
-          const err = new Error(`Insufficient funds. Your balance is ₹${currentBalance.toLocaleString('en-IN')}.`);
+          const err = new Error(
+            `Insufficient funds. Your balance is ₹${currentBalance.toLocaleString('en-IN')}.`
+          );
           err.status = 400;
           throw err;
         }
@@ -127,7 +138,7 @@ class TransactionService {
         const newBalance = currentBalance - numAmount;
         await tx.bankAccount.update({
           where: { id: account.id },
-          data: { balance: newBalance }
+          data: { balance: newBalance },
         });
 
         const createdTx = await tx.transaction.create({
@@ -138,8 +149,8 @@ class TransactionService {
             amount: numAmount,
             description: description || 'ATM cash withdrawal (biometric verified)',
             status: 'COMPLETED',
-            reference_number: refNumber
-          }
+            reference_number: refNumber,
+          },
         });
 
         await tx.securityEvent.create({
@@ -149,19 +160,20 @@ class TransactionService {
             severity: numAmount >= 10000 ? 'MEDIUM' : 'LOW',
             description: `Withdrawal of ₹${numAmount.toLocaleString('en-IN')} authorized via ${verifyMethod}.`,
             ip_address: req?.ip,
-            device_reference: req?.headers['user-agent']
-          }
+            device_reference: req?.headers['user-agent'],
+          },
         });
 
         return {
           transaction: createdTx,
           newBalance,
-          accountMasked: account.account_number_masked
+          accountMasked: account.account_number_masked,
         };
-      } 
-      else if (transactionType === 'TRANSFER') {
+      } else if (transactionType === 'TRANSFER') {
         if (currentBalance < numAmount) {
-          const err = new Error(`Insufficient funds. Your balance is ₹${currentBalance.toLocaleString('en-IN')}.`);
+          const err = new Error(
+            `Insufficient funds. Your balance is ₹${currentBalance.toLocaleString('en-IN')}.`
+          );
           err.status = 400;
           throw err;
         }
@@ -170,7 +182,7 @@ class TransactionService {
         const senderNewBalance = currentBalance - numAmount;
         await tx.bankAccount.update({
           where: { id: account.id },
-          data: { balance: senderNewBalance }
+          data: { balance: senderNewBalance },
         });
 
         const senderTx = await tx.transaction.create({
@@ -183,23 +195,26 @@ class TransactionService {
             recipient_name: recipientName || null,
             recipient_account: recipientAccount || null,
             status: 'COMPLETED',
-            reference_number: refNumber
-          }
+            reference_number: refNumber,
+          },
         });
 
         // If recipient is another internal registered user, credit their primary account atomically
         if (recipientUserId) {
           const recipientPrimaryAccount = await tx.bankAccount.findFirst({
-            where: { user_id: recipientUserId, is_primary: true, status: 'ACTIVE' }
+            where: { user_id: recipientUserId, is_primary: true, status: 'ACTIVE' },
           });
 
           if (recipientPrimaryAccount) {
             await tx.bankAccount.update({
               where: { id: recipientPrimaryAccount.id },
-              data: { balance: Number(recipientPrimaryAccount.balance) + numAmount }
+              data: { balance: Number(recipientPrimaryAccount.balance) + numAmount },
             });
 
-            const senderUser = await tx.user.findUnique({ where: { id: userId }, select: { full_name: true } });
+            const senderUser = await tx.user.findUnique({
+              where: { id: userId },
+              select: { full_name: true },
+            });
 
             await tx.transaction.create({
               data: {
@@ -210,8 +225,8 @@ class TransactionService {
                 description: `Received transfer from ${senderUser?.full_name || 'iCash user'}`,
                 recipient_name: senderUser?.full_name || null,
                 status: 'COMPLETED',
-                reference_number: `TX_REC_${Date.now()}_${Math.random().toString(36).substring(2, 6).toUpperCase()}`
-              }
+                reference_number: `TX_REC_${Date.now()}_${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
+              },
             });
           }
         }
@@ -223,21 +238,20 @@ class TransactionService {
             severity: numAmount >= 20000 ? 'HIGH' : 'LOW',
             description: `Transfer of ₹${numAmount.toLocaleString('en-IN')} to ${recipientName || 'external'} authorized via ${verifyMethod}.`,
             ip_address: req?.ip,
-            device_reference: req?.headers['user-agent']
-          }
+            device_reference: req?.headers['user-agent'],
+          },
         });
 
         return {
           transaction: senderTx,
           newBalance: senderNewBalance,
-          accountMasked: account.account_number_masked
+          accountMasked: account.account_number_masked,
         };
-      }
-      else if (transactionType === 'DEPOSIT') {
+      } else if (transactionType === 'DEPOSIT') {
         const newBalance = currentBalance + numAmount;
         await tx.bankAccount.update({
           where: { id: account.id },
-          data: { balance: newBalance }
+          data: { balance: newBalance },
         });
 
         const createdTx = await tx.transaction.create({
@@ -248,14 +262,14 @@ class TransactionService {
             amount: numAmount,
             description: description || 'Account top-up / deposit',
             status: 'COMPLETED',
-            reference_number: refNumber
-          }
+            reference_number: refNumber,
+          },
         });
 
         return {
           transaction: createdTx,
           newBalance,
-          accountMasked: account.account_number_masked
+          accountMasked: account.account_number_masked,
         };
       }
 
@@ -277,12 +291,14 @@ class TransactionService {
     const senior = await prisma.user.findUnique({
       where: { id: seniorUserId },
       include: {
-        accounts: { where: { is_primary: true } }
-      }
+        accounts: { where: { is_primary: true } },
+      },
     });
 
     if (!senior || !senior.is_senior) {
-      const err = new Error('Delegated withdrawal is only available for registered senior citizens.');
+      const err = new Error(
+        'Delegated withdrawal is only available for registered senior citizens.'
+      );
       err.status = 403;
       throw err;
     }
@@ -301,7 +317,7 @@ class TransactionService {
     // Invalidate existing pending delegations
     await prisma.delegatedWithdrawal.updateMany({
       where: { user_id: seniorUserId, status: 'PENDING' },
-      data: { status: 'EXPIRED' }
+      data: { status: 'EXPIRED' },
     });
 
     await prisma.delegatedWithdrawal.create({
@@ -310,8 +326,8 @@ class TransactionService {
         amount: numAmount,
         otp_hash: otpHash,
         status: 'PENDING',
-        expires_at: expiresAt
-      }
+        expires_at: expiresAt,
+      },
     });
 
     await SecurityService.recordEvent({
@@ -320,7 +336,7 @@ class TransactionService {
       severity: 'MEDIUM',
       description: `Senior citizen generated delegation OTP for ₹${numAmount} to trusted contact (${senior.emergency_contact_phone || 'registered contact'}).`,
       ipAddress: req?.ip,
-      deviceReference: req?.headers['user-agent']
+      deviceReference: req?.headers['user-agent'],
     });
 
     return {
@@ -328,7 +344,7 @@ class TransactionService {
       amount: numAmount,
       expiresAt,
       contactName: senior.emergency_contact_name,
-      contactPhone: senior.emergency_contact_phone
+      contactPhone: senior.emergency_contact_phone,
     };
   }
 
@@ -340,16 +356,16 @@ class TransactionService {
       where: {
         full_name: { equals: seniorName.trim(), mode: 'insensitive' },
         is_senior: true,
-        status: 'ACTIVE'
+        status: 'ACTIVE',
       },
       include: {
         accounts: { where: { is_primary: true, status: 'ACTIVE' } },
         delegations: {
           where: { status: 'PENDING' },
           orderBy: { created_at: 'desc' },
-          take: 1
-        }
-      }
+          take: 1,
+        },
+      },
     });
 
     if (!senior) {
@@ -360,7 +376,9 @@ class TransactionService {
 
     const delegation = senior.delegations[0];
     if (!delegation) {
-      const err = new Error('No active authorization OTP found. Please ask the senior citizen to generate a new code.');
+      const err = new Error(
+        'No active authorization OTP found. Please ask the senior citizen to generate a new code.'
+      );
       err.status = 400;
       throw err;
     }
@@ -368,9 +386,11 @@ class TransactionService {
     if (new Date() > delegation.expires_at) {
       await prisma.delegatedWithdrawal.update({
         where: { id: delegation.id },
-        data: { status: 'EXPIRED' }
+        data: { status: 'EXPIRED' },
       });
-      const err = new Error('The OTP has expired (valid for 5 minutes). Please request a new code.');
+      const err = new Error(
+        'The OTP has expired (valid for 5 minutes). Please request a new code.'
+      );
       err.status = 400;
       throw err;
     }
@@ -395,13 +415,13 @@ class TransactionService {
     return await prisma.$transaction(async (tx) => {
       await tx.delegatedWithdrawal.update({
         where: { id: delegation.id },
-        data: { status: 'USED' }
+        data: { status: 'USED' },
       });
 
       const newBalance = Number(primaryAccount.balance) - amount;
       await tx.bankAccount.update({
         where: { id: primaryAccount.id },
-        data: { balance: newBalance }
+        data: { balance: newBalance },
       });
 
       const transaction = await tx.transaction.create({
@@ -412,8 +432,8 @@ class TransactionService {
           amount,
           description: `Withdrawal by trusted emergency contact (OTP verified)`,
           status: 'COMPLETED',
-          reference_number: `TX_DEL_${Date.now()}`
-        }
+          reference_number: `TX_DEL_${Date.now()}`,
+        },
       });
 
       await tx.securityEvent.create({
@@ -423,14 +443,14 @@ class TransactionService {
           severity: 'MEDIUM',
           description: `₹${amount} released to trusted contact via OTP authorization.`,
           ip_address: req?.ip,
-          device_reference: req?.headers['user-agent']
-        }
+          device_reference: req?.headers['user-agent'],
+        },
       });
 
       return {
         amount,
         seniorName: senior.full_name,
-        referenceNumber: transaction.reference_number
+        referenceNumber: transaction.reference_number,
       };
     });
   }

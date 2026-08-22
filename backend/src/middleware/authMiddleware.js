@@ -12,7 +12,7 @@ async function authenticate(req, res, next) {
     // Check HTTP-only cookie first
     if (req.cookies && req.cookies[COOKIE_NAME]) {
       token = req.cookies[COOKIE_NAME];
-    } 
+    }
     // Fall back to Authorization: Bearer <token>
     else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
       token = req.headers.authorization.split(' ')[1];
@@ -22,7 +22,7 @@ async function authenticate(req, res, next) {
       return res.status(401).json({
         ok: false,
         error: 'Unauthorized',
-        message: 'Your secure session has expired. Please authenticate again.'
+        message: 'Your secure session has expired. Please authenticate again.',
       });
     }
 
@@ -31,7 +31,7 @@ async function authenticate(req, res, next) {
       return res.status(401).json({
         ok: false,
         error: 'Unauthorized',
-        message: 'Your secure session has expired. Please authenticate again.'
+        message: 'Your secure session has expired. Please authenticate again.',
       });
     }
 
@@ -41,18 +41,18 @@ async function authenticate(req, res, next) {
       include: {
         accounts: {
           where: { status: 'ACTIVE' },
-          orderBy: { is_primary: 'desc' }
+          orderBy: { is_primary: 'desc' },
         },
         biometric_profile: true,
-        merchant_profile: true
-      }
+        merchant_profile: true,
+      },
     });
 
     if (!user) {
       return res.status(401).json({
         ok: false,
         error: 'Unauthorized',
-        message: 'Account not found. Please log in again.'
+        message: 'Account not found. Please log in again.',
       });
     }
 
@@ -61,7 +61,7 @@ async function authenticate(req, res, next) {
       return res.status(403).json({
         ok: false,
         error: 'AccountLocked',
-        message: 'For your protection, access to this account has been temporarily restricted.'
+        message: 'For your protection, access to this account has been temporarily restricted.',
       });
     }
 
@@ -69,7 +69,7 @@ async function authenticate(req, res, next) {
       return res.status(403).json({
         ok: false,
         error: 'AccountSuspended',
-        message: 'This account is currently suspended. Please contact bank support.'
+        message: 'This account is currently suspended. Please contact bank support.',
       });
     }
 
@@ -81,11 +81,11 @@ async function authenticate(req, res, next) {
     return res.status(500).json({
       ok: false,
       error: 'ServerError',
-      message: "We're unable to connect to banking services right now. Please try again."
+      message: "We're unable to connect to banking services right now. Please try again.",
     });
   }
 }
 
 module.exports = {
-  authenticate
+  authenticate,
 };

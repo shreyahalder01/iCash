@@ -1,0 +1,77 @@
+{
+  "env": {
+    "browser": true,
+    "es2021": true,
+    "node": true
+  },
+  "extends": [
+    "eslint:recommended",
+    "plugin:prettier/recommended"
+  ],
+  "plugins": ["prettier"],
+  "parserOptions": {
+    "ecmaVersion": 12,
+    "sourceType": "module"
+  },
+  "rules": {
+    "prettier/prettier": ["error", { "endOfLine": "auto" }],
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+    "no-console": "off"
+  },
+  "overrides": [
+    {
+      "files": ["**/tests/**/*.js", "**/*.test.js"],
+      "env": {
+        "jest": true,
+        "node": true
+      }
+    },
+    {
+      "files": ["frontend/**/*.js", "biometric.js", "frontend/biometric.js", "script.js"],
+      "env": {
+        "browser": true
+      },
+      "globals": {
+        "faceapi": "readonly",
+        "goTo": "readonly",
+        "startCamera": "readonly",
+        "stopCamera": "readonly",
+        "openModal": "readonly",
+        "closeModal": "readonly",
+        "showMatch": "readonly",
+        "currentUser": "writable",
+        "promptLoginPin": "readonly",
+        "executePendingAction": "readonly",
+        "pendingVerificationAction": "writable",
+        "showAlertToast": "readonly",
+        "cameraErrorMessage": "readonly",
+        "beginRegisterScan": "readonly",
+        "beginLoginScan": "readonly",
+        "launchBiometricGate": "readonly",
+        "resendOtp": "readonly",
+        "proceedToOtp": "readonly",
+        "cancelOtp": "readonly",
+        "submitLoginPin": "readonly",
+        "attemptPinDirectLogin": "readonly",
+        "toggleSidebar": "readonly",
+        "handleCommandInput": "readonly",
+        "closeDrawer": "readonly",
+        "showTransactionDetails": "readonly",
+        "setAmt": "readonly",
+        "startLogin": "readonly",
+        "startRegistration": "readonly",
+        "formatAadhaar": "readonly",
+        "handleDobChange": "readonly",
+        "launchBiometricGate": "readonly",
+        "teardownVerifyGate": "readonly",
+        "promptLoginPin": "readonly",
+        "verifyAadhaarLogin": "readonly",
+        "toggleBalanceVisibility": "readonly",
+        "THREE": "readonly"
+      },
+      "rules": {
+        "no-empty": "off"
+      }
+    }
+  ]
+}

@@ -11,16 +11,16 @@ class ComplaintController {
             select: {
               reference_number: true,
               amount: true,
-              transaction_type: true
-            }
-          }
+              transaction_type: true,
+            },
+          },
         },
-        orderBy: { created_at: 'desc' }
+        orderBy: { created_at: 'desc' },
       });
 
       res.json({
         ok: true,
-        complaints
+        complaints,
       });
     } catch (err) {
       next(err);
@@ -37,8 +37,8 @@ class ComplaintController {
           transaction_id: transactionId || null,
           subject,
           description,
-          status: 'OPEN'
-        }
+          status: 'OPEN',
+        },
       });
 
       await SecurityService.recordEvent({
@@ -47,13 +47,13 @@ class ComplaintController {
         severity: 'LOW',
         description: `Dispute/Complaint submitted: ${subject}`,
         ipAddress: req.ip,
-        deviceReference: req.headers['user-agent']
+        deviceReference: req.headers['user-agent'],
       });
 
       res.status(201).json({
         ok: true,
         message: 'Complaint submitted successfully. An administrator will review your case.',
-        complaint
+        complaint,
       });
     } catch (err) {
       next(err);

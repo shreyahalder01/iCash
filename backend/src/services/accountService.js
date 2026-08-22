@@ -8,15 +8,12 @@ class AccountService {
     const accounts = await prisma.bankAccount.findMany({
       where: {
         user_id: userId,
-        status: { not: 'CLOSED' }
+        status: { not: 'CLOSED' },
       },
-      orderBy: [
-        { is_primary: 'desc' },
-        { created_at: 'asc' }
-      ]
+      orderBy: [{ is_primary: 'desc' }, { created_at: 'asc' }],
     });
 
-    return accounts.map(a => ({
+    return accounts.map((a) => ({
       id: a.id,
       bankName: a.bank_name,
       accountNumberMasked: a.account_number_masked,
@@ -26,7 +23,7 @@ class AccountService {
       currency: a.currency,
       isPrimary: a.is_primary,
       status: a.status,
-      createdAt: a.created_at
+      createdAt: a.created_at,
     }));
   }
 
@@ -44,7 +41,7 @@ class AccountService {
       if (isPrimary) {
         await tx.bankAccount.updateMany({
           where: { user_id: userId },
-          data: { is_primary: false }
+          data: { is_primary: false },
         });
       }
 
@@ -57,8 +54,8 @@ class AccountService {
           account_type: accountType,
           balance: initialBalance,
           is_primary: isPrimary,
-          status: 'ACTIVE'
-        }
+          status: 'ACTIVE',
+        },
       });
 
       if (initialBalance > 0) {
@@ -70,8 +67,8 @@ class AccountService {
             amount: initialBalance,
             description: `Initial funding for linked ${bankName} account`,
             status: 'COMPLETED',
-            reference_number: `TX_INIT_${Date.now()}`
-          }
+            reference_number: `TX_INIT_${Date.now()}`,
+          },
         });
       }
 
@@ -87,8 +84,8 @@ class AccountService {
     const existing = await prisma.bankAccount.findFirst({
       where: {
         id: accountId,
-        user_id: userId
-      }
+        user_id: userId,
+      },
     });
 
     if (!existing) {
@@ -101,7 +98,7 @@ class AccountService {
       if (data.isPrimary) {
         await tx.bankAccount.updateMany({
           where: { user_id: userId },
-          data: { is_primary: false }
+          data: { is_primary: false },
         });
       }
 
@@ -110,8 +107,8 @@ class AccountService {
         data: {
           bank_name: data.bankName || existing.bank_name,
           is_primary: data.isPrimary !== undefined ? data.isPrimary : existing.is_primary,
-          status: data.status || existing.status
-        }
+          status: data.status || existing.status,
+        },
       });
     });
   }
@@ -123,8 +120,8 @@ class AccountService {
     const account = await prisma.bankAccount.findFirst({
       where: {
         id: accountId,
-        user_id: userId
-      }
+        user_id: userId,
+      },
     });
 
     if (!account) {
@@ -134,14 +131,16 @@ class AccountService {
     }
 
     if (account.is_primary) {
-      const err = new Error('Cannot delete your primary banking account. Please set another primary account first.');
+      const err = new Error(
+        'Cannot delete your primary banking account. Please set another primary account first.'
+      );
       err.status = 400;
       throw err;
     }
 
     return await prisma.bankAccount.update({
       where: { id: accountId },
-      data: { status: 'CLOSED' }
+      data: { status: 'CLOSED' },
     });
   }
 }

@@ -4,10 +4,14 @@ class TransactionController {
   static async getTransactions(req, res, next) {
     try {
       const { limit, offset, type } = req.query;
-      const transactions = await TransactionService.getUserTransactions(req.user.id, { limit, offset, type });
+      const transactions = await TransactionService.getUserTransactions(req.user.id, {
+        limit,
+        offset,
+        type,
+      });
       res.json({
         ok: true,
-        transactions
+        transactions,
       });
     } catch (err) {
       next(err);
@@ -19,7 +23,7 @@ class TransactionController {
       const tx = await TransactionService.getTransactionById(req.user.id, req.params.id);
       res.json({
         ok: true,
-        transaction: tx
+        transaction: tx,
       });
     } catch (err) {
       next(err);
@@ -34,7 +38,7 @@ class TransactionController {
         message: 'Transaction completed successfully.',
         transaction: result.transaction,
         newBalance: result.newBalance,
-        accountMasked: result.accountMasked
+        accountMasked: result.accountMasked,
       });
     } catch (err) {
       next(err);
@@ -44,16 +48,20 @@ class TransactionController {
   static async topUpDemoFunds(req, res, next) {
     try {
       const amount = Number(req.body.amount) || 5000;
-      const result = await TransactionService.processTransaction(req.user.id, {
-        transactionType: 'DEPOSIT',
-        amount,
-        description: 'Instant demo funds top-up'
-      }, req);
+      const result = await TransactionService.processTransaction(
+        req.user.id,
+        {
+          transactionType: 'DEPOSIT',
+          amount,
+          description: 'Instant demo funds top-up',
+        },
+        req
+      );
       res.json({
         ok: true,
         message: `₹${amount.toLocaleString('en-IN')} deposited successfully.`,
         newBalance: result.newBalance,
-        transaction: result.transaction
+        transaction: result.transaction,
       });
     } catch (err) {
       next(err);
@@ -67,7 +75,7 @@ class TransactionController {
       res.json({
         ok: true,
         message: 'Delegation OTP generated successfully.',
-        ...result
+        ...result,
       });
     } catch (err) {
       next(err);
@@ -81,7 +89,7 @@ class TransactionController {
       res.json({
         ok: true,
         message: `₹${result.amount.toLocaleString('en-IN')} released successfully for ${result.seniorName}.`,
-        ...result
+        ...result,
       });
     } catch (err) {
       next(err);

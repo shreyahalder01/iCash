@@ -27,7 +27,7 @@ const FRONTEND_DIR = path.join(__dirname, '..', '..', 'frontend');
 app.use(
   helmet({
     contentSecurityPolicy: false,
-    crossOriginEmbedderPolicy: false
+    crossOriginEmbedderPolicy: false,
   })
 );
 
@@ -37,7 +37,7 @@ app.use(
       // Allow all local origins (localhost, 127.0.0.1, LiveServer, null/file://)
       return callback(null, true);
     },
-    credentials: true
+    credentials: true,
   })
 );
 

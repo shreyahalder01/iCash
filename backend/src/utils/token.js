@@ -38,7 +38,7 @@ function getCookieOptions() {
     secure: isProd,
     sameSite: 'lax',
     maxAge: 24 * 60 * 60 * 1000, // 24h, matches TOKEN_TTL
-    path: '/'
+    path: '/',
   };
 }
 
@@ -46,5 +46,5 @@ module.exports = {
   COOKIE_NAME,
   signToken,
   verifyToken,
-  getCookieOptions
+  getCookieOptions,
 };

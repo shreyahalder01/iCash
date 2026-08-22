@@ -10,14 +10,18 @@ const API_BASE_CANDIDATES = [
   'http://127.0.0.1:4000',
   'http://localhost:4001',
   'http://127.0.0.1:4001',
-  'http://localhost:4002'
+  'http://localhost:4002',
 ];
 
 let currentBase = (typeof window !== 'undefined' && window.__API_BASE__) || '';
 
 async function detectApiBase() {
   if (currentBase !== '') return currentBase;
-  if (typeof window !== 'undefined' && window.location && (window.location.protocol === 'http:' || window.location.protocol === 'https:')) {
+  if (
+    typeof window !== 'undefined' &&
+    window.location &&
+    (window.location.protocol === 'http:' || window.location.protocol === 'https:')
+  ) {
     if (['4000', '4001', '4002', '4003'].includes(window.location.port)) {
       currentBase = '';
       return currentBase;
@@ -41,16 +45,16 @@ async function detectApiBase() {
 async function request(endpoint, options = {}) {
   const base = await detectApiBase();
   const url = `${base}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
-  
+
   const headers = {
     'Content-Type': 'application/json',
-    ...(options.headers || {})
+    ...(options.headers || {}),
   };
 
   const config = {
     ...options,
     headers,
-    credentials: 'include' // Always include HTTP-only cookies
+    credentials: 'include', // Always include HTTP-only cookies
   };
 
   if (config.body && typeof config.body === 'object' && !(config.body instanceof FormData)) {
@@ -67,10 +71,14 @@ async function request(endpoint, options = {}) {
         response = await fetch(fallbackUrl, config);
         currentBase = 'http://localhost:4000';
       } catch (fallbackErr) {
-        throw new Error('Unable to connect to banking services. Please ensure the backend server is running on http://localhost:4000.');
+        throw new Error(
+          'Unable to connect to banking services. Please ensure the backend server is running on http://localhost:4000.'
+        );
       }
     } else {
-      throw new Error('Unable to connect to banking services. Please ensure the backend server is running on http://localhost:4000.');
+      throw new Error(
+        'Unable to connect to banking services. Please ensure the backend server is running on http://localhost:4000.'
+      );
     }
   }
 
@@ -87,7 +95,11 @@ async function request(endpoint, options = {}) {
   }
 
   if (!response.ok) {
-    const errorMsg = data.message || data.error || (data.errors && data.errors[0]?.message) || `Request failed with status ${response.status}`;
+    const errorMsg =
+      data.message ||
+      data.error ||
+      (data.errors && data.errors[0]?.message) ||
+      `Request failed with status ${response.status}`;
     const error = new Error(errorMsg);
     error.status = response.status;
     error.data = data;
@@ -102,14 +114,17 @@ const api = {
   register: (userData) => request('/api/auth/register', { method: 'POST', body: userData }),
   loginAadhaar: (data) => request('/api/auth/login-aadhaar', { method: 'POST', body: data }),
   loginPin: (data) => request('/api/auth/login-pin', { method: 'POST', body: data }),
-  loginEmergencyPin: (data) => request('/api/auth/login-emergency-pin', { method: 'POST', body: data }),
+  loginEmergencyPin: (data) =>
+    request('/api/auth/login-emergency-pin', { method: 'POST', body: data }),
   logout: () => request('/api/auth/logout', { method: 'POST' }),
   getMe: () => request('/api/auth/me', { method: 'GET' }),
   refreshToken: () => request('/api/auth/refresh', { method: 'POST' }),
 
   // OTP
-  sendOtp: (mobile, purpose) => request('/api/otp/send', { method: 'POST', body: { mobile, purpose } }),
-  verifyOtp: (mobile, purpose, code) => request('/api/otp/verify', { method: 'POST', body: { mobile, purpose, code } }),
+  sendOtp: (mobile, purpose) =>
+    request('/api/otp/send', { method: 'POST', body: { mobile, purpose } }),
+  verifyOtp: (mobile, purpose, code) =>
+    request('/api/otp/verify', { method: 'POST', body: { mobile, purpose, code } }),
 
   // Biometric
   enrollBiometric: (data) => request('/api/biometric/enroll', { method: 'POST', body: data }),
@@ -120,7 +135,8 @@ const api = {
   getAccounts: () => request('/api/accounts', { method: 'GET' }),
   createAccount: (data) => request('/api/accounts', { method: 'POST', body: data }),
   updateAccount: (id, data) => request(`/api/accounts/${id}`, { method: 'PATCH', body: data }),
-  setPrimaryAccount: (id) => request(`/api/accounts/${id}`, { method: 'PATCH', body: { isPrimary: true } }),
+  setPrimaryAccount: (id) =>
+    request(`/api/accounts/${id}`, { method: 'PATCH', body: { isPrimary: true } }),
   deleteAccount: (id) => request(`/api/accounts/${id}`, { method: 'DELETE' }),
 
   // Transactions
@@ -132,15 +148,18 @@ const api = {
   createTransaction: (data) => {
     const payload = {
       ...data,
-      transactionType: data.transactionType || data.type
+      transactionType: data.transactionType || data.type,
     };
     return request('/api/transactions', { method: 'POST', body: payload });
   },
-  topUpDemoFunds: (amount = 5000) => request('/api/transactions/topup', { method: 'POST', body: { amount } }),
-  
+  topUpDemoFunds: (amount = 5000) =>
+    request('/api/transactions/topup', { method: 'POST', body: { amount } }),
+
   // Delegated Senior Citizen Withdrawal
-  generateDelegateOtp: (data) => request('/api/transactions/delegate/generate', { method: 'POST', body: data }),
-  claimDelegateWithdrawal: (data) => request('/api/transactions/delegate/claim', { method: 'POST', body: data }),
+  generateDelegateOtp: (data) =>
+    request('/api/transactions/delegate/generate', { method: 'POST', body: data }),
+  claimDelegateWithdrawal: (data) =>
+    request('/api/transactions/delegate/claim', { method: 'POST', body: data }),
 
   // Security
   getSecurityStatus: () => request('/api/security/status', { method: 'GET' }),
@@ -155,18 +174,21 @@ const api = {
   // Admin
   getAdminUsers: () => request('/api/admin/users', { method: 'GET' }),
   getAdminUserById: (id) => request(`/api/admin/users/${id}`, { method: 'GET' }),
-  updateUserStatus: (id, status) => request(`/api/admin/users/${id}/status`, { method: 'PATCH', body: { status } }),
+  updateUserStatus: (id, status) =>
+    request(`/api/admin/users/${id}/status`, { method: 'PATCH', body: { status } }),
   getAdminTransactions: () => request('/api/admin/transactions', { method: 'GET' }),
   getAdminSecurityEvents: () => request('/api/admin/security-events', { method: 'GET' }),
   getAdminComplaints: () => request('/api/admin/complaints', { method: 'GET' }),
-  resolveComplaint: (id, data) => request(`/api/admin/complaints/${id}`, { method: 'PATCH', body: data }),
+  resolveComplaint: (id, data) =>
+    request(`/api/admin/complaints/${id}`, { method: 'PATCH', body: data }),
 
   // Merchant
   getMerchantProfile: () => request('/api/merchant/profile', { method: 'GET' }),
-  createPaymentRequest: (data) => request('/api/merchant/payment-requests', { method: 'POST', body: data }),
+  createPaymentRequest: (data) =>
+    request('/api/merchant/payment-requests', { method: 'POST', body: data }),
   getMerchantTransactions: () => request('/api/merchant/transactions', { method: 'GET' }),
   getMerchantSettlements: () => request('/api/merchant/settlements', { method: 'GET' }),
-  processRefund: (data) => request('/api/merchant/refunds', { method: 'POST', body: data })
+  processRefund: (data) => request('/api/merchant/refunds', { method: 'POST', body: data }),
 };
 
 if (typeof window !== 'undefined') {

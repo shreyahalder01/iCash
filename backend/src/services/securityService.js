@@ -8,7 +8,14 @@ class SecurityService {
   /**
    * Record a security event in PostgreSQL.
    */
-  static async recordEvent({ userId = null, eventType, severity = 'LOW', description, ipAddress = null, deviceReference = null }) {
+  static async recordEvent({
+    userId = null,
+    eventType,
+    severity = 'LOW',
+    description,
+    ipAddress = null,
+    deviceReference = null,
+  }) {
     try {
       return await prisma.securityEvent.create({
         data: {
@@ -17,8 +24,8 @@ class SecurityService {
           severity: severity,
           description: description,
           ip_address: ipAddress,
-          device_reference: deviceReference
-        }
+          device_reference: deviceReference,
+        },
       });
     } catch (err) {
       console.error('Failed to record security event:', err.message);
@@ -47,8 +54,8 @@ class SecurityService {
       data: {
         failed_login_attempts: newCount,
         status: isLocked ? 'LOCKED' : user.status,
-        locked_until: lockedUntil
-      }
+        locked_until: lockedUntil,
+      },
     });
 
     await this.recordEvent({
@@ -59,7 +66,7 @@ class SecurityService {
         ? `Account automatically locked for 15 minutes after ${newCount} consecutive failed attempts.`
         : `Failed login attempt (${newCount}/5).`,
       ipAddress: ip,
-      deviceReference: req.headers['user-agent']
+      deviceReference: req.headers['user-agent'],
     });
 
     return { isLocked, remainingAttempts: Math.max(0, 5 - newCount) };
@@ -75,8 +82,8 @@ class SecurityService {
       where: { id: user.id },
       data: {
         failed_login_attempts: 0,
-        last_login_at: new Date()
-      }
+        last_login_at: new Date(),
+      },
     });
 
     await this.recordEvent({
@@ -85,7 +92,7 @@ class SecurityService {
       severity: 'LOW',
       description: `Successful login session initialized.`,
       ipAddress: ip,
-      deviceReference: req.headers['user-agent']
+      deviceReference: req.headers['user-agent'],
     });
   }
 
@@ -101,7 +108,7 @@ class SecurityService {
       severity: 'CRITICAL',
       description: `🚨 Emergency duress PIN entered by user. Covert security alert triggered.`,
       ipAddress: ip,
-      deviceReference: req.headers['user-agent']
+      deviceReference: req.headers['user-agent'],
     });
   }
 
@@ -117,7 +124,7 @@ class SecurityService {
       severity: 'HIGH',
       description: `Multiple faces detected in camera frame during sensitive authentication flow.`,
       ipAddress: ip,
-      deviceReference: req.headers['user-agent']
+      deviceReference: req.headers['user-agent'],
     });
   }
 }
