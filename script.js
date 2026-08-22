@@ -342,8 +342,18 @@ window.phoneEmailListener = async function(userObj) {
       showAlertToast(`✓ Mobile +91 ${res.phone} verified via Phone.email!`);
     } else {
       if (loginStatus) loginStatus.innerHTML = `<span style="color:var(--primary);">✓ Verified: ${res.user.name}</span>`;
-      window._loginTargetUser = res.user;
-      setTimeout(() => { goTo('screen-login-scan'); beginLoginScan(); }, 500);
+      // For phone sign-in, prefer sending an OTP to the verified mobile number so the user
+      // can authenticate via SMS OTP. This ensures the "Sign in with Phone" flow actually
+      // sends an OTP instead of immediately relying on the third-party redirect.
+      try {
+        // Start the OTP flow (purpose: 'login') using the verified phone number from provider
+        await startOtpFlow('login', res.phone);
+      } catch (otpErr) {
+        // Fallback: if OTP flow fails, fall back to the biometric scan path
+        console.warn('OTP flow failed, falling back to biometric path:', otpErr);
+        window._loginTargetUser = res.user;
+        setTimeout(() => { goTo('screen-login-scan'); beginLoginScan(); }, 500);
+      }
     }
   } catch (err) {
     if (regStatus) regStatus.innerHTML = `<span style="color:var(--alert);">${err.message}</span>`;
