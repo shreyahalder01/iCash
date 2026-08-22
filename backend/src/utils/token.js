@@ -42,9 +42,21 @@ function getCookieOptions() {
   };
 }
 
+function getClearCookieOptions() {
+  const isProd = process.env.NODE_ENV === 'production';
+  return {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: 'lax',
+    path: '/',
+  };
+}
+
 module.exports = {
   COOKIE_NAME,
   signToken,
   verifyToken,
   getCookieOptions,
+  getClearCookieOptions,
 };
+

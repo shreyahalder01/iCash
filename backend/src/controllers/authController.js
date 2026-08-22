@@ -1,7 +1,8 @@
 const AuthService = require('../services/authService');
-const { COOKIE_NAME, getCookieOptions } = require('../utils/token');
+const { COOKIE_NAME, getCookieOptions, getClearCookieOptions } = require('../utils/token');
 
 class AuthController {
+
   static async register(req, res, next) {
     try {
       const { user, token } = await AuthService.registerUser(req.body, req);
@@ -65,7 +66,7 @@ class AuthController {
       if (req.user) {
         await AuthService.logout(req.user.id);
       }
-      res.clearCookie(COOKIE_NAME, getCookieOptions());
+      res.clearCookie(COOKIE_NAME, getClearCookieOptions());
       res.json({
         ok: true,
         message: 'Logged out successfully.',
@@ -101,7 +102,7 @@ class AuthController {
       await AuthService.deleteUserAccount(userId, pin, req);
 
       // Clear any session cookie
-      res.clearCookie(COOKIE_NAME, getCookieOptions());
+      res.clearCookie(COOKIE_NAME, getClearCookieOptions());
       res.json({ ok: true, message: 'Your account has been permanently deleted.' });
     } catch (err) {
       next(err);
@@ -110,3 +111,4 @@ class AuthController {
 }
 
 module.exports = AuthController;
+

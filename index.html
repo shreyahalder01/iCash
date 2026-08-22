@@ -900,7 +900,29 @@
                 </div>
               </div>
 
-              <button class="btn btn-ghost" onclick="logout()">Sign Out of Banking Session</button>
+              <div style="display:flex;gap:12px;flex-direction:column;">
+                <button class="btn btn-ghost" onclick="logout()">Sign Out of Banking Session</button>
+                <button class="btn btn-danger" onclick="openDeleteAccountModal()">Delete Account</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- DELETE ACCOUNT CONFIRMATION MODAL -->
+          <div class="modal-backdrop" id="modal-delete-account">
+            <div class="modal">
+              <button class="close-x" onclick="closeModal('delete-account')">&#10005;</button>
+              <div class="eyebrow">Danger Zone</div>
+              <h2>Delete Your Account</h2>
+              <p class="lead">This will permanently delete your account and all associated data. This action is irreversible. To confirm, enter your 4-digit security PIN below.</p>
+              <div class="field">
+                <label>Confirm 4-digit PIN</label>
+                <input id="delete-pin-input" maxlength="4" type="password" inputmode="numeric" placeholder="••••"/>
+              </div>
+              <div class="modal-msg" id="delete-account-msg"></div>
+              <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+                <button class="btn btn-ghost" onclick="closeModal('delete-account')">Cancel</button>
+                <button class="btn btn-danger" id="delete-account-btn" onclick="confirmDeleteAccount()">Delete Permanently</button>
+              </div>
             </div>
           </div>
 
@@ -1217,8 +1239,10 @@
 <!-- SCRIPTS -->
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/appwrite@16.1.0"></script>
 <script src="api.js"></script>
 <script src="biometric.js"></script>
 <script src="script.js"></script>
 </body>
 </html>
+

@@ -1,61 +1,74 @@
 # iCash — Enterprise Biometric Banking Platform
 
-A high-security, full-stack biometric digital banking platform built with **Node.js, Express.js, PostgreSQL, Prisma ORM, Argon2/Bcrypt credential hashing, secure HTTP-only session management, and multi-face anti-spoofing anomaly detection**.
+A high-security, full-stack biometric digital banking platform built with **Node.js, Express.js, PostgreSQL, Prisma ORM, Argon2/Bcrypt credential hashing, secure HTTP-only session management, Appwrite Cloud SDK, FaceAPI.js biometric neural vectors, and Python Flask OpenCV + dlib Real-Time Anti-Spoofing Liveness Detection**.
 
 ---
 
 ## 🏛️ System Architecture
 
 ```text
-                    ┌────────────────────────────────┐
-                    │     iCash Web Application      │
-                    │  (HTML5 / CSS / Three.js UI)   │
-                    └───────────────┬────────────────┘
-                                    │ HTTPS (Credentials: include)
-                                    ▼
-                    ┌────────────────────────────────┐
-                    │      Express REST API Layer    │
-                    │  (Helmet, Rate Limit, CORS)    │
-                    └───────────────┬────────────────┘
-                                    │
-         ┌──────────────────────────┼──────────────────────────┐
-         ▼                          ▼                          ▼
-┌──────────────────┐      ┌──────────────────┐      ┌──────────────────┐
-│  Authentication  │      │ Biometric Engine │      │ Security Auditor │
-│ (JWT & Cookies,  │      │ (Vector Distance │      │ (Duress Alarms,  │
-│  Bcrypt Hashing) │      │  Verification)   │      │ Multi-Face Guard)│
-└────────┬─────────┘      └────────┬─────────┘      └────────┬─────────┘
-         │                         │                         │
-         └─────────────────────────┼─────────────────────────┘
-                                   │
-                                   ▼
-                    ┌────────────────────────────────┐
-                    │           Prisma ORM           │
-                    │    (Atomic ACID Operations)    │
-                    └───────────────┬────────────────┘
-                                    │
-                                    ▼
-                    ┌────────────────────────────────┐
-                    │      PostgreSQL Database       │
-                    │   (Users, Accounts, Balances,  │
-                    │    Transactions, Audit Logs)   │
-                    └────────────────────────────────┘
+                    ┌────────────────────────────────────────────────────────┐
+                    │                 iCash Web Application                  │
+                    │        (HTML5 / Vanilla CSS / Three.js Canvas)         │
+                    └───────────┬───────────────────────────────┬────────────┘
+                                │ HTTPS                         │ WebSocket / HTTP
+                                ▼                               ▼
+        ┌───────────────────────────────────┐    ┌───────────────────────────────────┐
+        │      Express REST API Gateway     │    │  Python Liveness Detection Server │
+        │ (Helmet, Rate Limit, CORS, Auth)  │    │      (OpenCV + dlib 68-EAR)       │
+        └───────────────┬───────────────────┘    └─────────────────┬─────────────────┘
+                        │                                          │ Real-time Frame
+                        │                                          │ Eye-Blink State
+         ┌──────────────┼──────────────┬──────────────┐            ▼
+         ▼              ▼              ▼              ▼    ┌─────────────────────────┐
+┌────────────────┐ ┌──────────┐ ┌────────────┐ ┌─────────┐ │  Anti-Spoofing Engine  │
+│ Authentication │ │ Accounts │ │Transactions│ │Biometric│ │  (Photo/Screen Spoof    │
+│(JWT & Cookies, │ │ (Multi-  │ │  (Transfers│ │ Vector  │ │   Rejection Guard)      │
+│ Bcrypt Hashing)│ │  Portfolio││   & POS)   │ │ Engine) │ └─────────────────────────┘
+└────────┬───────┘ └────┬─────┘ └──────┬─────┘ └───┬─────┘
+         │              │              │           │
+         └──────────────┴──────┬───────┴───────────┘
+                               │
+                               ▼
+                ┌──────────────────────────────┐
+                │          Prisma ORM          │
+                │   (Atomic ACID Transactions) │
+                └──────────────┬───────────────┘
+                               │
+                               ▼
+                ┌──────────────────────────────┐
+                │     PostgreSQL Database      │
+                │  (Users, Accounts, Balances, │
+                │   Transactions, Audit Logs)  │
+                └──────────────────────────────┘
 ```
 
 ---
 
 ## 🚀 Key Features
 
-- **Persistent Relational Database**: Zero reliance on browser storage for financial or identity records. Accounts, transactions, biometric profiles, and audit trails are persisted in PostgreSQL.
-- **Server-Side Authentication**: Secure session cookies (`HttpOnly`, `SameSite: Lax`, `Secure`) and JWT verification middleware.
-- **Cryptographic Credential Security**: Passwords, PINs, and emergency duress codes are hashed using **bcrypt / Argon2** (12 salt rounds). Plaintext credentials and raw Aadhaar numbers are **never** stored.
-- **Masked Aadhaar Privacy**: Compliant with UIDAI privacy principles by persisting only `aadhaar_last4`, `aadhaar_verified`, and a cryptographic `aadhaar_reference`.
-- **Biometric Verification Engine**: On-device facial feature extraction paired with server-side vector verification abstraction (`BiometricService` with pluggable providers).
-- **Multi-Face Anti-Spoof Guard**: Automatically detects multiple people in the camera frame during sensitive operations and dispatches `MULTIPLE_FACE_DETECTED` security audit events.
-- **Emergency Duress Alarm**: If forced to unlock under threat, entering a 4-digit emergency PIN triggers a covert `DURESS_ALERT` security event with `CRITICAL` severity while unlocking the portal.
-- **Senior Citizen Assisted Banking**: Registered senior citizens can generate dynamic 5-minute authorization OTPs for designated trusted contacts to withdraw cash on their behalf.
-- **Role-Based Access Control (RBAC)**: Enforced permission boundaries across **USER**, **MERCHANT**, and **ADMIN** roles.
-- **ACID Financial Transactions**: PostgreSQL atomic transactions (`prisma.$transaction`) ensure consistency and prevent overdrafts or double-spending.
+### 1. 👁️ Biometric Authentication & Real-Time Liveness (Anti-Spoofing)
+- **128D Neural Face Vectors**: Fast, client-side neural descriptor extraction using MobileNet/SSD Mobilenet via `face-api.js`.
+- **OpenCV + dlib Real-Time Blink Liveness Server**: Dedicated Python microservice running on port `5001`. Calculates **Eye Aspect Ratio (EAR)** on streaming video frames (`open -> closed -> open`), blocking photo/screen replay spoofing.
+- **Multi-Face Guard**: Automatically alerts and halts transactions if multiple faces appear in the camera frame.
+- **Resilient Fallbacks**: If the camera is unavailable or the Python server is offline, securely falls back to PIN authentication or on-device landmark analysis.
+
+### 2. 🔐 Multi-Tier Security & Compliance
+- **Cryptographic Credential Security**: Passwords and PINs are hashed using **bcrypt / Argon2** (12 rounds). Plaintext credentials and raw Aadhaar numbers are **never** stored.
+- **Masked Aadhaar Privacy (UIDAI Principle)**: Compliant with data minimization standards by storing only `aadhaar_last4`, `aadhaar_verified`, and a cryptographic hash.
+- **Emergency Duress Protocol**: Entering a registered emergency PIN unlocks the account while covertly dispatching a `DURESS_ALERT` security event with `CRITICAL` severity to the audit log.
+- **Automatic Account Lockout**: Accounts are automatically locked after 5 consecutive failed PIN attempts.
+
+### 3. 💳 Digital Banking & Portfolio Management
+- **Multi-Account Portfolios**: Create, link, view, and manage multiple savings, current, and digital wallets with instant primary account switching.
+- **ACID Atomic Transfers**: Instant money transfers executed in isolated database transactions (`prisma.$transaction`) with balance validations and idempotency checks.
+- **Point of Sale (POS) Billing**: Dynamic checkout references with real-time merchant invoice tracking.
+- **Senior Assisted Banking**: Registered senior citizens can delegate withdrawal privileges to designated relatives using dynamic 5-minute time-bound OTPs.
+- **Permanent Account Deletion ("Delete Account")**: Self-service danger zone feature in Settings & Profile requiring 4-digit PIN re-verification to perform a permanent cascading deletion of personal records and balances.
+
+### 4. ☁️ Appwrite Cloud SDK Integration
+- Integrated `appwrite` SDK (`lib/appwrite.js`) connected to Appwrite Cloud (`https://sfo.cloud.appwrite.io/v1`, Project ID: `6a89af3a00114ef8b001`).
+- Automatic client verification ping (`client.ping()`) upon app launch.
 
 ---
 
@@ -63,278 +76,163 @@ A high-security, full-stack biometric digital banking platform built with **Node
 
 ```text
 iCash/
-├── frontend/
-│   ├── index.html            # User, Merchant & Admin portal interfaces
-│   ├── script.js             # UI controller wired to backend REST API
-│   ├── api.js                # Centralized REST API client with cookie handling
-│   └── style.css             # High-polish design system and responsive styles
-├── backend/
+├── frontend/                     # Modern Vanilla Web Application
+│   ├── index.html                # User, Merchant & Admin portal interface
+│   ├── script.js                 # UI controller, routing & state management
+│   ├── biometric.js              # Real-time face scanner & liveness frame streamer
+│   ├── api.js                    # Centralized REST API & Liveness client
+│   ├── lib/
+│   │   └── appwrite.js           # Appwrite Web SDK client configuration
+│   └── style.css                 # Dark-mode aesthetic banking design system
+├── backend/                      # Node.js & Express REST Backend
 │   ├── src/
-│   │   ├── controllers/      # Route controllers (Auth, Accounts, Transactions, etc.)
-│   │   ├── routes/           # REST API route definitions
-│   │   ├── middleware/       # Auth, RBAC, Rate-limiting, Validation, Error Handling
-│   │   ├── services/         # Business logic & atomic database services
-│   │   ├── utils/            # Hashing, Token sign/verify, Zod schemas
-│   │   ├── prisma.js         # Prisma client singleton
-│   │   └── server.js         # Express app initialization & static asset serving
+│   │   ├── controllers/          # Auth, Accounts, Transactions, Biometric controllers
+│   │   ├── routes/               # REST API route definitions
+│   │   ├── middleware/           # Auth, RBAC, Rate-limiting, Zod Validation
+│   │   ├── services/             # Atomic business logic & PostgreSQL queries
+│   │   ├── utils/                # Token signing, Bcrypt, and Zod schemas
+│   │   ├── prisma.js             # Prisma ORM singleton instance
+│   │   └── server.js             # Express application entrypoint
 │   ├── prisma/
-│   │   ├── schema.prisma     # Relational PostgreSQL schema
-│   │   └── seed.js           # Database seeder for initial administrative accounts
-│   ├── tests/                # Automated Jest / Supertest test suites
-│   ├── docker-compose.yml    # PostgreSQL container definition
-│   ├── .env                  # Environment configuration
-│   ├── .env.example          # Environment template
+│   │   ├── schema.prisma         # Relational database models
+│   │   └── seed.js               # Initial administrative database seeder
+│   ├── tests/                    # Jest + Supertest automated test suites
+│   ├── docker-compose.yml        # PostgreSQL container setup
 │   └── package.json
-├── package.json              # Root build & start scripts
+├── liveness_server/              # Python OpenCV + dlib Liveness Microservice
+│   ├── app.py                    # Flask server with EAR eye-blink detection (Port 5001)
+│   ├── download_model.py         # Automated downloader for dlib 68-point landmarks
+│   ├── decompress.py             # BZ2 decompression helper
+│   ├── requirements.txt          # Python dependencies (flask, opencv, dlib, scipy)
+│   └── shape_predictor_68_face_landmarks.dat # 68-point facial landmarks model
+├── lib/
+│   └── appwrite.js               # Root Appwrite Web SDK client
+├── package.json                  # Root scripts (build, dev, test, liveness)
 └── README.md
 ```
 
 ---
 
-## 🛠️ Setup & Installation
+## 🛠️ Setup & Running
 
-### Prerequisites
-
+### 1. Prerequisites
 - **Node.js** >= 18.0
-- **Docker Desktop** (for the PostgreSQL database container)
+- **Python** >= 3.10
+- **PostgreSQL** or Docker (for database)
 
-### 1. Configure Environment
+---
 
-Create `backend/.env` based on `backend/.env.example`:
+### 2. Install Dependencies
 
-```env
-PORT=4000
-DATABASE_URL="postgresql://postgres:postgres@localhost:5433/icash?schema=public"
-JWT_SECRET="your-secure-jwt-secret-key"
-SESSION_SECRET="your-session-cookie-secret"
-CORS_ORIGIN="http://localhost:5500,http://localhost:3000"
-SMS_PROVIDER="console"
-BIOMETRIC_PROVIDER="demo"
+#### Node.js Dependencies:
+```bash
+npm install
+cd backend && npm install && cd ..
 ```
 
-### 2. Start the Database
+#### Python Liveness Server Dependencies:
+```bash
+pip install -r liveness_server/requirements.txt
+```
 
-Start the PostgreSQL container (Docker Desktop must be running):
+---
 
+### 3. Database Setup
+
+1. Start PostgreSQL (or run Docker Compose):
 ```bash
 cd backend
 docker compose up -d
 ```
 
-Wait a few seconds for the container to become healthy, then verify:
-
+2. Initialize and push schema:
 ```bash
-docker compose ps
+npm run prisma:push
+npm run prisma:seed
 ```
 
-### 3. Install Dependencies & Push Schema
+---
 
-```bash
-npm install
-npx prisma db push
-node prisma/seed.js
-```
+### 4. Running the Servers
 
-### 4. Start the Backend Server
-
+#### A. Start the Banking Application (Frontend + Express API):
 ```bash
 npm run dev
+# App will run on http://localhost:5000
 ```
 
-Open **`http://localhost:4000`** in your browser.
+#### B. Start the Real-Time Liveness Detection Server:
+```bash
+npm run liveness
+# or: python liveness_server/app.py
+# Liveness Microservice will run on http://localhost:5001
+```
 
-### 5. Run Automated Test Suite
+---
 
+## 🧪 Automated Testing
+
+Run the full backend automated test suite:
 ```bash
 npm test
 ```
 
-Runs 23 automated tests covering authentication, lockout policies, transaction atomicity, account isolation, RBAC, and security event triggers.
+### Test Coverage Includes:
+- **`tests/auth.test.js`**: User registration, duplicate prevention, Aadhaar lookup, PIN login, emergency duress alert logging, 5-attempt brute-force lockout, and PIN-confirmed permanent account deletion.
+- **`tests/accounts.test.js`**: Account portfolio creation, primary account switching, multi-tenant deletion boundaries.
+- **`tests/transactions.test.js`**: Atomic balance deductions, instant deposits, insufficient balance guard, statement queries.
+- **`tests/security.test.js`**: Rate-limiting, multi-face alerts, audit log validation.
+- **`tests/rbac.test.js`**: Role-based access enforcement for User, Merchant, and Admin routes.
 
 ---
 
-## 📡 REST API Documentation
+## 📡 REST API Reference
 
-### Authentication (`/api/auth`)
+### Authentication & Identity (`/api/auth`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/auth/register` | Register new user with masked Aadhaar | Public |
+| `POST` | `/api/auth/login-aadhaar` | Lookup account by last 4 digits of Aadhaar | Public |
+| `POST` | `/api/auth/login-pin` | Login with PIN (Standard or Duress Emergency PIN) | Public |
+| `POST` | `/api/auth/logout` | Terminate session and clear HTTP-only cookies | Protected |
+| `GET` | `/api/auth/me` | Fetch authenticated profile and linked accounts | Protected |
+| `DELETE`| `/api/auth/me` | Permanently delete account (Requires 4-digit PIN) | Protected |
 
-#### `POST /api/auth/register`
+### Accounts (`/api/accounts`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/accounts` | List user's linked bank accounts | Protected |
+| `POST` | `/api/accounts` | Link new bank account | Protected |
+| `PATCH`| `/api/accounts/:id` | Update account or toggle primary status | Protected |
+| `DELETE`| `/api/accounts/:id`| Unlink bank account | Protected |
 
-Registers a new customer profile in PostgreSQL with masked Aadhaar, hashes PINs with bcrypt, initializes a primary account, and sets an HTTP-only session cookie.
+### Transactions & POS (`/api/transactions`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/transactions` | Filter and paginate user transaction history | Protected |
+| `POST` | `/api/transactions` | Execute atomic fund transfer | Protected |
+| `POST` | `/api/transactions/topup`| Instant demo wallet top-up | Protected |
+| `POST` | `/api/transactions/delegate/generate` | Generate senior citizen withdrawal OTP | Protected |
+| `POST` | `/api/transactions/delegate/claim` | Disburse delegated cash withdrawal | Public |
 
-- **Request Body:**
-
-```json
-{
-  "fullName": "Customer Name",
-  "phone": "9823012345",
-  "aadhaarNumber": "123456789012",
-  "dob": "1998-04-12",
-  "role": "USER",
-  "pin": "1234",
-  "emergencyPin": "9876",
-  "descriptors": [[...]]
-}
-```
-
-#### `POST /api/auth/login-aadhaar`
-
-Looks up verified accounts matching the entered Aadhaar last 4 digits.
-
-- **Request Body:** `{ "aadhaarLast4": "4821" }`
-
-#### `POST /api/auth/login-pin`
-
-Verifies user PIN, checks account lock status (locks after 5 failures for 15 minutes), handles covert duress alerts, and returns safe user data with a session cookie.
-
-- **Request Body:** `{ "userId": "uuid", "pin": "1234" }`
-
-#### `GET /api/auth/me` _(Protected)_
-
-Returns the currently authenticated user's profile, primary account, and balance.
-
-#### `POST /api/auth/logout` _(Protected)_
-
-Revokes active server session and clears session cookie.
+### Liveness Detection Microservice (`http://localhost:5001`)
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/health` | Health status and active sessions |
+| `POST` | `/liveness/start` | Initialize a new liveness session |
+| `POST` | `/liveness/frame` | Analyze video frame and compute Eye Aspect Ratio |
+| `GET` | `/liveness/status`| Query verification state (`live: true/false`) |
+| `POST` | `/liveness/reset` | Terminate session and clean up memory |
 
 ---
 
-### Bank Accounts (`/api/accounts`)
-
-#### `GET /api/accounts` _(Protected)_
-
-Returns all active accounts owned by the authenticated user.
-
-#### `POST /api/accounts` _(Protected)_
-
-Links a new bank account or virtual card.
-
-- **Request Body:**
-
-```json
-{
-  "bankName": "HDFC Digital Bank",
-  "accountType": "SAVINGS",
-  "initialBalance": 10000,
-  "isPrimary": false
-}
-```
-
-#### `PATCH /api/accounts/:id` _(Protected)_
-
-Updates account details or sets as primary.
-
-#### `DELETE /api/accounts/:id` _(Protected)_
-
-Closes a non-primary linked account.
+## 🔒 Security Best Practices Implemented
+1. **Zero Secret Leakage**: `password_hash`, `pin_hash`, and `emergency_pin_hash` are stripped from all API responses via Zod schemas and service interceptors.
+2. **HTTP-only Cookie Authentication**: Session tokens are transmitted via `HttpOnly`, `SameSite=Lax` cookies, preventing XSS token harvesting.
+3. **Database Cascading Deletion**: Account deletion completely purges all sensitive biometric descriptors, accounts, and session data in atomic transactions.
+4. **Anti-Replay Liveness Guard**: Real-time eye-blink tracking protects against printed photos, videos, and screen spoofing.
 
 ---
 
-### Transactions (`/api/transactions`)
-
-#### `GET /api/transactions` _(Protected)_
-
-Returns user's transaction history from PostgreSQL.
-
-#### `POST /api/transactions` _(Protected)_
-
-Executes an atomic withdrawal, transfer, or deposit.
-
-- **Request Body (ATM Withdrawal):**
-
-```json
-{
-  "transactionType": "WITHDRAWAL",
-  "amount": 2000,
-  "description": "ATM cash withdrawal",
-  "verifyMethod": "FACE"
-}
-```
-
-- **Request Body (Transfer):**
-
-```json
-{
-  "transactionType": "TRANSFER",
-  "amount": 1500,
-  "recipientName": "Recipient Name",
-  "recipientUserId": "optional-user-uuid",
-  "verifyMethod": "PIN"
-}
-```
-
-#### `POST /api/transactions/topup` _(Protected)_
-
-Deposits funds to primary account balance.
-
-#### `POST /api/transactions/delegate/generate` _(Protected - Senior Citizen Only)_
-
-Generates a dynamic 6-digit delegation OTP valid for 5 minutes.
-
-- **Request Body:** `{ "amount": 3000 }`
-
-#### `POST /api/transactions/delegate/claim` _(Public)_
-
-Authorized contact claims funds using senior citizen's delegation OTP.
-
-- **Request Body:**
-
-```json
-{
-  "seniorName": "Account Holder Name",
-  "otp": "123456"
-}
-```
-
----
-
-### Biometrics (`/api/biometric`)
-
-#### `POST /api/biometric/enroll` _(Protected)_
-
-Saves 128D numeric facial descriptors to PostgreSQL.
-
-#### `POST /api/biometric/verify`
-
-Server-side Euclidean distance matching against registered template.
-
----
-
-### Security & Audit (`/api/security`)
-
-#### `GET /api/security/status` _(Protected)_
-
-Returns active duress alerts, multi-face count, and lock status.
-
-#### `POST /api/security/events`
-
-Records security anomalies (`MULTIPLE_FACE_DETECTED`, `LOGIN_FAILED`, etc.) with IP and device user-agent.
-
----
-
-### Admin Portal (`/api/admin` - Requires `role = ADMIN`)
-
-- `GET /api/admin/users`: Lists all system users with status and total balances.
-- `GET /api/admin/users/:id`: Detailed user audit view.
-- `PATCH /api/admin/users/:id/status`: Change status (`ACTIVE`, `LOCKED`, `SUSPENDED`).
-- `GET /api/admin/security-events`: Complete system security audit trail.
-- `GET /api/admin/complaints`: User disputes table.
-- `PATCH /api/admin/complaints/:id`: Update dispute status and resolution note.
-
----
-
-### Merchant Portal (`/api/merchant` - Requires `role = MERCHANT`)
-
-- `GET /api/merchant/profile`: Commercial profile, settled balance, pending balance.
-- `POST /api/merchant/payment-requests`: Generates dynamic POS billing codes.
-- `GET /api/merchant/settlements`: Settlement batch history.
-- `POST /api/merchant/refunds`: Issues refunds on transactions.
-
----
-
-## 🔒 Security Summary
-
-1. **Strict User Isolation**: User A can never read, modify, or withdraw from User B's accounts.
-2. **PostgreSQL Atomic Transactions**: Ensures zero financial inconsistency during concurrent requests.
-3. **Covert Duress Protection**: Protects users in coerced situations without tipping off bad actors.
-4. **Anti-Brute Force**: 5 failed PIN attempts triggers an automatic 15-minute account lockout.
-5. **No Plaintext Aadhaar**: Compliance with UIDAI privacy principles via irreversible reference hashing and masking.
+## 📄 License
+MIT License. Developed for enterprise biometric banking and financial digital security.

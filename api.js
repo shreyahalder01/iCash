@@ -119,6 +119,8 @@ const api = {
   logout: () => request('/api/auth/logout', { method: 'POST' }),
   getMe: () => request('/api/auth/me', { method: 'GET' }),
   refreshToken: () => request('/api/auth/refresh', { method: 'POST' }),
+  // Delete own account (requires PIN confirmation)
+  deleteMe: (data) => request('/api/auth/me', { method: 'DELETE', body: data }),
 
   // OTP
   sendOtp: (mobile, purpose) =>
@@ -189,7 +191,55 @@ const api = {
   getMerchantTransactions: () => request('/api/merchant/transactions', { method: 'GET' }),
   getMerchantSettlements: () => request('/api/merchant/settlements', { method: 'GET' }),
   processRefund: (data) => request('/api/merchant/refunds', { method: 'POST', body: data }),
+
+  // Real-Time Liveness Server (Flask + OpenCV + dlib)
+  liveness: {
+    baseUrl: 'http://127.0.0.1:5001',
+    start: async () => {
+      try {
+        const res = await fetch('http://127.0.0.1:5001/liveness/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        return await res.json();
+      } catch (e) {
+        return null;
+      }
+    },
+    sendFrame: async (sessionId, base64Image) => {
+      try {
+        const res = await fetch('http://127.0.0.1:5001/liveness/frame', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId, image: base64Image }),
+        });
+        return await res.json();
+      } catch (e) {
+        return null;
+      }
+    },
+    status: async (sessionId) => {
+      try {
+        const res = await fetch(
+          `http://127.0.0.1:5001/liveness/status?session_id=${encodeURIComponent(sessionId)}`
+        );
+        return await res.json();
+      } catch (e) {
+        return null;
+      }
+    },
+    reset: async (sessionId) => {
+      try {
+        await fetch('http://127.0.0.1:5001/liveness/reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId }),
+        });
+      } catch (e) {}
+    },
+  },
 };
+
 
 if (typeof window !== 'undefined') {
   window.iCashApi = api;

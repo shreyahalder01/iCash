@@ -24,6 +24,39 @@ let otpCountdownTimer = null;
 let otpResendTimer = null;
 const OTP_DIGIT_IDS = ['od0', 'od1', 'od2', 'od3', 'od4', 'od5'];
 
+// Appwrite Web SDK Initialization
+let appwriteClient = null;
+let appwriteAccount = null;
+let appwriteDatabases = null;
+
+function initAppwrite() {
+  try {
+    if (typeof Appwrite !== 'undefined') {
+      const { Client, Account, Databases } = Appwrite;
+      appwriteClient = new Client()
+        .setEndpoint('https://sfo.cloud.appwrite.io/v1')
+        .setProject('6a89af3a00114ef8b001');
+
+      appwriteAccount = new Account(appwriteClient);
+      appwriteDatabases = new Databases(appwriteClient);
+
+      // Ping Appwrite backend server to verify setup
+      if (typeof appwriteClient.ping === 'function') {
+        appwriteClient
+          .ping()
+          .then((res) => {
+            console.log('[Appwrite] Ping response:', res);
+          })
+          .catch((err) => {
+            console.log('[Appwrite] Ping result:', err);
+          });
+      }
+    }
+  } catch (err) {
+    console.warn('[Appwrite] Client initialization notice:', err);
+  }
+}
+
 // ============================================================
 // INITIALIZATION & EVENT LISTENERS
 // ============================================================
@@ -31,6 +64,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   initOtpDigitInputs();
   initCommandPaletteShortcuts();
   initThreeBackground();
+  initAppwrite();
 
   // Check if session exists
   try {
@@ -43,6 +77,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     // Guest mode
   }
 });
+
 
 // ============================================================
 // VIEW NAVIGATION & ROUTING
@@ -1277,6 +1312,50 @@ function populateProfileView() {
   document.getElementById('prof-senior').textContent = currentUser.isSenior
     ? 'Senior Assisted Banking Active'
     : 'Standard Customer';
+}
+
+function openDeleteAccountModal() {
+  document.getElementById('delete-pin-input').value = '';
+  document.getElementById('delete-account-msg').textContent = '';
+  document.getElementById('modal-delete-account').classList.add('active');
+}
+
+function closeModal(modalId) {
+  // existing closeModal handles modal-backdrop ids; reuse to close delete-account
+  if (modalId === 'delete-account') {
+    document.getElementById('modal-delete-account').classList.remove('active');
+    return;
+  }
+  document.getElementById(`modal-${modalId}`)?.classList.remove('active');
+}
+
+async function confirmDeleteAccount() {
+  const btn = document.getElementById('delete-account-btn');
+  const msg = document.getElementById('delete-account-msg');
+  const pin = document.getElementById('delete-pin-input').value.trim();
+  if (!/^[0-9]{4}$/.test(pin)) {
+    msg.textContent = 'Enter your 4-digit PIN to confirm.';
+    msg.className = 'modal-msg err';
+    return;
+  }
+  if (btn) btn.disabled = true;
+  msg.textContent = 'Deleting account… this may take a few seconds.';
+  msg.className = 'modal-msg';
+  try {
+    await window.iCashApi.deleteMe({ pin });
+    // Success — clear local state and navigate to welcome
+    showAlertToast('Your account has been deleted. Redirecting…');
+    // Logout client-side state
+    currentUser = null;
+    currentAccounts = [];
+    // Close modal and go to welcome
+    document.getElementById('modal-delete-account').classList.remove('active');
+    setTimeout(() => goTo('screen-welcome'), 800);
+  } catch (err) {
+    msg.textContent = err.message || 'Failed to delete account.';
+    msg.className = 'modal-msg err';
+    if (btn) btn.disabled = false;
+  }
 }
 
 function renderAccountsView() {

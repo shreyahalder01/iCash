@@ -1,0 +1,6 @@
+flask
+flask-cors
+opencv-python
+scipy
+numpy
+dlib; python_version < "3.13"

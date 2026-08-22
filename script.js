@@ -14,11 +14,7 @@ let currentPage = 1;
 const ITEMS_PER_PAGE = 6;
 let isBalanceHidden = false;
 
-let modelsReady = false;
-let regRing, loginRing, verifyRing;
-let regStream, loginStream, verifyStream;
-let regDetectLoop, loginDetectLoop, verifyDetectLoop;
-const SAMPLES_PER_USER = 3;
+// (Biometric state managed by biometric.js)
 
 // Active verification session
 let pendingVerificationAction = null;
@@ -28,6 +24,39 @@ let otpCountdownTimer = null;
 let otpResendTimer = null;
 const OTP_DIGIT_IDS = ['od0', 'od1', 'od2', 'od3', 'od4', 'od5'];
 
+// Appwrite Web SDK Initialization
+let appwriteClient = null;
+let appwriteAccount = null;
+let appwriteDatabases = null;
+
+function initAppwrite() {
+  try {
+    if (typeof Appwrite !== 'undefined') {
+      const { Client, Account, Databases } = Appwrite;
+      appwriteClient = new Client()
+        .setEndpoint('https://sfo.cloud.appwrite.io/v1')
+        .setProject('6a89af3a00114ef8b001');
+
+      appwriteAccount = new Account(appwriteClient);
+      appwriteDatabases = new Databases(appwriteClient);
+
+      // Ping Appwrite backend server to verify setup
+      if (typeof appwriteClient.ping === 'function') {
+        appwriteClient
+          .ping()
+          .then((res) => {
+            console.log('[Appwrite] Ping response:', res);
+          })
+          .catch((err) => {
+            console.log('[Appwrite] Ping result:', err);
+          });
+      }
+    }
+  } catch (err) {
+    console.warn('[Appwrite] Client initialization notice:', err);
+  }
+}
+
 // ============================================================
 // INITIALIZATION & EVENT LISTENERS
 // ============================================================
@@ -35,23 +64,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   initOtpDigitInputs();
   initCommandPaletteShortcuts();
   initThreeBackground();
-
-  // Try to load FaceAPI models in background
-  try {
-    const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
-    await Promise.all([
-      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
-    ]);
-    modelsReady = true;
-    console.log('[iCash] FaceAPI Models loaded successfully.');
-  } catch (e) {
-    console.warn(
-      '[iCash] FaceAPI could not load from CDN. Using simulated biometric vector engine.',
-      e
-    );
-  }
+  initAppwrite();
 
   // Check if session exists
   try {
@@ -64,6 +77,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     // Guest mode
   }
 });
+
 
 // ============================================================
 // VIEW NAVIGATION & ROUTING
@@ -545,7 +559,55 @@ function initOtpDigitInputs() {
 // ============================================================
 // BIOMETRIC CAMERA & VECTOR MATCHING
 // ============================================================
+function cameraErrorMessage(err) {
+  if (err && err.message === 'INSECURE_CONTEXT') {
+    return 'Camera requires HTTPS (or localhost). This page was opened over an insecure connection, so the browser is blocking camera access.';
+  }
+  if (err && err.message === 'NO_MEDIA_API') {
+    return "This browser doesn't support camera access. Try an up-to-date Chrome, Edge, or Firefox.";
+  }
+  switch (err && err.name) {
+    case 'NotAllowedError':
+    case 'PermissionDeniedError':
+      return 'Camera permission was denied. Click the camera/lock icon in your address bar, allow access, then retry.';
+    case 'NotFoundError':
+    case 'DevicesNotFoundError':
+      return 'No camera was found on this device. Connect a webcam, or use "Camera unavailable? Sign in with PIN" below.';
+    case 'NotReadableError':
+    case 'TrackStartError':
+      return 'Your camera is already in use by another app or browser tab. Close it and retry.';
+    case 'OverconstrainedError':
+      return 'Your camera does not support the requested resolution. Retrying with default settings may help.';
+    case 'SecurityError':
+      return "Camera access was blocked by your browser's security settings for this site.";
+    default:
+      return 'Camera not available. Please allow permissions and retry.';
+  }
+}
+
 async function startCamera(videoEl, errEl) {
+  if (errEl) {
+    errEl.textContent = '';
+    errEl.classList.remove('active');
+  }
+
+  if (!window.isSecureContext) {
+    const err = new Error('INSECURE_CONTEXT');
+    if (errEl) {
+      errEl.textContent = cameraErrorMessage(err);
+      errEl.classList.add('active');
+    }
+    throw err;
+  }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    const err = new Error('NO_MEDIA_API');
+    if (errEl) {
+      errEl.textContent = cameraErrorMessage(err);
+      errEl.classList.add('active');
+    }
+    throw err;
+  }
+
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { width: 640, height: 480, facingMode: 'user' },
@@ -554,8 +616,11 @@ async function startCamera(videoEl, errEl) {
     videoEl.srcObject = stream;
     return stream;
   } catch (err) {
-    console.error('Camera access denied:', err);
-    if (errEl) errEl.textContent = 'Camera not available. Please allow permissions.';
+    console.error('Camera access failed:', err.name, err.message);
+    if (errEl) {
+      errEl.textContent = cameraErrorMessage(err);
+      errEl.classList.add('active');
+    }
     throw err;
   }
 }
@@ -567,62 +632,8 @@ function stopCamera(videoEl) {
   }
 }
 
-async function beginRegisterScan() {
-  const video = document.getElementById('reg-video');
-  const errEl = document.getElementById('reg-cam-error');
-  const statusEl = document.getElementById('reg-scan-status');
-  const btn = document.getElementById('reg-capture-btn');
-  btn.disabled = true;
-  statusEl.textContent = 'Initializing camera…';
-  if (!regRing) regRing = createScanRingRenderer(document.getElementById('scan-ring-canvas-reg'));
-
-  try {
-    regStream = await startCamera(video, errEl);
-    btn.disabled = false;
-    statusEl.textContent = 'Face detected. Ready to capture.';
-  } catch (e) {
-    // Fallback enable button for testing
-    btn.disabled = false;
-    statusEl.textContent = 'Camera fallback ready.';
-  }
-}
-
-async function captureRegisterFace() {
-  const statusEl = document.getElementById('reg-scan-status');
-  const btn = document.getElementById('reg-capture-btn');
-  btn.disabled = true;
-  statusEl.textContent = 'Generating 128D neural facial descriptor…';
-
-  // Generate 128D descriptor vector
-  const sampleDescriptor = Array.from({ length: 128 }, () => Math.random() * 0.4 - 0.2);
-  const descriptors = [sampleDescriptor, sampleDescriptor];
-
-  try {
-    const payload = { ...window._pendingRegPayload, descriptors };
-    const res = await window.iCashApi.register(payload);
-    teardownRegisterScan();
-
-    if (res.ok && res.user) {
-      currentUser = res.user;
-      showMatch(res.user, true);
-    }
-  } catch (err) {
-    statusEl.textContent = err.message || 'Registration failed.';
-    statusEl.classList.add('bad');
-    btn.disabled = false;
-  }
-}
-
-function cancelRegisterScan() {
-  teardownRegisterScan();
-  goTo('screen-welcome');
-}
-
-function teardownRegisterScan() {
-  clearInterval(regDetectLoop);
-  const video = document.getElementById('reg-video');
-  stopCamera(video);
-}
+// beginRegisterScan / captureRegisterFace / cancelRegisterScan / teardownRegisterScan
+// → Implemented in biometric.js (real face-api.js auto-scan engine)
 
 // Login Aadhaar lookup
 async function verifyAadhaarLogin() {
@@ -655,57 +666,8 @@ async function verifyAadhaarLogin() {
   }
 }
 
-async function beginLoginScan() {
-  const video = document.getElementById('login-video');
-  const errEl = document.getElementById('login-cam-error');
-  const statusEl = document.getElementById('login-scan-status');
-  const btn = document.getElementById('login-capture-btn');
-  btn.disabled = true;
-  statusEl.textContent = 'Starting biometric camera…';
-  if (!loginRing)
-    loginRing = createScanRingRenderer(document.getElementById('scan-ring-canvas-login'));
-
-  try {
-    loginStream = await startCamera(video, errEl);
-    btn.disabled = false;
-    statusEl.textContent = 'Position face in ring.';
-  } catch (e) {
-    btn.disabled = false;
-    statusEl.textContent = 'Camera fallback ready.';
-  }
-}
-
-async function captureLoginFace() {
-  const statusEl = document.getElementById('login-scan-status');
-  const targetUser = window._loginTargetUser;
-  if (!targetUser) return;
-  statusEl.textContent = 'Verifying facial vectors…';
-
-  const liveDescriptor = Array.from({ length: 128 }, () => Math.random() * 0.4 - 0.2);
-
-  try {
-    const verifyRes = await window.iCashApi.verifyBiometric({
-      liveDescriptor,
-      userId: targetUser.id,
-    });
-    teardownLoginScan();
-    promptLoginPin(targetUser, verifyRes.confidence || 0.95);
-  } catch (err) {
-    statusEl.textContent = err.message || 'Biometric mismatch.';
-    statusEl.classList.add('bad');
-  }
-}
-
-function cancelLoginScan() {
-  teardownLoginScan();
-  goTo('screen-welcome');
-}
-
-function teardownLoginScan() {
-  clearInterval(loginDetectLoop);
-  const video = document.getElementById('login-video');
-  stopCamera(video);
-}
+// beginLoginScan / captureLoginFace / cancelLoginScan / teardownLoginScan
+// → Implemented in biometric.js (real face-api.js Euclidean matching engine)
 
 function promptLoginPin(user, confidence = 0.95) {
   pendingLoginUser = user;
@@ -1179,50 +1141,9 @@ async function addDemoFunds() {
 
 // ============================================================
 // BIOMETRIC VERIFICATION GATE (HUMAN IN THE LOOP)
+// → launchBiometricGate / captureVerifyFace / cancelVerify / teardownVerifyGate
+//   implemented in biometric.js (real face-api.js Euclidean matching, multi-face rejection)
 // ============================================================
-async function launchBiometricGate(title, lead) {
-  document.getElementById('verify-title').textContent = title;
-  document.getElementById('verify-lead').textContent = lead;
-  document.getElementById('verify-msg').textContent = '';
-  document.getElementById('verify-pin-block').style.display = 'none';
-
-  openModal('verify');
-
-  const video = document.getElementById('verify-video');
-  const errEl = document.getElementById('verify-cam-error');
-  const statusEl = document.getElementById('verify-scan-status');
-  const btn = document.getElementById('verify-capture-btn');
-
-  btn.disabled = true;
-  statusEl.textContent = 'Starting camera…';
-  if (!verifyRing)
-    verifyRing = createScanRingRenderer(document.getElementById('scan-ring-canvas-verify'));
-
-  try {
-    verifyStream = await startCamera(video, errEl);
-    btn.disabled = false;
-    statusEl.textContent = 'Look at camera to authorize.';
-  } catch (e) {
-    btn.disabled = false;
-    statusEl.textContent = 'Camera fallback ready.';
-  }
-}
-
-async function captureVerifyFace() {
-  const statusEl = document.getElementById('verify-scan-status');
-  const msg = document.getElementById('verify-msg');
-  statusEl.textContent = 'Verifying biometric signature…';
-
-  try {
-    // Process the pending financial transaction
-    await executePendingAction();
-    teardownVerifyGate();
-    closeModal('verify');
-  } catch (err) {
-    msg.textContent = err.message || 'Transaction authorization failed.';
-    msg.className = 'modal-msg err';
-  }
-}
 
 function toggleVerifyPin() {
   const block = document.getElementById('verify-pin-block');
@@ -1260,18 +1181,6 @@ async function executePendingAction() {
     pendingVerificationAction = null;
     loadDashboardData();
   }
-}
-
-function cancelVerify() {
-  teardownVerifyGate();
-  closeModal('verify');
-  pendingVerificationAction = null;
-  showAlertToast('Transaction cancelled.', true);
-}
-
-function teardownVerifyGate() {
-  const video = document.getElementById('verify-video');
-  stopCamera(video);
 }
 
 // ============================================================
@@ -1403,6 +1312,50 @@ function populateProfileView() {
   document.getElementById('prof-senior').textContent = currentUser.isSenior
     ? 'Senior Assisted Banking Active'
     : 'Standard Customer';
+}
+
+function openDeleteAccountModal() {
+  document.getElementById('delete-pin-input').value = '';
+  document.getElementById('delete-account-msg').textContent = '';
+  document.getElementById('modal-delete-account').classList.add('active');
+}
+
+function closeModal(modalId) {
+  // existing closeModal handles modal-backdrop ids; reuse to close delete-account
+  if (modalId === 'delete-account') {
+    document.getElementById('modal-delete-account').classList.remove('active');
+    return;
+  }
+  document.getElementById(`modal-${modalId}`)?.classList.remove('active');
+}
+
+async function confirmDeleteAccount() {
+  const btn = document.getElementById('delete-account-btn');
+  const msg = document.getElementById('delete-account-msg');
+  const pin = document.getElementById('delete-pin-input').value.trim();
+  if (!/^[0-9]{4}$/.test(pin)) {
+    msg.textContent = 'Enter your 4-digit PIN to confirm.';
+    msg.className = 'modal-msg err';
+    return;
+  }
+  if (btn) btn.disabled = true;
+  msg.textContent = 'Deleting account… this may take a few seconds.';
+  msg.className = 'modal-msg';
+  try {
+    await window.iCashApi.deleteMe({ pin });
+    // Success — clear local state and navigate to welcome
+    showAlertToast('Your account has been deleted. Redirecting…');
+    // Logout client-side state
+    currentUser = null;
+    currentAccounts = [];
+    // Close modal and go to welcome
+    document.getElementById('modal-delete-account').classList.remove('active');
+    setTimeout(() => goTo('screen-welcome'), 800);
+  } catch (err) {
+    msg.textContent = err.message || 'Failed to delete account.';
+    msg.className = 'modal-msg err';
+    if (btn) btn.disabled = false;
+  }
 }
 
 function renderAccountsView() {

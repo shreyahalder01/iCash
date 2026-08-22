@@ -5,6 +5,7 @@
   "main": "src/server.js",
   "type": "commonjs",
   "scripts": {
+    "build": "prisma generate",
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "prisma:generate": "prisma generate",
@@ -13,6 +14,7 @@
     "prisma:seed": "node prisma/seed.js",
     "test": "jest --runInBand --detectOpenHandles --forceExit"
   },
+
   "prisma": {
     "seed": "node prisma/seed.js"
   },

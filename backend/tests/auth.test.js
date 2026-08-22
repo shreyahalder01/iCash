@@ -123,4 +123,45 @@ describe('Auth & Session APIs', () => {
     const sixthRes = await request(app).post('/api/auth/login-pin').send({ userId, pin: '5566' }); // even with correct PIN
     expect(sixthRes.status).toBe(403);
   });
+
+  test('DELETE /api/auth/me - Requires PIN confirmation and deletes user permanently from DB', async () => {
+    const deletePhone = '9900112233';
+    const deleteAadhaar = '987654321098';
+
+    await prisma.user.deleteMany({ where: { phone: deletePhone } });
+
+    // Register user to test deletion
+    const regRes = await request(app).post('/api/auth/register').send({
+      fullName: 'User To Delete',
+      phone: deletePhone,
+      email: 'delete.me@icash.bank',
+      aadhaarNumber: deleteAadhaar,
+      pin: '4321',
+      emergencyPin: '8765',
+      isSenior: false,
+    });
+    expect(regRes.status).toBe(201);
+    const cookies = regRes.headers['set-cookie'];
+    const deleteUserId = regRes.body.user.id;
+
+    // Attempt delete with invalid PIN
+    const wrongPinRes = await request(app)
+      .delete('/api/auth/me')
+      .set('Cookie', cookies)
+      .send({ pin: '0000' });
+    expect(wrongPinRes.status).toBe(401);
+
+    // Attempt delete with correct PIN
+    const successRes = await request(app)
+      .delete('/api/auth/me')
+      .set('Cookie', cookies)
+      .send({ pin: '4321' });
+    expect(successRes.status).toBe(200);
+    expect(successRes.body.ok).toBe(true);
+
+    // Verify user is deleted from database
+    const dbUser = await prisma.user.findUnique({ where: { id: deleteUserId } });
+    expect(dbUser).toBeNull();
+  });
 });
+

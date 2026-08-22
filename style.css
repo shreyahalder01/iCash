@@ -1943,3 +1943,27 @@ input:focus, select:focus, textarea:focus {
   .app-sidebar, .top-navbar, .quick-actions-card, .btn-row, #canvas3d { display: none !important; }
   .table-panel { border: 1px solid #000; }
 }
+
+
+/* ---------------------------------------------------------------- */
+/* Camera error / fallback messaging                                 */
+/* These containers are always in the DOM but empty and invisible    */
+/* until startCamera() writes an error into them and adds .active.   */
+/* ---------------------------------------------------------------- */
+.cam-fallback {
+  display: none;
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-md);
+  color: #FCA5A5;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.cam-fallback.active {
+  display: block;
+}

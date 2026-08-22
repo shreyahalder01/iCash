@@ -5,8 +5,10 @@
   "main": "backend/src/server.js",
   "type": "commonjs",
   "scripts": {
+    "build": "npm run prisma:generate",
     "start": "node backend/src/server.js",
     "dev": "node --watch backend/src/server.js",
+    "liveness": "python liveness_server/app.py",
     "prisma:generate": "npm --prefix backend run prisma:generate",
     "prisma:push": "npm --prefix backend run prisma:push",
     "prisma:migrate": "npm --prefix backend run prisma:migrate",
@@ -16,11 +18,14 @@
     "lint:js:fix": "eslint \"**/*.js\" --ext .js --fix",
     "format": "prettier --write \"**/*.{js,css,html,json,md}\""
   },
+
+
   "prisma": {
     "seed": "node prisma/seed.js"
   },
   "dependencies": {
     "@prisma/client": "^6.4.1",
+    "appwrite": "^26.2.0",
     "bcryptjs": "^3.0.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
