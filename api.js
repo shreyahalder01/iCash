@@ -103,7 +103,6 @@ const api = {
   loginAadhaar: (data) => request('/api/auth/login-aadhaar', { method: 'POST', body: data }),
   loginPin: (data) => request('/api/auth/login-pin', { method: 'POST', body: data }),
   loginEmergencyPin: (data) => request('/api/auth/login-emergency-pin', { method: 'POST', body: data }),
-  verifyPhoneEmail: (user_json_url) => request('/api/auth/phone-email-verify', { method: 'POST', body: { user_json_url } }),
   logout: () => request('/api/auth/logout', { method: 'POST' }),
   getMe: () => request('/api/auth/me', { method: 'GET' }),
   refreshToken: () => request('/api/auth/refresh', { method: 'POST' }),

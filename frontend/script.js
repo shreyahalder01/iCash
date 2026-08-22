@@ -297,42 +297,6 @@ async function proceedToOtp() {
   return proceedToBiometrics();
 }
 
-// Phone.email Listener
-window.phoneEmailListener = async function(userObj) {
-  if (!userObj || !userObj.user_json_url) return;
-  const user_json_url = userObj.user_json_url;
-
-  const regStatus = document.getElementById('phone-email-reg-status');
-  const loginStatus = document.getElementById('phone-email-login-status');
-
-  if (regStatus) regStatus.textContent = 'Verifying security token…';
-  if (loginStatus) loginStatus.textContent = 'Verifying security token…';
-
-  try {
-    const res = await window.iCashApi.verifyPhoneEmail(user_json_url);
-    if (!res.ok) throw new Error(res.message || 'Phone verification failed.');
-
-    window._phoneEmailVerified = true;
-    window._phoneEmailVerifiedMobile = res.phone;
-
-    if (!res.isExistingUser) {
-      const mobileInput = document.getElementById('reg-mobile');
-      if (mobileInput) { mobileInput.value = res.phone; }
-      const nameInput = document.getElementById('reg-name');
-      if (nameInput && res.fullName && !nameInput.value) { nameInput.value = res.fullName; }
-      if (regStatus) regStatus.innerHTML = `<span style="color:var(--primary);">✓ Verified +91 ${res.phone}</span>`;
-      showAlertToast(`✓ Mobile +91 ${res.phone} verified via Phone.email!`);
-    } else {
-      if (loginStatus) loginStatus.innerHTML = `<span style="color:var(--primary);">✓ Verified: ${res.user.name}</span>`;
-      window._loginTargetUser = res.user;
-      setTimeout(() => { goTo('screen-login-scan'); beginLoginScan(); }, 500);
-    }
-  } catch (err) {
-    if (regStatus) regStatus.innerHTML = `<span style="color:var(--alert);">${err.message}</span>`;
-    if (loginStatus) loginStatus.innerHTML = `<span style="color:var(--alert);">${err.message}</span>`;
-    showAlertToast(err.message || 'Phone verification failed.', true);
-  }
-};
 
 // ============================================================
 // SHARED OTP LOGIC

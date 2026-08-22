@@ -34,9 +34,6 @@ const loginPinSchema = z.object({
   pin: digits4
 });
 
-const phoneEmailVerifySchema = z.object({
-  user_json_url: z.string().url('A valid Phone.email verification URL is required.')
-});
 
 // ---------------- Biometric ----------------
 
@@ -130,7 +127,6 @@ module.exports = {
   registerSchema,
   loginAadhaarSchema,
   loginPinSchema,
-  phoneEmailVerifySchema,
   biometricEnrollSchema,
   biometricVerifySchema,
   accountCreateSchema,

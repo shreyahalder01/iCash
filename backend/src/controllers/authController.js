@@ -75,16 +75,6 @@ class AuthController {
     }
   }
 
-  static async verifyPhoneEmail(req, res, next) {
-    try {
-      const { user_json_url } = req.body;
-      const result = await AuthService.verifyPhoneEmailUrl(user_json_url, req);
-      res.json(result);
-    } catch (err) {
-      next(err);
-    }
-  }
-
   static async refresh(req, res, next) {
     try {
       if (!req.user) {
