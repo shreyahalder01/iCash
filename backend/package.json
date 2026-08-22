@@ -14,7 +14,6 @@
     "prisma:seed": "node prisma/seed.js",
     "test": "jest --runInBand --detectOpenHandles --forceExit"
   },
-
   "prisma": {
     "seed": "node prisma/seed.js"
   },

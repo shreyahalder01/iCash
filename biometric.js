@@ -101,13 +101,19 @@ async function initLivenessSession() {
     const res = await window.iCashApi.liveness.start();
     if (res && res.session_id) {
       activeLivenessSessionId = res.session_id;
-      console.log('[iCash Liveness] Session started:', activeLivenessSessionId, 'engine:', res.engine);
+      console.log(
+        '[iCash Liveness] Session started:',
+        activeLivenessSessionId,
+        'engine:',
+        res.engine
+      );
     }
   }
 }
 
 async function streamLivenessFrame(video) {
-  if (!activeLivenessSessionId || !window.iCashApi || !window.iCashApi.liveness) return currentLivenessState;
+  if (!activeLivenessSessionId || !window.iCashApi || !window.iCashApi.liveness)
+    return currentLivenessState;
   const frameBase64 = grabVideoFrameBase64(video);
   if (!frameBase64) return currentLivenessState;
   try {
@@ -213,7 +219,6 @@ function drawOverlay(canvas, video, detections, state, progress, liveness) {
     }
   });
 }
-
 
 // ============================================================================
 //  REGISTRATION — AUTO SCAN, NO BUTTON CLICK
@@ -339,7 +344,14 @@ async function beginRegisterScan() {
 
     collected.push(desc);
     const newProgress = collected.length / ENROLL_SAMPLES;
-    drawOverlay(overlayCanvas, video, detections, newProgress >= 1 ? 'GOOD' : 'BAD', newProgress, liveInfo);
+    drawOverlay(
+      overlayCanvas,
+      video,
+      detections,
+      newProgress >= 1 ? 'GOOD' : 'BAD',
+      newProgress,
+      liveInfo
+    );
     statusEl.textContent = `✔ Sample ${collected.length}/${ENROLL_SAMPLES} captured — keep still…`;
 
     if (collected.length >= ENROLL_SAMPLES) {
@@ -532,7 +544,12 @@ async function beginLoginScan() {
     }
 
     consecutiveMatches++;
-    const blinkHint = liveInfo && liveInfo.live ? '✓ Live' : (liveInfo ? `Blink: ${liveInfo.blink_count || 0}/1` : '');
+    const blinkHint =
+      liveInfo && liveInfo.live
+        ? '✓ Live'
+        : liveInfo
+          ? `Blink: ${liveInfo.blink_count || 0}/1`
+          : '';
     statusEl.textContent = `✔ Identity confirmed (${consecutiveMatches}/${REQUIRED_MATCHES}) ${blinkHint} — hold still…`;
 
     if (consecutiveMatches >= REQUIRED_MATCHES) {
@@ -760,7 +777,12 @@ async function launchBiometricGate(title, lead) {
 
     consecutiveMatches++;
     msg.textContent = '';
-    const blinkHint = liveInfo && liveInfo.live ? '✓ Live' : (liveInfo ? `Blink: ${liveInfo.blink_count || 0}/1` : '');
+    const blinkHint =
+      liveInfo && liveInfo.live
+        ? '✓ Live'
+        : liveInfo
+          ? `Blink: ${liveInfo.blink_count || 0}/1`
+          : '';
     statusEl.textContent = `✔ Identity confirmed (${consecutiveMatches}/${REQUIRED_MATCHES}) ${blinkHint} — authorizing…`;
 
     if (consecutiveMatches >= REQUIRED_MATCHES) {
@@ -771,7 +793,6 @@ async function launchBiometricGate(title, lead) {
     }
   }, VERIFY_INTERVAL);
 }
-
 
 async function _serverVerifyTransaction(liveDescriptor, overlayCanvas, video, detections) {
   const statusEl = document.getElementById('verify-scan-status');

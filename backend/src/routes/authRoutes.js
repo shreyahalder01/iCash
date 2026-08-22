@@ -4,7 +4,12 @@ const AuthController = require('../controllers/authController');
 const { authenticate } = require('../middleware/authMiddleware');
 const { validateRequest } = require('../middleware/validateMiddleware');
 const { authLimiter } = require('../middleware/rateLimitMiddleware');
-const { registerSchema, loginAadhaarSchema, loginPinSchema, confirmDeleteSchema } = require('../utils/validator');
+const {
+  registerSchema,
+  loginAadhaarSchema,
+  loginPinSchema,
+  confirmDeleteSchema,
+} = require('../utils/validator');
 
 router.post('/register', authLimiter, validateRequest(registerSchema), AuthController.register);
 router.post(

@@ -18,8 +18,6 @@
     "lint:js:fix": "eslint \"**/*.js\" --ext .js --fix",
     "format": "prettier --write \"**/*.{js,css,html,json,md}\""
   },
-
-
   "prisma": {
     "seed": "node prisma/seed.js"
   },

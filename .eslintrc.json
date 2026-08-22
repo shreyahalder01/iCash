@@ -4,10 +4,7 @@
     "es2021": true,
     "node": true
   },
-  "extends": [
-    "eslint:recommended",
-    "plugin:prettier/recommended"
-  ],
+  "extends": ["eslint:recommended", "plugin:prettier/recommended"],
   "plugins": ["prettier"],
   "parserOptions": {
     "ecmaVersion": 12,
@@ -27,7 +24,7 @@
       }
     },
     {
-      "files": ["frontend/**/*.js", "biometric.js", "frontend/biometric.js", "script.js"],
+      "files": ["frontend/**/*.js", "biometric.js", "frontend/biometric.js", "script.js", "api.js"],
       "env": {
         "browser": true
       },
@@ -67,7 +64,8 @@
         "promptLoginPin": "readonly",
         "verifyAadhaarLogin": "readonly",
         "toggleBalanceVisibility": "readonly",
-        "THREE": "readonly"
+        "THREE": "readonly",
+        "Appwrite": "readonly"
       },
       "rules": {
         "no-empty": "off"

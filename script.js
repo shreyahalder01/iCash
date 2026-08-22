@@ -78,7 +78,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
-
 // ============================================================
 // VIEW NAVIGATION & ROUTING
 // ============================================================
@@ -1318,15 +1317,6 @@ function openDeleteAccountModal() {
   document.getElementById('delete-pin-input').value = '';
   document.getElementById('delete-account-msg').textContent = '';
   document.getElementById('modal-delete-account').classList.add('active');
-}
-
-function closeModal(modalId) {
-  // existing closeModal handles modal-backdrop ids; reuse to close delete-account
-  if (modalId === 'delete-account') {
-    document.getElementById('modal-delete-account').classList.remove('active');
-    return;
-  }
-  document.getElementById(`modal-${modalId}`)?.classList.remove('active');
 }
 
 async function confirmDeleteAccount() {

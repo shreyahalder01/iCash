@@ -164,4 +164,3 @@ describe('Auth & Session APIs', () => {
     expect(dbUser).toBeNull();
   });
 });
-

@@ -235,11 +235,12 @@ const api = {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ session_id: sessionId }),
         });
-      } catch (e) {}
+      } catch {
+        // Reset call failed or server offline — safe to ignore
+      }
     },
   },
 };
-
 
 if (typeof window !== 'undefined') {
   window.iCashApi = api;

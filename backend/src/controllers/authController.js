@@ -2,7 +2,6 @@ const AuthService = require('../services/authService');
 const { COOKIE_NAME, getCookieOptions, getClearCookieOptions } = require('../utils/token');
 
 class AuthController {
-
   static async register(req, res, next) {
     try {
       const { user, token } = await AuthService.registerUser(req.body, req);
@@ -111,4 +110,3 @@ class AuthController {
 }
 
 module.exports = AuthController;
-

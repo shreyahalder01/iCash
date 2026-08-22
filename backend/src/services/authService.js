@@ -334,7 +334,10 @@ class AuthService {
     // Delete user (cascades to related models in DB via onDelete: Cascade)
     await prisma.$transaction(async (tx) => {
       // Revoke existing sessions explicitly
-      await tx.loginSession.updateMany({ where: { user_id: userId, revoked_at: null }, data: { revoked_at: new Date() } });
+      await tx.loginSession.updateMany({
+        where: { user_id: userId, revoked_at: null },
+        data: { revoked_at: new Date() },
+      });
 
       // Remove biometric provider records if any local cleanup is needed (best-effort; providers may differ)
       try {
