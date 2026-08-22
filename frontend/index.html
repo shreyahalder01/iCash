@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>iCash — Enterprise Biometric Banking</title>
+  <meta name="description" content="Next-generation digital banking secured with 128-dimensional biometric facial vectors, 256-bit encryption, and real-time fraud monitoring."/>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+<canvas id="canvas3d"></canvas>
+
+<div class="app-wrapper">
+
+  <!-- ============================================================
+       AUTH SCREENS (WELCOME, REGISTRATION, SCAN, PIN)
+       ============================================================ -->
+
+  <!-- SCREEN: WELCOME / LANDING -->
+  <div class="screen active" id="screen-welcome">
+    <div class="auth-container">
+      <div class="auth-hero-info">
+        <div class="auth-badge">
+          <span class="dot-indicator"></span>
+          <span>BioGate 256-Bit Cryptographic Core</span>
+        </div>
+        <h1>Next-Generation Biometric Banking</h1>
+        <p>Experience passwordless, instant banking verified by encrypted facial biometric vectors. Instant transfers, multi-account portfolios, and enterprise security.</p>
+        
+        <div style="display:flex;gap:18px;margin-top:28px;flex-wrap:wrap;">
+          <div>
+            <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-faint);text-transform:uppercase;">Security Standard</div>
+            <strong style="color:var(--text-main);font-size:13.5px;">ISO 27001 Certified</strong>
+          </div>
+          <div style="width:1px;background:var(--border);"></div>
+          <div>
+            <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-faint);text-transform:uppercase;">Identity Protocol</div>
+            <strong style="color:var(--primary);font-size:13.5px;">UIDAI e-KYC Verified</strong>
+          </div>
+          <div style="width:1px;background:var(--border);"></div>
+          <div>
+            <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-faint);text-transform:uppercase;">Encryption</div>
+            <strong style="color:var(--text-main);font-size:13.5px;">AES-256 GCM</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="card card-narrow">
+        <div class="eyebrow">Digital Banking Gateway</div>
+        <h2>Access iCash Portal</h2>
+        <p class="lead">Select your authentication mode to access your accounts or open a new digital wallet.</p>
+        
+        <div class="choice-grid">
+          <div class="choice-box" onclick="startLogin()">
+            <div class="icon">👁️</div>
+            <h3>Customer Sign In</h3>
+            <p>Authenticate via Aadhaar last 4 digits and facial biometric match.</p>
+          </div>
+          <div class="choice-box" onclick="startRegistration()">
+            <div class="icon">✨</div>
+            <h3>Open Account</h3>
+            <p>Create a savings or merchant account with instant e-KYC onboarding.</p>
+          </div>
+        </div>
+
+        <div style="border-top:1px solid var(--border);padding-top:16px;">
+          <button class="mini-btn" style="width:100%;justify-content:center;" onclick="openDelegateCollectModal()">
+            ✦ Senior Citizen Assisted Banking: Collect Delegated Cash
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN: REGISTER FORM -->
+  <div class="screen" id="screen-register-form">
+    <div class="card card-narrow">
+      <div class="eyebrow">Step 1 of 2 · Customer Identity</div>
+      <h2>Open Digital Account</h2>
+      <p class="lead">Your identity is secured with 256-bit encryption. Raw Aadhaar numbers are never stored in plaintext.</p>
+
+      <div class="field">
+        <label>Full Name (as per Aadhaar)</label>
+        <input id="reg-name" placeholder="e.g. Sidd Paul" autocomplete="off"/>
+      </div>
+      <div class="field">
+        <label>12-Digit Aadhaar Number</label>
+        <input id="reg-aadhaar" class="aadhaar-input" placeholder="XXXX XXXX XXXX" maxlength="14" oninput="formatAadhaar(this)" autocomplete="off"/>
+      </div>
+      <div class="field">
+        <label>Aadhaar-Linked Mobile Number</label>
+        <input id="reg-mobile" placeholder="10-digit mobile number" inputmode="numeric" maxlength="10" autocomplete="off"/>
+      </div>
+      <div class="field">
+        <label>Date of Birth</label>
+        <input id="reg-dob" type="date" onchange="handleDobChange()"/>
+        <p id="reg-age-note" style="color:var(--text-faint);font-size:11px;font-family:var(--font-mono);margin-top:4px;"></p>
+      </div>
+      <div class="field">
+        <label>Account Portfolio Type</label>
+        <select id="reg-role">
+          <option value="USER">Standard Savings &amp; Personal Banking</option>
+          <option value="MERCHANT">Commercial Merchant Current Account</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Set 4-Digit Primary Security PIN</label>
+        <input id="reg-pin" placeholder="••••" maxlength="4" type="password" inputmode="numeric" autocomplete="off"/>
+      </div>
+      <div class="field">
+        <label>Set 4-Digit Emergency Duress PIN</label>
+        <input id="reg-emergency-pin" placeholder="•••• (Different from primary PIN)" maxlength="4" type="password" inputmode="numeric" autocomplete="off"/>
+        <p style="color:var(--text-faint);font-size:10.5px;font-family:var(--font-mono);margin-top:4px;line-height:1.4;">Used to covertly trigger silent safety alarms if coerced to authenticate under duress.</p>
+      </div>
+      
+      <!-- Senior Citizen Trusted Contact -->
+      <div class="field" id="reg-senior-block" style="display:none;background:var(--bg-inset);border:1px solid var(--border-strong);border-radius:12px;padding:14px;">
+        <label style="color:var(--primary);">Senior Assisted Banking · Authorized Contact</label>
+        <input id="reg-emergency-contact-name" placeholder="Trusted Contact's Full Name" style="margin-bottom:8px;" autocomplete="off"/>
+        <input id="reg-emergency-contact-phone" placeholder="10-digit mobile number" inputmode="numeric" maxlength="10" autocomplete="off"/>
+      </div>
+
+      <div class="modal-msg" id="reg-msg"></div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="goTo('screen-welcome')">Back</button>
+        <button class="btn btn-primary" onclick="proceedToBiometrics()">Continue to Face Scan &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN: REGISTER FACE SCAN -->
+  <div class="screen" id="screen-register-scan">
+    <div class="scan-wrap">
+      <div class="card card-narrow" style="padding:24px;text-align:center;">
+        <div class="eyebrow">Step 2 of 2 · Biometric Enrollment</div>
+        <h2>Look Directly at Camera</h2>
+        <p class="lead" style="margin-bottom:16px;">Position your face in the center of the scan ring. Single person in view.</p>
+        
+        <div class="scan-frame" style="margin:0 auto 14px;">
+          <video id="reg-video" autoplay muted playsinline></video>
+          <canvas id="scan-ring-canvas-reg" class="scan-ring-canvas"></canvas>
+          <div class="scan-status" id="reg-scan-status">Positioning face&hellip;</div>
+        </div>
+
+        <div class="thinking-trace" style="margin-bottom:16px;justify-content:center;">
+          <span>✦</span>
+          <span>128D Neural Vector Embedding</span>
+        </div>
+
+        <div id="reg-cam-error" class="cam-fallback"></div>
+        <div class="btn-row" style="justify-content:center;">
+          <button class="btn btn-ghost" onclick="cancelRegisterScan()">Cancel</button>
+          <button class="btn btn-ghost" id="reg-retry-cam-btn" style="display:none;" onclick="beginRegisterScan()">Retry Camera</button>
+          <button class="btn btn-primary" id="reg-capture-btn" onclick="captureRegisterFace()" disabled>Capture &amp; Enroll</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN: LOGIN AADHAAR LOOKUP -->
+  <div class="screen" id="screen-login-aadhaar">
+    <div class="card card-narrow">
+      <div class="eyebrow">Step 1 of 3 · Identity Lookup</div>
+      <h2>Sign In with Aadhaar</h2>
+      <p class="lead">Enter the last 4 digits of your registered Aadhaar number.</p>
+      
+      <div class="field">
+        <label>Last 4 Digits of Aadhaar</label>
+        <input id="login-aadhaar-last4" class="aadhaar-input" placeholder="••••" maxlength="4" inputmode="numeric" autocomplete="off"/>
+        <div id="aadhaar-login-status" style="margin-top:8px;"></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="goTo('screen-welcome')">Back</button>
+        <button class="btn btn-primary" onclick="verifyAadhaarLogin()">Continue &rarr;</button>
+      </div>
+
+      <!-- Instant Phone Sign-in (Phone.email) -->
+      <div class="phone-email-wrap">
+        <div class="phone-email-eyebrow">
+          ⚡ Or Fast Sign In With Phone
+        </div>
+        <div class="pe_signin_button" data-client-id="15359740464480292767">
+          <script src="https://www.phone.email/sign_in_button_v1.js" async></script>
+        </div>
+        <div id="phone-email-login-status" class="phone-email-status"></div>
+      </div>
+
+      <button class="link-btn" style="margin-top:14px;width:100%;text-align:center;" onclick="goTo('screen-pin-login')">Prefer to sign in with PIN directly? &rarr;</button>
+    </div>
+  </div>
+
+  <!-- SCREEN: LOGIN FACE SCAN -->
+  <div class="screen" id="screen-login-scan">
+    <div class="scan-wrap">
+      <div class="card card-narrow" style="padding:24px;text-align:center;">
+        <div class="eyebrow">Step 2 of 3 · Biometric Signature</div>
+        <h2>Biometric Authentication</h2>
+        <p class="lead" style="margin-bottom:16px;">Align your face with the scan ring to authenticate.</p>
+
+        <div class="scan-frame" style="margin:0 auto 14px;">
+          <video id="login-video" autoplay muted playsinline></video>
+          <canvas id="scan-ring-canvas-login" class="scan-ring-canvas"></canvas>
+          <div class="scan-status" id="login-scan-status">Positioning face&hellip;</div>
+        </div>
+
+        <div class="thinking-trace" style="margin-bottom:16px;justify-content:center;">
+          <span>✦</span>
+          <span>Vector Distance Verification Engine Active</span>
+        </div>
+
+        <div id="login-cam-error" class="cam-fallback"></div>
+        <div class="btn-row">
+          <button class="btn btn-ghost" onclick="cancelLoginScan()">Cancel</button>
+          <button class="btn btn-ghost" id="login-retry-cam-btn" style="display:none;" onclick="beginLoginScan()">Retry Camera</button>
+          <button class="btn btn-primary" id="login-capture-btn" onclick="captureLoginFace()" disabled>Scan &amp; Authenticate</button>
+        </div>
+        <button class="link-btn" style="margin-top:10px;" onclick="goTo('screen-pin-login')">Camera unavailable? Sign in with PIN</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN: LOGIN PIN CONFIRMATION -->
+  <div class="screen" id="screen-login-pin">
+    <div class="scan-wrap">
+      <div class="identity-banner" id="login-pin-banner"></div>
+      <div class="card card-narrow" style="padding:24px;">
+        <div class="eyebrow">Step 3 of 3 · Security PIN</div>
+        <h2>Confirm Security PIN</h2>
+        <p class="lead">Biometric identity verified. Enter your 4-digit PIN to access accounts.</p>
+        <div class="field">
+          <label>4-Digit Security PIN</label>
+          <input id="login-pin-input" placeholder="••••" maxlength="4" type="password" inputmode="numeric"/>
+        </div>
+        <div class="modal-msg" id="login-pin-msg"></div>
+        <div class="btn-row">
+          <button class="btn btn-ghost" onclick="goTo('screen-welcome')">Cancel</button>
+          <button class="btn btn-primary" onclick="submitLoginPin()">Authorize &amp; Enter</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN: DIRECT PIN FALLBACK -->
+  <div class="screen" id="screen-pin-login">
+    <div class="card card-narrow">
+      <div class="eyebrow">Customer Access</div>
+      <h2>Sign In with Aadhaar &amp; PIN</h2>
+      <p class="lead">Direct authorization for customers using standard security credentials.</p>
+      <div class="field">
+        <label>Last 4 Digits of Aadhaar</label>
+        <input id="pin-login-aadhaar" placeholder="••••" maxlength="4" inputmode="numeric"/>
+      </div>
+      <div class="field">
+        <label>4-Digit PIN</label>
+        <input id="pin-login-pin" placeholder="••••" maxlength="4" type="password" inputmode="numeric"/>
+      </div>
+      <div class="modal-msg" id="pin-login-msg"></div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="goTo('screen-welcome')">Back</button>
+        <button class="btn btn-primary" onclick="attemptPinDirectLogin()">Sign In</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN: DELEGATE COLLECT CASH -->
+  <div class="screen" id="screen-delegate-collect">
+    <div class="card card-narrow">
+      <div class="eyebrow">Assisted Banking Service</div>
+      <h2>Collect Delegated Cash</h2>
+      <p class="lead">Authorized trusted contacts can disburse approved withdrawals using the senior citizen's delegation OTP.</p>
+      <div class="field">
+        <label>Senior Citizen's Full Name</label>
+        <input id="delegate-collect-name" placeholder="e.g. Ramesh Chandra" autocomplete="off"/>
+      </div>
+      <div class="field">
+        <label>6-Digit Authorization OTP</label>
+        <input id="delegate-collect-otp" maxlength="6" inputmode="numeric" placeholder="••••••" autocomplete="off"/>
+      </div>
+      <div class="modal-msg" id="delegate-collect-msg"></div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="goTo('screen-welcome')">Back</button>
+        <button class="btn btn-primary" id="delegate-claim-btn" onclick="attemptDelegateWithdraw()">Verify &amp; Disburse</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN: DELEGATE SUCCESS -->
+  <div class="screen" id="screen-delegate-success">
+    <div class="card card-narrow" style="text-align:center;">
+      <div class="choice-icon" style="margin:0 auto 14px;background:var(--success-dim);color:var(--success);">&#10003;</div>
+      <h2 id="delegate-success-title">Funds Disbursed Successfully</h2>
+      <p class="lead" id="delegate-success-detail"></p>
+      <div class="status-badge completed" id="delegate-success-ref" style="margin-bottom:20px;"></div>
+      <button class="btn btn-primary" onclick="goTo('screen-welcome')">Done</button>
+    </div>
+  </div>
+
+  <!-- SCREEN: MATCH RESULT GREETING -->
+  <div class="screen" id="screen-match">
+    <div class="scan-wrap">
+      <div class="identity-banner" id="match-banner"></div>
+      <button class="btn btn-primary" style="max-width:280px;" onclick="enterDashboard()">Enter Portal &rarr;</button>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       ENTERPRISE USER BANKING PORTAL (BEAUTIFUL UI DESIGN SYSTEM)
+       ============================================================ -->
+  <div class="screen" id="screen-dashboard">
+    <div class="app-shell">
+      
+      <!-- COLLAPSIBLE SIDEBAR NAVIGATION -->
+      <aside class="app-sidebar" id="app-sidebar">
+        <div class="sidebar-header">
+          <a href="#" class="brand-wrapper" onclick="switchView('dashboard')">
+            <div class="brand-icon">iC</div>
+            <div class="brand-text">
+              <span class="brand-title">iCash</span>
+              <span class="brand-subtitle">BIOMETRIC BANKING</span>
+            </div>
+          </a>
+          <button class="sidebar-collapse-btn" id="sidebar-toggle-btn" onclick="toggleSidebar()" title="Toggle Sidebar">
+            ◀
+          </button>
+        </div>
+
+        <nav class="sidebar-nav">
+          <div class="nav-group-title">Main</div>
+          <div class="nav-group">
+            <button class="nav-item active" id="nav-item-dashboard" onclick="switchView('dashboard')">
+              <span class="nav-icon">📊</span>
+              <span>Dashboard</span>
+            </button>
+            <button class="nav-item" id="nav-item-accounts" onclick="switchView('accounts')">
+              <span class="nav-icon">🏛️</span>
+              <span>Accounts</span>
+            </button>
+            <button class="nav-item" id="nav-item-transfers" onclick="switchView('transfers')">
+              <span class="nav-icon">↗</span>
+              <span>Transfer Money</span>
+            </button>
+            <button class="nav-item" id="nav-item-transactions" onclick="switchView('transactions')">
+              <span class="nav-icon">📝</span>
+              <span>Transactions</span>
+            </button>
+            <button class="nav-item" id="nav-item-payments" onclick="switchView('payments')">
+              <span class="nav-icon">💳</span>
+              <span>Payments &amp; Bills</span>
+            </button>
+            <button class="nav-item" id="nav-item-security" onclick="switchView('security')">
+              <span class="nav-icon">🛡️</span>
+              <span>Biometric Security</span>
+            </button>
+          </div>
+
+          <div class="nav-group-title">Support</div>
+          <div class="nav-group">
+            <button class="nav-item" id="nav-item-support" onclick="switchView('support')">
+              <span class="nav-icon">💬</span>
+              <span>Help &amp; Support</span>
+            </button>
+            <button class="nav-item" id="nav-item-complaints" onclick="openModal('complaint')">
+              <span class="nav-icon">⚖️</span>
+              <span>File Grievance</span>
+            </button>
+          </div>
+        </nav>
+
+        <div class="sidebar-footer">
+          <button class="nav-item" id="nav-item-profile" onclick="switchView('profile')">
+            <span class="nav-icon">⚙️</span>
+            <span>Settings &amp; Profile</span>
+          </button>
+          <button class="nav-item" onclick="logout()">
+            <span class="nav-icon">🚪</span>
+            <span>Sign Out</span>
+          </button>
+        </div>
+      </aside>
+
+      <!-- MAIN APP WORKSPACE -->
+      <main class="app-main">
+        
+        <!-- TOP NAVIGATION BAR -->
+        <header class="top-navbar">
+          <div class="top-left">
+            <button class="mobile-nav-toggle" onclick="toggleSidebar()">☰</button>
+            <div class="page-header-info">
+              <h2 id="top-page-title">Dashboard</h2>
+              <p id="top-page-subtitle">Your complete financial overview</p>
+            </div>
+          </div>
+
+          <div class="top-right">
+            <!-- Command Palette Trigger (Cmd+K) -->
+            <button class="command-search-btn" onclick="openCommandPalette()" title="Press Cmd+K to search">
+              <span>🔍 Search iCash…</span>
+              <span class="kbd-shortcut">⌘K</span>
+            </button>
+
+            <!-- Consolidated Security Status Pill -->
+            <div class="security-status-pill" id="top-security-badge" onclick="openDrawer('security')" title="Click to view security status">
+              <span class="dot-indicator"></span>
+              <span>Account Protected</span>
+            </div>
+
+            <!-- Notifications Center Trigger -->
+            <button class="icon-action-btn" onclick="openDrawer('notifications')" title="Notifications">
+              <span>🔔</span>
+              <span class="unread-badge"></span>
+            </button>
+
+            <!-- Profile Menu Trigger -->
+            <div class="user-profile-menu" onclick="switchView('profile')" title="View Account Profile">
+              <div class="avatar-badge" id="top-avatar">IC</div>
+              <span class="user-profile-name" id="top-user-name">Customer</span>
+            </div>
+          </div>
+        </header>
+
+        <!-- CONTENT BODY WITH DYNAMIC VIEW SWITCHING -->
+        <div class="content-body">
+
+          <!-- ============================================================
+               VIEW 1: DASHBOARD (MAIN HUB)
+               ============================================================ -->
+          <div class="portal-view active" id="view-dashboard">
+            
+            <!-- Welcome / Security Context Strip -->
+            <div class="welcome-strip">
+              <div class="welcome-lead">
+                <h1 id="dash-greeting">Good afternoon, Customer</h1>
+                <p>Your biometric session is active and encrypted with 256-bit security.</p>
+              </div>
+              <div class="welcome-meta">
+                <span class="meta-pill" id="dash-masked-phone">Mobile: +91 ••••••••••</span>
+                <span class="meta-pill" id="dash-masked-aadhaar">Aadhaar: •••• ----</span>
+                <span class="meta-pill" id="dash-senior-tag" style="display:none;color:var(--primary);">Assisted Banking</span>
+              </div>
+            </div>
+
+            <!-- Financial Overview: Primary Balance & Insight Cards -->
+            <div class="financial-grid">
+              <!-- Primary Balance Hero -->
+              <div class="balance-hero-card">
+                <div>
+                  <div class="balance-top-row">
+                    <span class="balance-label">Total Primary Balance</span>
+                    <button class="balance-eye-btn" id="balance-eye-btn" onclick="toggleBalanceVisibility()" title="Hide/Show Balance">👁️</button>
+                  </div>
+                  <div class="balance-number-wrap">
+                    <div class="balance-amount" id="dash-primary-balance">₹25,000.00</div>
+                    <div class="balance-trend">↑ +₹2,450 this month</div>
+                  </div>
+                </div>
+
+                <div class="balance-footer-meta">
+                  <div class="balance-acc-badge">
+                    <span>🏛️</span>
+                    <strong id="dash-primary-bank-label">iCash Federal Digital Bank</strong>
+                    <span style="color:var(--text-faint);" id="dash-primary-acc-mask">•••• 6926</span>
+                  </div>
+                  <button class="link-btn" style="margin:0;color:var(--primary);" onclick="exportStatement()">View Statement &rarr;</button>
+                </div>
+              </div>
+
+              <!-- 4 Insight Cards -->
+              <div class="insight-metrics-grid">
+                <div class="insight-tile">
+                  <div class="insight-tile-header">
+                    <span class="insight-tile-label">Money In (Monthly)</span>
+                    <span class="insight-tile-icon">↓</span>
+                  </div>
+                  <div class="insight-tile-val" id="dash-money-in">₹12,500.00</div>
+                  <div class="insight-tile-trend pos">+8.4% vs last mo</div>
+                </div>
+
+                <div class="insight-tile">
+                  <div class="insight-tile-header">
+                    <span class="insight-tile-label">Money Out (Spend)</span>
+                    <span class="insight-tile-icon">↑</span>
+                  </div>
+                  <div class="insight-tile-val" id="dash-money-out">₹7,250.00</div>
+                  <div class="insight-tile-trend neg">-3.2% vs budget</div>
+                </div>
+
+                <div class="insight-tile">
+                  <div class="insight-tile-header">
+                    <span class="insight-tile-label">Available Liquidity</span>
+                    <span class="insight-tile-icon">✨</span>
+                  </div>
+                  <div class="insight-tile-val" id="dash-available-bal">₹25,000.00</div>
+                  <div class="insight-tile-trend" style="color:var(--primary);">Instant Biometric Access</div>
+                </div>
+
+                <div class="insight-tile">
+                  <div class="insight-tile-header">
+                    <span class="insight-tile-label">Linked Portfolios</span>
+                    <span class="insight-tile-icon">🏛️</span>
+                  </div>
+                  <div class="insight-tile-val" id="dash-linked-count">1 Account</div>
+                  <div class="insight-tile-trend">UIDAI e-KYC Verified</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Actions Toolbar -->
+            <div class="quick-actions-card">
+              <div class="section-label-bar">
+                <h3>Quick Actions</h3>
+                <span style="font-size:11.5px;color:var(--text-muted);font-family:var(--font-mono);">Real-Time Authorization</span>
+              </div>
+              <div class="action-buttons-row">
+                <button class="action-tile-btn primary-action" onclick="openModal('send')">
+                  <span class="tile-icon">↗</span>
+                  <span>Transfer</span>
+                </button>
+                <button class="action-tile-btn" onclick="addDemoFunds()">
+                  <span class="tile-icon">✨</span>
+                  <span>Deposit</span>
+                </button>
+                <button class="action-tile-btn" onclick="openModal('withdraw')">
+                  <span class="tile-icon">↓</span>
+                  <span>Withdraw</span>
+                </button>
+                <button class="action-tile-btn" onclick="switchView('payments')">
+                  <span class="tile-icon">💳</span>
+                  <span>Pay Bills</span>
+                </button>
+                <button class="action-tile-btn" onclick="openModal('payment-request')">
+                  <span class="tile-icon">📱</span>
+                  <span>Scan &amp; Pay</span>
+                </button>
+                <button class="action-tile-btn" onclick="exportStatement()">
+                  <span class="tile-icon">📄</span>
+                  <span>Statement</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Linked Accounts Overview -->
+            <div class="section-label-bar" style="margin-top:28px;">
+              <h3>Linked Bank Accounts</h3>
+              <button class="mini-btn" onclick="openModal('add-account')">+ Link Bank Account</button>
+            </div>
+            <div class="accounts-grid" id="dash-accounts-grid">
+              <div class="empty">Loading accounts&hellip;</div>
+            </div>
+
+            <!-- Recent Transactions Records Table -->
+            <div class="table-panel">
+              <div class="table-header-toolbar">
+                <div class="table-title-wrap">
+                  <h3>Recent Ledger Activity</h3>
+                  <p>Real-time banking transactions verified through biometric signatures</p>
+                </div>
+                <div style="display:flex;gap:8px;">
+                  <button class="mini-btn" onclick="exportStatement()">Export CSV</button>
+                  <button class="mini-btn" onclick="loadDashboardData()">↻ Refresh</button>
+                </div>
+              </div>
+
+              <!-- Table Filter Bar -->
+              <div class="table-filter-bar">
+                <div class="filter-left-controls">
+                  <span class="filter-chip active" onclick="filterTransactions('ALL', this)">All</span>
+                  <span class="filter-chip" onclick="filterTransactions('TRANSFER', this)">Transfers</span>
+                  <span class="filter-chip" onclick="filterTransactions('WITHDRAWAL', this)">Withdrawals</span>
+                  <span class="filter-chip" onclick="filterTransactions('DEPOSIT', this)">Deposits</span>
+                  <span class="filter-chip" onclick="filterTransactions('PAYMENT', this)">Payments</span>
+                </div>
+                <input class="table-search-input" id="tx-search-input" placeholder="Search transactions…" oninput="handleTransactionSearch(this.value)"/>
+              </div>
+
+              <!-- Records Table -->
+              <div class="data-table-wrap">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Transaction Details</th>
+                      <th>Date &amp; Time</th>
+                      <th>Account</th>
+                      <th>Amount</th>
+                      <th>Status</th>
+                      <th>Method</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tx-table-body">
+                    <tr><td colspan="6" class="empty">Loading transaction ledger&hellip;</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="table-footer-pagination">
+                <span id="pagination-info">Showing recent transactions</span>
+                <div style="display:flex;gap:6px;">
+                  <button class="mini-btn" onclick="prevPage()">Previous</button>
+                  <button class="mini-btn" onclick="nextPage()">Next</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Financial Analytics & Spending Breakdown -->
+            <div class="analytics-card">
+              <div class="section-label-bar">
+                <div>
+                  <h3>Spending Insights &amp; Analytics</h3>
+                  <p style="font-size:12px;color:var(--text-muted);margin:0;">Monthly expenditure patterns and category distribution</p>
+                </div>
+                <div style="font-family:var(--font-mono);font-size:12px;color:var(--success);">↓ 10.7% vs last month</div>
+              </div>
+
+              <div class="analytics-split-row">
+                <div>
+                  <div style="font-size:11px;font-family:var(--font-mono);color:var(--text-faint);text-transform:uppercase;margin-bottom:8px;">6-Month Spending Trend</div>
+                  <div class="chart-bars-wrap">
+                    <div class="chart-bar-col"><div class="bar-fill" style="height:65%;"></div><span class="bar-label">Mar</span></div>
+                    <div class="chart-bar-col"><div class="bar-fill" style="height:80%;"></div><span class="bar-label">Apr</span></div>
+                    <div class="chart-bar-col"><div class="bar-fill" style="height:45%;"></div><span class="bar-label">May</span></div>
+                    <div class="chart-bar-col"><div class="bar-fill" style="height:90%;"></div><span class="bar-label">Jun</span></div>
+                    <div class="chart-bar-col"><div class="bar-fill" style="height:70%;"></div><span class="bar-label">Jul</span></div>
+                    <div class="chart-bar-col"><div class="bar-fill" style="height:55%;background:var(--primary);"></div><span class="bar-label" style="color:var(--primary);font-weight:700;">Aug</span></div>
+                  </div>
+                </div>
+
+                <div>
+                  <div style="font-size:11px;font-family:var(--font-mono);color:var(--text-faint);text-transform:uppercase;margin-bottom:12px;">Top Spending Categories</div>
+                  <div class="category-list">
+                    <div>
+                      <div class="cat-item"><span>Food &amp; Dining</span><strong>₹3,200 (44%)</strong></div>
+                      <div class="cat-bar-bg"><div class="cat-bar-fg" style="width:44%;"></div></div>
+                    </div>
+                    <div>
+                      <div class="cat-item"><span>Shopping &amp; Retail</span><strong>₹2,100 (29%)</strong></div>
+                      <div class="cat-bar-bg"><div class="cat-bar-fg" style="width:29%;background:var(--accent-indigo);"></div></div>
+                    </div>
+                    <div>
+                      <div class="cat-item"><span>Utility Bills</span><strong>₹1,450 (20%)</strong></div>
+                      <div class="cat-bar-bg"><div class="cat-bar-fg" style="width:20%;background:var(--accent-blue);"></div></div>
+                    </div>
+                    <div>
+                      <div class="cat-item"><span>Travel &amp; Fuel</span><strong>₹500 (7%)</strong></div>
+                      <div class="cat-bar-bg"><div class="cat-bar-fg" style="width:7%;background:var(--warning);"></div></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- ============================================================
+               VIEW 2: ACCOUNTS PORTFOLIO
+               ============================================================ -->
+          <div class="portal-view" id="view-accounts">
+            <div class="section-label-bar" style="margin-bottom:18px;">
+              <div>
+                <h2>Bank Account Portfolio</h2>
+                <p style="color:var(--text-muted);font-size:13px;">Manage linked savings, current, and virtual accounts.</p>
+              </div>
+              <button class="btn btn-primary" style="width:auto;" onclick="openModal('add-account')">+ Link New Account</button>
+            </div>
+
+            <div class="accounts-grid" id="accounts-page-grid">
+              <div class="empty">Loading accounts&hellip;</div>
+            </div>
+          </div>
+
+          <!-- ============================================================
+               VIEW 3: TRANSFER MONEY WORKFLOW
+               ============================================================ -->
+          <div class="portal-view" id="view-transfers">
+            <div class="card" style="max-width:600px;margin:0 auto;">
+              <div class="eyebrow">Instant Fund Settlement</div>
+              <h2>Transfer Funds</h2>
+              <p class="lead">Transfer money to verified beneficiaries with real-time biometric authorization.</p>
+
+              <div class="field">
+                <label>Debiting Account</label>
+                <select id="transfer-source-select"></select>
+              </div>
+
+              <div class="field">
+                <label>Beneficiary Name</label>
+                <input id="transfer-dest-name" placeholder="e.g. Rohan Sharma" autocomplete="off"/>
+              </div>
+
+              <div class="field">
+                <label>Transfer Amount (₹)</label>
+                <input id="transfer-amount" inputmode="numeric" placeholder="0"/>
+              </div>
+
+              <div class="chip-row">
+                <div class="chip" onclick="document.getElementById('transfer-amount').value=500">₹500</div>
+                <div class="chip" onclick="document.getElementById('transfer-amount').value=1000">₹1,000</div>
+                <div class="chip" onclick="document.getElementById('transfer-amount').value=2500">₹2,500</div>
+                <div class="chip" onclick="document.getElementById('transfer-amount').value=5000">₹5,000</div>
+              </div>
+
+              <div class="field">
+                <label>Payment Purpose / Memo</label>
+                <input id="transfer-memo" placeholder="e.g. Rent, invoice payment" autocomplete="off"/>
+              </div>
+
+              <div class="modal-msg" id="transfer-msg"></div>
+
+              <button class="btn btn-indigo" style="margin-top:10px;" onclick="initiateTransferWorkflow()">
+                Proceed to Biometric Authorization Gate &rarr;
+              </button>
+            </div>
+          </div>
+
+          <!-- ============================================================
+               VIEW 4: ALL TRANSACTIONS
+               ============================================================ -->
+          <div class="portal-view" id="view-transactions">
+            <div class="table-panel">
+              <div class="table-header-toolbar">
+                <div class="table-title-wrap">
+                  <h2>Complete Transaction Ledger</h2>
+                  <p>Search, filter, and audit every debited and credited transaction</p>
+                </div>
+                <button class="mini-btn" onclick="exportStatement()">📄 Download Statement (CSV)</button>
+              </div>
+
+              <div class="table-filter-bar">
+                <div class="filter-left-controls">
+                  <span class="filter-chip active" onclick="filterTransactions('ALL', this)">All Activity</span>
+                  <span class="filter-chip" onclick="filterTransactions('TRANSFER', this)">Transfers</span>
+                  <span class="filter-chip" onclick="filterTransactions('WITHDRAWAL', this)">Withdrawals</span>
+                  <span class="filter-chip" onclick="filterTransactions('DEPOSIT', this)">Deposits</span>
+                </div>
+                <input class="table-search-input" placeholder="Filter ledger records…" oninput="handleTransactionSearch(this.value)"/>
+              </div>
+
+              <div class="data-table-wrap">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Transaction Details</th>
+                      <th>Date &amp; Time</th>
+                      <th>Linked Account</th>
+                      <th>Amount</th>
+                      <th>Status</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="all-tx-table-body">
+                    <tr><td colspan="6" class="empty">Loading transactions&hellip;</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ============================================================
+               VIEW 5: PAYMENTS & POS
+               ============================================================ -->
+          <div class="portal-view" id="view-payments">
+            <div class="card" style="max-width:600px;margin:0 auto;">
+              <div class="eyebrow">Point of Sale &amp; Utilities</div>
+              <h2>Payments &amp; Bill Collection</h2>
+              <p class="lead">Generate dynamic QR / POS checkout codes or pay utility bills directly.</p>
+
+              <div class="choice-grid" style="margin-bottom:20px;">
+                <div class="choice-box" onclick="openModal('payment-request')">
+                  <div class="icon">📱</div>
+                  <h3>Create POS Code</h3>
+                  <p>Generate point-of-sale checkout reference for counter billing.</p>
+                </div>
+                <div class="choice-box" onclick="showAlertToast('Utility Bill Pay Gateway Connected.')">
+                  <div class="icon">⚡</div>
+                  <h3>Utility Bills</h3>
+                  <p>Electricity, broadband, mobile recharge, and municipal bills.</p>
+                </div>
+              </div>
+
+              <div class="section-label-bar">
+                <h3>Active POS Checkouts</h3>
+              </div>
+              <div id="payments-pos-list">
+                <div class="empty">No active checkout codes.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ============================================================
+               VIEW 6: BIOMETRIC SECURITY HUB
+               ============================================================ -->
+          <div class="portal-view" id="view-security">
+            <div class="section-label-bar" style="margin-bottom:18px;">
+              <div>
+                <h2>Biometric Security &amp; Anomaly Monitoring</h2>
+                <p style="color:var(--text-muted);font-size:13px;">Manage multi-factor facial descriptors, active devices, and session security.</p>
+              </div>
+            </div>
+
+            <div class="insight-metrics-grid" style="margin-bottom:24px;">
+              <div class="insight-tile">
+                <span class="insight-tile-label">BioGate Engine</span>
+                <div class="insight-tile-val" style="color:var(--primary);">Active · Enrolled</div>
+                <div class="insight-tile-trend pos">128D Embeddings Verified</div>
+              </div>
+              <div class="insight-tile">
+                <span class="insight-tile-label">Session Protection</span>
+                <div class="insight-tile-val">256-Bit SSL/TLS</div>
+                <div class="insight-tile-trend">HttpOnly Cookie Isolated</div>
+              </div>
+              <div class="insight-tile">
+                <span class="insight-tile-label">Duress Protection</span>
+                <div class="insight-tile-val" style="color:var(--text-main);">Silent Alarm Ready</div>
+                <div class="insight-tile-trend">Emergency PIN Configured</div>
+              </div>
+              <div class="insight-tile">
+                <span class="insight-tile-label">Active Sessions</span>
+                <div class="insight-tile-val">1 Connected</div>
+                <div class="insight-tile-trend">Current Windows Device</div>
+              </div>
+            </div>
+
+            <div class="table-panel">
+              <div class="table-header-toolbar">
+                <h3>Security &amp; Authentication Activity Log</h3>
+                <button class="mini-btn" onclick="loadSecurityEvents()">↻ Refresh Logs</button>
+              </div>
+              <div class="data-table-wrap">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Event Type</th>
+                      <th>Description</th>
+                      <th>Severity</th>
+                      <th>Timestamp</th>
+                    </tr>
+                  </thead>
+                  <tbody id="security-events-tbody">
+                    <tr><td colspan="4" class="empty">No security anomalies detected.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ============================================================
+               VIEW 7: HELP & SUPPORT / GRIEVANCES
+               ============================================================ -->
+          <div class="portal-view" id="view-support">
+            <div class="section-label-bar" style="margin-bottom:18px;">
+              <div>
+                <h2>Help, Grievances &amp; Dispute Resolution</h2>
+                <p style="color:var(--text-muted);font-size:13px;">Official banking support and dispute tickets.</p>
+              </div>
+              <button class="btn btn-primary" style="width:auto;" onclick="openModal('complaint')">File a Grievance</button>
+            </div>
+
+            <div class="table-panel">
+              <div class="table-header-toolbar">
+                <h3>Dispute Tickets &amp; Grievance Status</h3>
+              </div>
+              <div class="data-table-wrap">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Subject</th>
+                      <th>Description</th>
+                      <th>Status</th>
+                      <th>Submitted Date</th>
+                      <th>Admin Resolution</th>
+                    </tr>
+                  </thead>
+                  <tbody id="support-complaints-tbody">
+                    <tr><td colspan="5" class="empty">No active grievance tickets on record.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ============================================================
+               VIEW 8: PROFILE & SETTINGS
+               ============================================================ -->
+          <div class="portal-view" id="view-profile">
+            <div class="card" style="max-width:640px;margin:0 auto;">
+              <div class="eyebrow">Customer Account Information</div>
+              <h2>Profile &amp; Security Preferences</h2>
+              <p class="lead">View your registered profile, UIDAI e-KYC reference, and banking settings.</p>
+
+              <div class="drawer-detail-card" style="margin-bottom:18px;">
+                <div class="drawer-field-row">
+                  <span class="drawer-field-label">Account Holder</span>
+                  <span class="drawer-field-val" id="prof-name">—</span>
+                </div>
+                <div class="drawer-field-row">
+                  <span class="drawer-field-label">Registered Phone</span>
+                  <span class="drawer-field-val" id="prof-phone">—</span>
+                </div>
+                <div class="drawer-field-row">
+                  <span class="drawer-field-label">Aadhaar Last 4</span>
+                  <span class="drawer-field-val" id="prof-aadhaar">•••• ----</span>
+                </div>
+                <div class="drawer-field-row">
+                  <span class="drawer-field-label">Account Role</span>
+                  <span class="drawer-field-val" id="prof-role">USER</span>
+                </div>
+                <div class="drawer-field-row">
+                  <span class="drawer-field-label">Senior Citizen Status</span>
+                  <span class="drawer-field-val" id="prof-senior">Standard Customer</span>
+                </div>
+              </div>
+
+              <button class="btn btn-ghost" onclick="logout()">Sign Out of Banking Session</button>
+            </div>
+          </div>
+
+        </div>
+      </main>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============================================================
+     SLIDE-OUT DRAWERS (TRANSACTION DETAILS, SECURITY, NOTIFICATIONS)
+     ============================================================ -->
+
+<!-- DRAWER: TRANSACTION DETAILS -->
+<div class="drawer-backdrop" id="drawer-backdrop-transaction" onclick="closeDrawer('transaction')">
+  <div class="drawer" onclick="event.stopPropagation()">
+    <div class="drawer-header">
+      <h3>Transaction Details</h3>
+      <button class="drawer-close-btn" onclick="closeDrawer('transaction')">&#10005;</button>
+    </div>
+    <div class="drawer-body">
+      <div style="text-align:center;padding:12px 0;">
+        <div style="font-size:32px;font-weight:800;font-family:var(--font-display);" id="drawer-tx-amt">₹0.00</div>
+        <div class="status-badge completed" style="margin-top:6px;" id="drawer-tx-status">Completed ✓</div>
+      </div>
+
+      <div class="drawer-detail-card">
+        <div class="drawer-field-row">
+          <span class="drawer-field-label">Transaction ID</span>
+          <span class="drawer-field-val" id="drawer-tx-ref">TX_000000</span>
+        </div>
+        <div class="drawer-field-row">
+          <span class="drawer-field-label">Description</span>
+          <span class="drawer-field-val" id="drawer-tx-desc">—</span>
+        </div>
+        <div class="drawer-field-row">
+          <span class="drawer-field-label">Date &amp; Time</span>
+          <span class="drawer-field-val" id="drawer-tx-date">—</span>
+        </div>
+        <div class="drawer-field-row">
+          <span class="drawer-field-label">Debited Account</span>
+          <span class="drawer-field-val" id="drawer-tx-acc">—</span>
+        </div>
+        <div class="drawer-field-row">
+          <span class="drawer-field-label">Security Authorization</span>
+          <span class="drawer-field-val" style="color:var(--primary);">Biometric Vector Match ✓</span>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" onclick="window.print()">Download Receipt</button>
+      <button class="btn btn-ghost" onclick="openModal('complaint')">Report Discrepancy / Dispute</button>
+    </div>
+  </div>
+</div>
+
+<!-- DRAWER: CONSOLIDATED SECURITY CENTER -->
+<div class="drawer-backdrop" id="drawer-backdrop-security" onclick="closeDrawer('security')">
+  <div class="drawer" onclick="event.stopPropagation()">
+    <div class="drawer-header">
+      <h3>Security &amp; Device Center</h3>
+      <button class="drawer-close-btn" onclick="closeDrawer('security')">&#10005;</button>
+    </div>
+    <div class="drawer-body">
+      <div class="drawer-detail-card">
+        <div class="drawer-field-row">
+          <span class="drawer-field-label">Biometric Verification</span>
+          <span class="drawer-field-val" style="color:var(--primary);">Enrolled &amp; Active</span>
+        </div>
+        <div class="drawer-field-row">
+          <span class="drawer-field-label">Current Device</span>
+          <span class="drawer-field-val">Windows (Protected)</span>
+        </div>
+        <div class="drawer-field-row">
+          <span class="drawer-field-label">Session Encryption</span>
+          <span class="drawer-field-val">AES-256 GCM</span>
+        </div>
+        <div class="drawer-field-row">
+          <span class="drawer-field-label">Last Verification</span>
+          <span class="drawer-field-val">Just Now</span>
+        </div>
+      </div>
+
+      <div style="font-size:12px;color:var(--text-muted);line-height:1.5;">
+        Your identity is protected with multi-face anomaly detection and real-time fraud scoring.
+      </div>
+
+      <button class="btn btn-ghost" onclick="switchView('security');closeDrawer('security');">Open Full Security Hub</button>
+    </div>
+  </div>
+</div>
+
+<!-- DRAWER: NOTIFICATIONS CENTER -->
+<div class="drawer-backdrop" id="drawer-backdrop-notifications" onclick="closeDrawer('notifications')">
+  <div class="drawer" onclick="event.stopPropagation()">
+    <div class="drawer-header">
+      <h3>Notifications</h3>
+      <button class="drawer-close-btn" onclick="closeDrawer('notifications')">&#10005;</button>
+    </div>
+    <div class="drawer-body" id="notifications-feed">
+      <div class="drawer-detail-card">
+        <div style="font-weight:600;font-size:13px;color:var(--primary);margin-bottom:2px;">Security Protected</div>
+        <p style="font-size:12px;color:var(--text-muted);margin:0;">Active session initialized with biometric validation.</p>
+        <span style="font-size:10.5px;color:var(--text-faint);font-family:var(--font-mono);display:block;margin-top:6px;">Just now</span>
+      </div>
+      <div class="drawer-detail-card">
+        <div style="font-weight:600;font-size:13px;color:var(--success);margin-bottom:2px;">Account Verified</div>
+        <p style="font-size:12px;color:var(--text-muted);margin:0;">UIDAI e-KYC reference token verified.</p>
+        <span style="font-size:10.5px;color:var(--text-faint);font-family:var(--font-mono);display:block;margin-top:6px;">Today</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     COMMAND PALETTE MODAL (CMD+K / CTRL+K)
+     ============================================================ -->
+<div class="drawer-backdrop" id="command-palette-backdrop" onclick="closeCommandPalette()">
+  <div class="command-palette-modal" id="command-palette" onclick="event.stopPropagation()">
+    <div class="command-input-row">
+      <span>🔍</span>
+      <input id="cmd-input" placeholder="Type a command or search (e.g. transfer, statement, security)..." oninput="handleCommandInput(this.value)" autocomplete="off"/>
+    </div>
+    <div class="command-results-list" id="cmd-results">
+      <div class="command-item" onclick="switchView('dashboard');closeCommandPalette();">
+        <div class="cmd-left"><span>📊</span><span>Go to Dashboard Overview</span></div>
+        <span class="kbd-shortcut">Jump</span>
+      </div>
+      <div class="command-item" onclick="openModal('send');closeCommandPalette();">
+        <div class="cmd-left"><span>↗</span><span>Transfer Funds</span></div>
+        <span class="kbd-shortcut">Action</span>
+      </div>
+      <div class="command-item" onclick="openModal('withdraw');closeCommandPalette();">
+        <div class="cmd-left"><span>↓</span><span>Withdraw ATM Cash</span></div>
+        <span class="kbd-shortcut">Action</span>
+      </div>
+      <div class="command-item" onclick="switchView('transactions');closeCommandPalette();">
+        <div class="cmd-left"><span>📝</span><span>View Transaction History</span></div>
+        <span class="kbd-shortcut">Jump</span>
+      </div>
+      <div class="command-item" onclick="switchView('security');closeCommandPalette();">
+        <div class="cmd-left"><span>🛡️</span><span>Open Biometric Security Hub</span></div>
+        <span class="kbd-shortcut">Jump</span>
+      </div>
+      <div class="command-item" onclick="exportStatement();closeCommandPalette();">
+        <div class="cmd-left"><span>📄</span><span>Export Bank Statement CSV</span></div>
+        <span class="kbd-shortcut">Action</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     FINANCIAL ACTION MODALS & BIOMETRIC GATE
+     ============================================================ -->
+
+<!-- WITHDRAW MODAL -->
+<div class="modal-backdrop" id="modal-withdraw">
+  <div class="modal">
+    <button class="close-x" onclick="closeModal('withdraw')">&#10005;</button>
+    <div class="eyebrow">Cash Disbursement</div>
+    <h2>ATM Cash Withdrawal</h2>
+    <p class="lead">Select or enter the amount to withdraw from your primary digital account.</p>
+    <div class="chip-row">
+      <div class="chip" onclick="setAmt('withdraw',500)">₹500</div>
+      <div class="chip" onclick="setAmt('withdraw',1000)">₹1,000</div>
+      <div class="chip" onclick="setAmt('withdraw',2000)">₹2,000</div>
+      <div class="chip" onclick="setAmt('withdraw',5000)">₹5,000</div>
+    </div>
+    <div class="field">
+      <label>Amount (₹)</label>
+      <input id="withdraw-amt" inputmode="numeric" placeholder="0"/>
+    </div>
+    <div class="modal-msg" id="withdraw-msg"></div>
+    <button class="btn btn-primary" style="margin-top:10px;" onclick="confirmWithdraw()">Proceed to Biometric Authorization</button>
+  </div>
+</div>
+
+<!-- SEND / TRANSFER MODAL -->
+<div class="modal-backdrop" id="modal-send">
+  <div class="modal">
+    <button class="close-x" onclick="closeModal('send')">&#10005;</button>
+    <div class="eyebrow">Instant Transfer</div>
+    <h2>Transfer Funds</h2>
+    <p class="lead">Send funds securely to another verified account holder or external beneficiary.</p>
+    <div class="field">
+      <label>Beneficiary Full Name</label>
+      <input id="send-external-name" placeholder="e.g. Rohan Sharma" autocomplete="off"/>
+    </div>
+    <div class="chip-row">
+      <div class="chip" onclick="setAmt('send',500)">₹500</div>
+      <div class="chip" onclick="setAmt('send',1000)">₹1,000</div>
+      <div class="chip" onclick="setAmt('send',2500)">₹2,500</div>
+      <div class="chip" onclick="setAmt('send',5000)">₹5,000</div>
+    </div>
+    <div class="field">
+      <label>Transfer Amount (₹)</label>
+      <input id="send-amt" inputmode="numeric" placeholder="0"/>
+    </div>
+    <div class="modal-msg" id="send-msg"></div>
+    <button class="btn btn-indigo" style="margin-top:10px;" onclick="confirmSend()">Proceed to Authorization</button>
+  </div>
+</div>
+
+<!-- HUMAN-IN-THE-LOOP BIOMETRIC VERIFICATION GATE -->
+<div class="modal-backdrop" id="modal-verify">
+  <div class="modal" style="max-width:440px;">
+    <button class="close-x" onclick="cancelVerify()">&#10005;</button>
+    <div class="eyebrow">Human-in-the-Loop Gate</div>
+    <h2 id="verify-title">Biometric Authorization</h2>
+    <p class="lead" id="verify-lead">Look directly at the camera to authorize this transaction.</p>
+    
+    <div class="scan-wrap">
+      <div class="scan-frame" style="width:240px;height:240px;margin:0 auto;">
+        <video id="verify-video" autoplay muted playsinline></video>
+        <canvas id="scan-ring-canvas-verify" class="scan-ring-canvas"></canvas>
+        <div class="scan-status" id="verify-scan-status">Positioning face&hellip;</div>
+      </div>
+      
+      <div class="thinking-trace" style="width:100%;justify-content:center;">
+        <span>✦</span>
+        <span>Low Risk Score · Encrypted Vector Match</span>
+      </div>
+
+      <div id="verify-cam-error" class="cam-fallback"></div>
+      <div class="btn-row" style="width:100%;">
+        <button class="btn btn-ghost" onclick="cancelVerify()">Reject</button>
+        <button class="btn btn-ghost" id="verify-retry-cam-btn" style="display:none;" onclick="launchBiometricGate(document.getElementById('verify-title').textContent, document.getElementById('verify-lead').textContent)">Retry Camera</button>
+        <button class="btn btn-primary" id="verify-capture-btn" onclick="captureVerifyFace()" disabled>Approve &amp; Authorize</button>
+      </div>
+      <button class="link-btn" onclick="toggleVerifyPin()">Use 4-digit security PIN instead</button>
+      <div id="verify-pin-block" style="display:none;width:100%;">
+        <div class="field" style="margin-bottom:8px;">
+          <input id="verify-pin-input" placeholder="4-digit PIN" maxlength="4" type="password" inputmode="numeric"/>
+        </div>
+        <button class="btn btn-primary" onclick="submitVerifyPin()">Authorize with PIN</button>
+      </div>
+    </div>
+    <div class="modal-msg" id="verify-msg"></div>
+  </div>
+</div>
+
+<!-- ADD / LINK BANK ACCOUNT MODAL -->
+<div class="modal-backdrop" id="modal-add-account">
+  <div class="modal">
+    <button class="close-x" onclick="closeModal('add-account')">&#10005;</button>
+    <div class="eyebrow">Account Portfolio</div>
+    <h2>Link Bank Account</h2>
+    <p class="lead">Link an external savings, current, or digital card to your iCash profile.</p>
+    <div class="field">
+      <label>Bank Name / Financial Institution</label>
+      <input id="new-acc-bank" placeholder="e.g. State Bank of India, HDFC, ICICI"/>
+    </div>
+    <div class="field">
+      <label>Account Type</label>
+      <select id="new-acc-type">
+        <option value="SAVINGS">Savings Account</option>
+        <option value="CURRENT">Current Account</option>
+        <option value="VIRTUAL">Virtual Debit Card</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Opening / Current Balance (₹)</label>
+      <input id="new-acc-bal" placeholder="0" inputmode="numeric"/>
+    </div>
+    <div class="modal-msg" id="add-acc-msg"></div>
+    <button class="btn btn-primary" onclick="submitAddAccount()">Link Account</button>
+  </div>
+</div>
+
+<!-- GRIEVANCE / DISPUTE MODAL -->
+<div class="modal-backdrop" id="modal-complaint">
+  <div class="modal">
+    <button class="close-x" onclick="closeModal('complaint')">&#10005;</button>
+    <div class="eyebrow">Customer Protection</div>
+    <h2>File a Grievance or Dispute</h2>
+    <p class="lead">Submit an official complaint ticket for administrative review.</p>
+    <div class="field">
+      <label>Subject</label>
+      <input id="complaint-subject" placeholder="e.g. Transaction dispute, billing inquiry"/>
+    </div>
+    <div class="field">
+      <label>Incident Summary</label>
+      <textarea id="complaint-desc" rows="3" placeholder="Describe the discrepancy in detail..."></textarea>
+    </div>
+    <div class="modal-msg" id="complaint-msg"></div>
+    <button class="btn btn-primary" onclick="submitComplaint()">Submit Grievance Ticket</button>
+  </div>
+</div>
+
+<!-- POINT OF SALE PAYMENT REQUEST MODAL -->
+<div class="modal-backdrop" id="modal-payment-request">
+  <div class="modal">
+    <button class="close-x" onclick="closeModal('payment-request')">&#10005;</button>
+    <div class="eyebrow">Point of Sale</div>
+    <h2>Create Payment Request</h2>
+    <p class="lead">Generate a dynamic checkout reference for customer billing.</p>
+    <div class="field">
+      <label>Billing Amount (₹)</label>
+      <input id="payreq-amt" inputmode="numeric" placeholder="0"/>
+    </div>
+    <div class="field">
+      <label>Invoice Memo</label>
+      <input id="payreq-desc" placeholder="e.g. Counter Checkout #104"/>
+    </div>
+    <div class="modal-msg" id="payreq-msg"></div>
+    <button class="btn btn-primary" onclick="submitPaymentRequest()">Generate POS Code</button>
+  </div>
+</div>
+
+<!-- FLOATING ALERT TOAST -->
+<div id="alert-toast"></div>
+
+<!-- SCRIPTS -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+<script src="api.js"></script>
+<script src="biometric.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

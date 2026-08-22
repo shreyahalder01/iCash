@@ -1,0 +1,41 @@
+{
+  "name": "icash-backend",
+  "version": "2.0.0",
+  "description": "Production-grade backend for iCash biometric banking with PostgreSQL, Prisma, JWT/Cookie auth, Argon2/bcrypt security, and REST APIs.",
+  "main": "backend/src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node backend/src/server.js",
+    "dev": "node --watch backend/src/server.js",
+    "prisma:generate": "npm --prefix backend run prisma:generate",
+    "prisma:push": "npm --prefix backend run prisma:push",
+    "prisma:migrate": "npm --prefix backend run prisma:migrate",
+    "prisma:seed": "node backend/prisma/seed.js",
+    "test": "npm --prefix backend test"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.4.1",
+    "bcryptjs": "^3.0.2",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "node-fetch": "^2.7.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "prisma": "^6.4.1",
+    "supertest": "^7.0.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testTimeout": 30000
+  }
+}
