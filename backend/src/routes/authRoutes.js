@@ -4,7 +4,7 @@ const AuthController = require('../controllers/authController');
 const { authenticate } = require('../middleware/authMiddleware');
 const { validateRequest } = require('../middleware/validateMiddleware');
 const { authLimiter } = require('../middleware/rateLimitMiddleware');
-const { registerSchema, loginAadhaarSchema, loginPinSchema } = require('../utils/validator');
+const { registerSchema, loginAadhaarSchema, loginPinSchema, confirmDeleteSchema } = require('../utils/validator');
 
 router.post('/register', authLimiter, validateRequest(registerSchema), AuthController.register);
 router.post(
@@ -17,5 +17,7 @@ router.post('/login-pin', authLimiter, validateRequest(loginPinSchema), AuthCont
 router.post('/logout', authenticate, AuthController.logout);
 router.get('/me', authenticate, AuthController.getMe);
 router.post('/refresh', authenticate, AuthController.refresh);
+// Delete own account (requires current PIN confirmation)
+router.delete('/me', authenticate, validateRequest(confirmDeleteSchema), AuthController.deleteMe);
 
 module.exports = router;

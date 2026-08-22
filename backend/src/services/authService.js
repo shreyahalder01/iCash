@@ -290,6 +290,78 @@ class AuthService {
   }
 
   /**
+   * Permanently delete a user account after verifying the current PIN.
+   * This performs a cascade delete at the DB level; related records use ON DELETE CASCADE.
+   */
+  static async deleteUserAccount(userId, pin, req) {
+    if (!userId) {
+      const err = new Error('Not authenticated.');
+      err.status = 401;
+      throw err;
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      const err = new Error('User not found.');
+      err.status = 404;
+      throw err;
+    }
+
+    // Require PIN confirmation
+    if (!pin) {
+      const err = new Error('PIN confirmation is required to delete the account.');
+      err.status = 400;
+      throw err;
+    }
+
+    const isPinValid = await compareValue(pin, user.password_hash);
+    if (!isPinValid) {
+      const err = new Error('The PIN provided is incorrect.');
+      err.status = 401;
+      throw err;
+    }
+
+    // Record security event prior to deletion
+    await SecurityService.recordEvent({
+      userId,
+      eventType: 'USER_DELETION_INITIATED',
+      severity: 'HIGH',
+      description: 'User initiated permanent account deletion.',
+      ipAddress: req?.ip,
+      deviceReference: req?.headers['user-agent'],
+    });
+
+    // Delete user (cascades to related models in DB via onDelete: Cascade)
+    await prisma.$transaction(async (tx) => {
+      // Revoke existing sessions explicitly
+      await tx.loginSession.updateMany({ where: { user_id: userId, revoked_at: null }, data: { revoked_at: new Date() } });
+
+      // Remove biometric provider records if any local cleanup is needed (best-effort; providers may differ)
+      try {
+        if (user.biometric_profile) {
+          // If provider supports revoke, call it (demo provider has no revoke). Wrapped in try/catch to avoid blocking deletion.
+          // No-op for now.
+        }
+      } catch (e) {
+        // Continue with deletion even if provider cleanup fails
+        console.warn('Biometric provider cleanup failed:', e?.message || e);
+      }
+
+      await tx.user.delete({ where: { id: userId } });
+    });
+
+    // Record post-deletion event (user_id null because user deleted)
+    await SecurityService.recordEvent({
+      userId: null,
+      eventType: 'USER_DELETED',
+      severity: 'HIGH',
+      description: `User ${userId} permanently deleted account.`,
+      ipAddress: req?.ip,
+      deviceReference: req?.headers['user-agent'],
+    });
+  }
+
+  /**
    * Convert Prisma user record to safe object stripped of hashes, secrets, and raw Aadhaar.
    */
   static toSafeUser(user, primaryAccount = null) {

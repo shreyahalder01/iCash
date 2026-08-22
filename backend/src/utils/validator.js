@@ -34,6 +34,11 @@ const loginPinSchema = z.object({
   pin: digits4,
 });
 
+// Confirm account deletion by providing current PIN
+const confirmDeleteSchema = z.object({
+  pin: digits4,
+});
+
 // ---------------- Biometric ----------------
 
 const biometricEnrollSchema = z.object({
@@ -128,6 +133,7 @@ module.exports = {
   registerSchema,
   loginAadhaarSchema,
   loginPinSchema,
+  confirmDeleteSchema,
   biometricEnrollSchema,
   biometricVerifySchema,
   accountCreateSchema,

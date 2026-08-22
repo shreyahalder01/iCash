@@ -93,6 +93,20 @@ class AuthController {
       next(err);
     }
   }
+
+  static async deleteMe(req, res, next) {
+    try {
+      const userId = req.user && req.user.id;
+      const { pin } = req.body || {};
+      await AuthService.deleteUserAccount(userId, pin, req);
+
+      // Clear any session cookie
+      res.clearCookie(COOKIE_NAME, getCookieOptions());
+      res.json({ ok: true, message: 'Your account has been permanently deleted.' });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 module.exports = AuthController;
