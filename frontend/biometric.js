@@ -130,6 +130,25 @@ function bestMatch(storedList, live) {
   return min;
 }
 
+/**
+ * calculateSampleDiversity — Anti-Static Photo / Screen Attack Protection
+ * Measures natural biological micro-variance across enrolled frames.
+ * A static photo held in front of a camera produces zero variance (< 0.003),
+ * whereas a real living human breathing has natural micro-variance (0.03 - 0.35).
+ */
+function calculateSampleDiversity(samples) {
+  if (!samples || samples.length < 2) return 1.0;
+  let totalDist = 0;
+  let pairs = 0;
+  for (let i = 0; i < samples.length; i++) {
+    for (let j = i + 1; j < samples.length; j++) {
+      totalDist += euclidean(Array.from(samples[i]), Array.from(samples[j]));
+      pairs++;
+    }
+  }
+  return pairs > 0 ? totalDist / pairs : 1.0;
+}
+
 // ── Real-Time Client-Side Eye Aspect Ratio (EAR) Blink Detector ─────────────
 function _getPointCoords(p) {
   if (!p) return null;
@@ -647,6 +666,17 @@ async function beginRegisterScan() {
     }
 
     if (collected.length >= ENROLL_SAMPLES && count >= 2) {
+      // Anti-static photo check: verify biological micro-variance across samples
+      const diversity = calculateSampleDiversity(collected);
+      if (diversity < 0.003) {
+        drawOverlay(overlayCanvas, video, detections, 'BAD', 1.0, blinkStatus);
+        statusEl.textContent = '⚠️ Static image detected — real live person must be present.';
+        statusEl.classList.add('bad');
+        collected.length = 0;
+        setTimeout(regStep, 2000);
+        return;
+      }
+
       _regLoopActive = false;
       drawOverlay(overlayCanvas, video, detections, 'GOOD', 1.0, blinkStatus);
       statusEl.textContent = '✅ Liveness & face verified — registering account…';
@@ -849,6 +879,15 @@ async function beginLoginScan() {
     const det = detections[0];
     const live = det.descriptor;
     const blinkStatus = loginBlinkDetector.update(det.landmarks, video);
+
+    // Anti-spoof presentation attack check from liveness server
+    if (currentLivenessState && currentLivenessState.spoof_detected) {
+      drawOverlay(overlayCanvas, video, detections, 'BAD', undefined, blinkStatus);
+      statusEl.textContent = '⚠️ Presentation attack blocked: photo/screen spoof detected.';
+      statusEl.classList.add('bad');
+      setTimeout(loginStep, 150);
+      return;
+    }
 
     if (!storedDescriptors || storedDescriptors.length === 0) {
       _loginLoopActive = false;
@@ -1098,6 +1137,17 @@ async function launchBiometricGate(title, lead) {
     const det = detections[0];
     const live = det.descriptor;
     const blinkStatus = gateBlinkDetector.update(det.landmarks, video);
+
+    // Anti-spoof presentation attack check from liveness server
+    if (currentLivenessState && currentLivenessState.spoof_detected) {
+      drawOverlay(overlayCanvas, video, detections, 'BAD', undefined, blinkStatus);
+      statusEl.textContent = '⚠️ Presentation attack blocked: photo/screen spoof detected.';
+      statusEl.classList.add('bad');
+      msg.textContent = 'Anti-spoof security violation: live person required.';
+      msg.className = 'modal-msg err';
+      setTimeout(verifyStep, 150);
+      return;
+    }
 
     if (!storedDescriptors || storedDescriptors.length === 0) {
       _verifyLoopActive = false;
