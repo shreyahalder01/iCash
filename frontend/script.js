@@ -553,23 +553,20 @@ function cameraErrorMessage(err) {
   if (err && err.message === 'NO_MEDIA_API') {
     return "This browser doesn't support webcam access. Use PIN authorization to sign in.";
   }
-  switch (err && err.name) {
-    case 'NotAllowedError':
-    case 'PermissionDeniedError':
-      return 'Camera permission was denied. Allow camera access in browser settings, or use PIN authorization below.';
-    case 'NotFoundError':
-    case 'DevicesNotFoundError':
-      return 'No camera found. Connect a camera or use PIN authorization below.';
-    case 'NotReadableError':
-    case 'TrackStartError':
-      return 'Camera is in use by another app. Close other camera apps or use PIN authorization.';
-    case 'OverconstrainedError':
-      return 'Camera resolution unsupported. Retrying with default mobile settings.';
-    case 'SecurityError':
-      return "Camera access was blocked by browser security settings. Use PIN authorization.";
-    default:
-      return 'Camera not available. Please allow permissions or use PIN authorization.';
+  const name = err && err.name;
+  if (name === 'NotAllowedError' || name === 'PermissionDeniedError' || name === 'SecurityError' || name === 'AbortError') {
+    return 'Camera access blocked. On Android: close any floating bubbles/overlays (such as Messenger Chat Heads or screen recorders) and tap Retry, or use PIN authorization below.';
   }
+  if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+    return 'No camera found. Connect a camera or use PIN authorization below.';
+  }
+  if (name === 'NotReadableError' || name === 'TrackStartError') {
+    return 'Camera is in use by another app. Close other camera apps or use PIN authorization below.';
+  }
+  if (name === 'OverconstrainedError') {
+    return 'Camera resolution unsupported. Retrying with standard mobile camera settings.';
+  }
+  return 'Camera permission unavailable. Close floating screen bubbles/overlays or use PIN authorization below.';
 }
 
 async function startCamera(videoEl, errEl) {
@@ -604,14 +601,18 @@ async function startCamera(videoEl, errEl) {
   }
 
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: 'user',
-        width: { ideal: 640 },
-        height: { ideal: 480 },
-      },
-      audio: false,
-    });
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user' },
+        audio: false,
+      });
+    } catch (conErr) {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: false,
+      });
+    }
     videoEl.srcObject = stream;
     await videoEl.play().catch(() => {});
     return stream;
