@@ -204,14 +204,14 @@ class ClientBlinkDetector {
   }
 
   reset() {
-    this.openEyeBaseline = 0.30;
+    this.openEyeBaseline = null; // Auto-calibrates to the user's actual resting open-eye EAR
     this.baselineSamples = 0;
     this.prevEar         = null;
     this.closedFrames    = 0;
     this.blinkCount      = 0;
     this.isClosed        = false;
     this.hasBlinked      = false;
-    this.currentEar      = 0.30;
+    this.currentEar      = 0.28;
     this.lastBlinkTime   = 0;
     this._mpPredicting   = false;
   }
@@ -273,28 +273,30 @@ class ClientBlinkDetector {
       const rightCollapse = detectBlinkByCollapse(rightEye);
       const collapseDetected = leftCollapse || rightCollapse;
 
-      // Ankur Kedia EAR Threshold Constant = 0.27
-      const ANKUR_EAR_THRESHOLD = 0.27;
-
-      // Rolling open-eye baseline calibration
-      if (!this.isClosed && !collapseDetected && ear > 0.24) {
-        if (this.baselineSamples < 5) {
-          this.openEyeBaseline = this.baselineSamples === 0
-            ? ear
-            : (this.openEyeBaseline * this.baselineSamples + ear) / (this.baselineSamples + 1);
+      // ── Auto-Calibrate Baseline to User's Actual Resting EAR ─────────────
+      if (this.openEyeBaseline === null) {
+        this.openEyeBaseline = ear;
+        this.baselineSamples = 1;
+      } else if (!this.isClosed && !collapseDetected && ear >= this.openEyeBaseline * 0.88) {
+        if (this.baselineSamples < 10) {
+          this.openEyeBaseline = (this.openEyeBaseline * this.baselineSamples + ear) / (this.baselineSamples + 1);
+          this.baselineSamples++;
         } else {
-          this.openEyeBaseline = this.openEyeBaseline * 0.90 + ear * 0.10;
+          // Slow continuous exponential moving average
+          this.openEyeBaseline = this.openEyeBaseline * 0.94 + ear * 0.06;
         }
-        this.baselineSamples++;
       }
 
-      // Close threshold: triggered if EAR <= 0.27 or relative drop >= 14%
-      const closeThreshold = Math.min(ANKUR_EAR_THRESHOLD, Math.max(0.23, this.openEyeBaseline * 0.86));
-      const openThreshold  = Math.max(0.25, this.openEyeBaseline * 0.90);
-      const earDropped     = (this.openEyeBaseline - ear) >= 0.035;
+      const baseline = this.openEyeBaseline || 0.28;
 
-      const eyeIsClosedNow = (ear <= closeThreshold) || earDropped || collapseDetected;
-      const eyeIsOpenNow   = (ear >= openThreshold) && !collapseDetected && !earDropped;
+      // Thresholds: proportional to individual baseline
+      // Eye is closed if EAR drops by >= 15% from baseline OR eyelids collapse
+      const closeThreshold = Math.max(0.18, baseline * 0.84);
+      // Eye is open if EAR is within 10% of resting baseline
+      const openThreshold  = Math.max(0.20, baseline * 0.90);
+
+      const eyeIsClosedNow = (ear <= closeThreshold) || collapseDetected;
+      const eyeIsOpenNow   = (ear >= openThreshold) && !collapseDetected;
 
       if (eyeIsClosedNow) {
         this.closedFrames++;
@@ -308,7 +310,7 @@ class ClientBlinkDetector {
             this.hasBlinked = true;
           }
           console.log(
-            `[iCash Biometrics] 👁 BLINK #${this.blinkCount}/${this.requiredBlinks} | EAR=${ear.toFixed(3)} (base=${this.openEyeBaseline.toFixed(3)}, close<=${closeThreshold.toFixed(3)}) closedFrames=${this.closedFrames}`
+            `[iCash Biometrics] 👁 BLINK #${this.blinkCount}/${this.requiredBlinks} | EAR=${ear.toFixed(3)} (baseline=${baseline.toFixed(3)}, close<=${closeThreshold.toFixed(3)}) closedFrames=${this.closedFrames}`
           );
         }
         this.isClosed = false;
