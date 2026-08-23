@@ -5,7 +5,7 @@
   "main": "backend/src/server.js",
   "type": "commonjs",
   "scripts": {
-    "build": "npm run prisma:generate",
+    "build": "node scripts/build.js",
     "start": "node backend/src/server.js",
     "dev": "node --watch backend/src/server.js",
     "liveness": "python liveness_server/app.py",
