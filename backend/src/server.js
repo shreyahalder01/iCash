@@ -84,6 +84,97 @@ app.get('*', (req, res) => {
 
 app.use(errorHandler);
 
+// Universal entrypoint: supports standalone Node execution, Express middleware, and Appwrite Functions
+async function handler(contextOrReq, res, next) {
+  // 1. Appwrite Function Context: { req, res, log, error }
+  const isAppwriteContext =
+    contextOrReq &&
+    contextOrReq.req &&
+    contextOrReq.res &&
+    (typeof contextOrReq.res.json === 'function' ||
+      typeof contextOrReq.res.send === 'function' ||
+      typeof contextOrReq.res.text === 'function' ||
+      typeof contextOrReq.res.empty === 'function');
+
+  if (isAppwriteContext) {
+    const { req: appwriteReq, res: appwriteRes, log, error } = contextOrReq;
+    const reqPath = appwriteReq.path || '/';
+
+    const sendResponse = (body, status = 200, headers = {}) => {
+      if (typeof appwriteRes.send === 'function') {
+        return appwriteRes.send(body, status, headers);
+      }
+      if (typeof appwriteRes.text === 'function' && typeof body === 'string') {
+        return appwriteRes.text(body, status, headers);
+      }
+      if (typeof appwriteRes.json === 'function') {
+        return appwriteRes.json(typeof body === 'string' ? { content: body } : body, status, headers);
+      }
+    };
+
+    // Health check
+    if (reqPath === '/api/health' || reqPath === '/health') {
+      return typeof appwriteRes.json === 'function'
+        ? appwriteRes.json({
+            ok: true,
+            service: 'icash-backend',
+            mode: 'appwrite-function',
+            time: new Date().toISOString(),
+          })
+        : sendResponse('OK', 200);
+    }
+
+    // Static assets serving for Appwrite Function
+    if (!reqPath.startsWith('/api')) {
+      const fs = require('fs');
+      const target = reqPath === '/' ? 'index.html' : reqPath.replace(/^\//, '');
+      const filePath = path.join(FRONTEND_DIR, target);
+
+      if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+        const ext = path.extname(filePath).toLowerCase();
+        const mimeTypes = {
+          '.html': 'text/html; charset=utf-8',
+          '.js': 'application/javascript; charset=utf-8',
+          '.css': 'text/css; charset=utf-8',
+          '.json': 'application/json; charset=utf-8',
+          '.png': 'image/png',
+          '.jpg': 'image/jpeg',
+          '.svg': 'image/svg+xml',
+          '.bin': 'application/octet-stream',
+        };
+        const mime = mimeTypes[ext] || 'text/plain';
+        const isBinary = ext.match(/\.(png|jpg|jpeg|ico|bin|shard\d+)$/);
+        const data = fs.readFileSync(filePath, isBinary ? null : 'utf8');
+        return sendResponse(data, 200, { 'Content-Type': mime });
+      }
+
+      // SPA index fallback
+      const indexPath = path.join(FRONTEND_DIR, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        return sendResponse(fs.readFileSync(indexPath, 'utf8'), 200, {
+          'Content-Type': 'text/html; charset=utf-8',
+        });
+      }
+    }
+
+    // Default API response
+    return typeof appwriteRes.json === 'function'
+      ? appwriteRes.json({
+          ok: true,
+          service: 'icash-backend',
+          message: 'iCash API active on Appwrite Open-Runtimes',
+          path: reqPath,
+        })
+      : sendResponse('iCash API Active', 200);
+  }
+
+  // 2. Standard Express middleware / server request
+  return app(contextOrReq, res, next);
+}
+
+// Attach Express properties onto handler
+Object.setPrototypeOf(handler, app);
+
 function startServer(port) {
   const server = app.listen(port, () => {
     console.log(`\n=======================================================`);
@@ -110,4 +201,7 @@ if (require.main === module) {
   startServer(PORT);
 }
 
-module.exports = app;
+module.exports = handler;
+module.exports.app = app;
+module.exports.default = handler;
+
