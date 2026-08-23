@@ -9,17 +9,14 @@
     "start": "node backend/src/server.js",
     "dev": "node --watch backend/src/server.js",
     "liveness": "python liveness_server/app.py",
-    "prisma:generate": "npm --prefix backend run prisma:generate",
-    "prisma:push": "npm --prefix backend run prisma:push",
-    "prisma:migrate": "npm --prefix backend run prisma:migrate",
+    "prisma:generate": "prisma generate --schema=backend/prisma/schema.prisma",
+    "prisma:push": "prisma db push --schema=backend/prisma/schema.prisma",
+    "prisma:migrate": "prisma migrate dev --schema=backend/prisma/schema.prisma",
     "prisma:seed": "node backend/prisma/seed.js",
     "test": "npm --prefix backend test",
     "lint:js": "eslint \"**/*.js\" --ext .js",
     "lint:js:fix": "eslint \"**/*.js\" --ext .js --fix",
     "format": "prettier --write \"**/*.{js,css,html,json,md}\""
-  },
-  "prisma": {
-    "seed": "node prisma/seed.js"
   },
   "dependencies": {
     "@prisma/client": "^6.4.1",
