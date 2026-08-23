@@ -5,7 +5,7 @@
  */
 
 const API_BASE_CANDIDATES = [
-  '', // Same origin if served from backend
+  '', // Same origin if served from backend server
   'http://localhost:4000',
   'http://127.0.0.1:4000',
   'http://localhost:4001',
@@ -13,12 +13,44 @@ const API_BASE_CANDIDATES = [
   'http://localhost:4002',
 ];
 
-let currentBase = (typeof window !== 'undefined' && window.__API_BASE__) || '';
+function getConfiguredBaseUrl() {
+  if (typeof window !== 'undefined') {
+    if (window.ICASH_CONFIG && typeof window.ICASH_CONFIG.API_BASE_URL === 'string' && window.ICASH_CONFIG.API_BASE_URL.trim()) {
+      return window.ICASH_CONFIG.API_BASE_URL.trim().replace(/\/+$/, '');
+    }
+    const stored = localStorage.getItem('icash_api_url');
+    if (stored && stored.trim()) {
+      return stored.trim().replace(/\/+$/, '');
+    }
+    if (window.__API_BASE__ && typeof window.__API_BASE__ === 'string' && window.__API_BASE__.trim()) {
+      return window.__API_BASE__.trim().replace(/\/+$/, '');
+    }
+  }
+  return null;
+}
+
+let currentBase = getConfiguredBaseUrl();
 
 async function detectApiBase() {
-  if (currentBase !== '') return currentBase;
+  if (currentBase !== null && currentBase !== '') {
+    // Check if the configured remote server is healthy
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch(`${currentBase}/api/health`, {
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        return currentBase;
+      }
+    } catch (e) {
+      console.warn(`[iCash API] Configured remote server (${currentBase}) health check failed, checking alternatives...`);
+    }
+  }
 
-  // 1. If served over HTTP/HTTPS, same-origin relative URLs are always best
+  // 1. If served over HTTP/HTTPS, same-origin relative URLs are best (unified backend server)
   if (
     typeof window !== 'undefined' &&
     window.location &&
@@ -48,8 +80,7 @@ async function detectApiBase() {
     }
   }
 
-  currentBase = '';
-  return currentBase;
+  return currentBase || '';
 }
 
 async function request(endpoint, options = {}) {
@@ -80,21 +111,10 @@ async function request(endpoint, options = {}) {
   try {
     response = await fetch(url, config);
   } catch (netErr) {
-    if (base !== 'http://localhost:4000') {
-      try {
-        const fallbackUrl = `http://localhost:4000${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
-        response = await fetch(fallbackUrl, config);
-        currentBase = 'http://localhost:4000';
-      } catch (fallbackErr) {
-        throw new Error(
-          'Unable to connect to banking services. Please ensure the backend server is running on http://localhost:4000.'
-        );
-      }
-    } else {
-      throw new Error(
-        'Unable to connect to banking services. Please ensure the backend server is running on http://localhost:4000.'
-      );
-    }
+    const attemptedTarget = base ? base : (typeof window !== 'undefined' ? window.location.origin : 'server');
+    throw new Error(
+      `Unable to connect to banking backend (${attemptedTarget}). Please ensure the backend server is running and accessible.`
+    );
   }
 
   let data;
@@ -283,6 +303,19 @@ const api = {
         // Reset call failed or server offline — safe to ignore
       }
     },
+  // Server Configuration Helpers
+  setServerUrl: (url) => {
+    if (typeof localStorage !== 'undefined') {
+      if (url && url.trim()) {
+        localStorage.setItem('icash_api_url', url.trim().replace(/\/+$/, ''));
+      } else {
+        localStorage.removeItem('icash_api_url');
+      }
+    }
+    currentBase = getConfiguredBaseUrl();
+  },
+  getServerUrl: () => {
+    return currentBase || getConfiguredBaseUrl() || (typeof window !== 'undefined' ? window.location.origin : '');
   },
 };
 
