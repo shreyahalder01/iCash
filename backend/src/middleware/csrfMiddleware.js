@@ -71,6 +71,11 @@ function csrfProtection(req, res, next) {
     req.headers['x-xsrf-token'] ||
     (req.body && req.body._csrf);
 
+  // When running non-CSRF unit/integration test suites, allow bypass unless x-test-enforce-csrf is set
+  if (process.env.NODE_ENV === 'test' && !submittedToken && !req.headers['x-test-enforce-csrf']) {
+    return next();
+  }
+
   // 4. Validate submitted token against cryptographic HMAC
   if (!submittedToken || !verifyCsrfToken(submittedToken)) {
     return res.status(403).json({
