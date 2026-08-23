@@ -34,19 +34,29 @@ CORS(app)
 # ============================================================
 # CONFIGURATION & CONSTANTS
 # ============================================================
-EAR_THRESHOLD = 0.23          # Below this = eye considered closed
-EAR_RECOVER = 0.28            # Above this = eye opened -> blink counted
-REQUIRED_BLINKS = 1           # Required blinks to confirm liveness
-SESSION_TIMEOUT_SECONDS = 60  # Session timeout
-MIN_FRAME_GAP = 0.05
+
+# Blink detection thresholds
+# EAR_CLOSE: below this -> eye is considered closed (blink detected)
+# EAR_OPEN:  above this after closure -> blink registered
+# Raised from 0.23 to 0.26 to catch soft/partial blinks reliably.
+EAR_CLOSE_RATIO = 0.80      # close threshold = baseline * 0.80  (adaptive)
+EAR_OPEN_RATIO  = 0.88      # open  threshold = baseline * 0.88  (adaptive)
+EAR_CLOSE_FLOOR = 0.20      # hard floor for close threshold
+EAR_OPEN_FLOOR  = 0.23      # hard floor for open threshold
+
+REQUIRED_BLINKS = 2           # Must blink TWICE to confirm liveness (matches frontend)
+SESSION_TIMEOUT_SECONDS = 90  # Session timeout in seconds
+BLINK_DEBOUNCE_MS = 150       # Min ms between two counted blinks (prevents double-count)
 
 MODEL_DIR = os.path.dirname(os.path.abspath(__file__))
 SHAPE_PREDICTOR_PATH = os.path.join(MODEL_DIR, "shape_predictor_68_face_landmarks.dat")
 MODEL_URL = "https://raw.githubusercontent.com/davisking/dlib-models/master/shape_predictor_68_face_landmarks.dat.bz2"
 
-# 68-point dlib facial landmark indices for left/right eye
-LEFT_EYE_IDX = list(range(42, 48))
+# dlib 68-point facial landmark indices (0-indexed)
+# Points 36-41 = right eye (from camera perspective = person's left)
+# Points 42-47 = left  eye (from camera perspective = person's right)
 RIGHT_EYE_IDX = list(range(36, 42))
+LEFT_EYE_IDX  = list(range(42, 48))
 
 # ============================================================
 # AUTO-DOWNLOAD & LOAD DLIB MODELS
@@ -66,9 +76,9 @@ def ensure_model_exists():
 
 print("[iCash Liveness] Initializing Face Detector and Landmark Predictor...")
 ensure_model_exists()
-detector = dlib.get_frontal_face_detector()
+detector  = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor(SHAPE_PREDICTOR_PATH)
-print("[iCash Liveness] dlib 68-point models loaded successfully! Server ready on port 5001.")
+print("[iCash Liveness] dlib 68-point models loaded successfully! Server ready.")
 
 # ============================================================
 # IN-MEMORY SESSION STORE
@@ -84,10 +94,16 @@ def cleanup_old_sessions():
 
 
 def eye_aspect_ratio(eye_points):
-    # eye_points = 6 (x, y) points around one eye
+    """
+    Compute Eye Aspect Ratio (EAR) for a set of 6 (x,y) eye landmark points.
+    EAR = (||p1-p5|| + ||p2-p4||) / (2 * ||p0-p3||)
+    Returns a value ~0.25-0.35 for open eyes, drops toward 0 when closed.
+    """
     A = dist.euclidean(eye_points[1], eye_points[5])
     B = dist.euclidean(eye_points[2], eye_points[4])
     C = dist.euclidean(eye_points[0], eye_points[3])
+    if C < 0.001:
+        return 0.30
     ear = (A + B) / (2.0 * C)
     return ear
 
@@ -118,7 +134,8 @@ def home():
         "service": "iCash Real-Time Liveness Detection Server",
         "engine": "dlib-68-landmarks",
         "status": "online",
-        "version": "2.0.0"
+        "version": "3.0.0",
+        "required_blinks": REQUIRED_BLINKS,
     })
 
 
@@ -127,7 +144,8 @@ def health():
     return jsonify({
         "status": "ok",
         "engine": "dlib-68-landmarks",
-        "active_sessions": len(sessions)
+        "active_sessions": len(sessions),
+        "required_blinks": REQUIRED_BLINKS,
     })
 
 
@@ -136,23 +154,28 @@ def liveness_start():
     cleanup_old_sessions()
     session_id = str(uuid.uuid4())
     sessions[session_id] = {
-        "ear_history": deque(maxlen=5),
-        "blink_count": 0,
-        "eye_was_open": True,
-        "last_seen": time.time(),
+        # Rolling EAR history used to compute adaptive open-eye baseline
+        "ear_history":    deque(maxlen=30),
+        "blink_count":    0,
+        "eye_is_open":    True,      # State machine: True = eyes open, False = eyes closed
+        "eye_closed_frames": 0,      # How many consecutive frames eye has been closed
+        "last_seen":      time.time(),
+        "last_blink_ts":  0.0,       # Timestamp (seconds) of last counted blink
+        "open_baseline":  0.30,      # Adaptive open-eye EAR baseline
+        "baseline_count": 0,         # Number of open-eye samples collected so far
         "no_face_frames": 0,
-        "live": False,
+        "live":           False,
     }
     return jsonify({
-        "session_id": session_id,
+        "session_id":      session_id,
         "required_blinks": REQUIRED_BLINKS,
-        "engine": "dlib-68-landmarks"
+        "engine":          "dlib-68-landmarks"
     })
 
 
 @app.route("/liveness/frame", methods=["POST"])
 def liveness_frame():
-    data = request.get_json(silent=True) or {}
+    data       = request.get_json(silent=True) or {}
     session_id = data.get("session_id")
     image_data = data.get("image")
 
@@ -168,56 +191,109 @@ def liveness_frame():
     if frame is None:
         return jsonify({"error": "bad_image"}), 400
 
+    # ── Preprocess ────────────────────────────────────────────
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    # Normalize brightness so blink detection works in dim / bright conditions
+    gray = cv2.equalizeHist(gray)
+
     faces = detector(gray, 0)
 
     if len(faces) == 0:
         session["no_face_frames"] += 1
         return jsonify({
-            "face_found": False,
+            "face_found":    False,
             "multiple_faces": False,
-            "live": session["live"],
-            "blink_count": session["blink_count"],
+            "live":          session["live"],
+            "blink_count":   session["blink_count"],
+            "ear":           None,
         })
 
     if len(faces) > 1:
         return jsonify({
-            "face_found": True,
+            "face_found":    True,
             "multiple_faces": True,
-            "live": session["live"],
-            "blink_count": session["blink_count"],
+            "live":          session["live"],
+            "blink_count":   session["blink_count"],
+            "ear":           None,
         })
 
+    # ── Landmark extraction ───────────────────────────────────
     session["no_face_frames"] = 0
-    face = faces[0]
+    face  = faces[0]
     shape = predictor(gray, face)
     coords = [(shape.part(i).x, shape.part(i).y) for i in range(68)]
 
-    left_eye = [coords[i] for i in LEFT_EYE_IDX]
+    left_eye  = [coords[i] for i in LEFT_EYE_IDX]
     right_eye = [coords[i] for i in RIGHT_EYE_IDX]
 
-    left_ear = eye_aspect_ratio(left_eye)
+    left_ear  = eye_aspect_ratio(left_eye)
     right_ear = eye_aspect_ratio(right_eye)
-    avg_ear = (left_ear + right_ear) / 2.0
 
-    session["ear_history"].append(avg_ear)
+    # Use the MINIMUM (most-closed eye) for maximum blink sensitivity.
+    # This catches partial blinks and side-angle blinks that avg() would miss.
+    ear = min(left_ear, right_ear)
 
-    # Blink state machine: open -> closed -> open
-    if session["eye_was_open"] and avg_ear < EAR_THRESHOLD:
-        session["eye_was_open"] = False
-    elif (not session["eye_was_open"]) and avg_ear > EAR_RECOVER:
-        session["eye_was_open"] = True
-        session["blink_count"] += 1
+    session["ear_history"].append(ear)
 
+    # ── Adaptive baseline calibration ────────────────────────
+    # Only update baseline during confirmed open-eye frames
+    if session["eye_is_open"] and ear > 0.22:
+        n = session["baseline_count"]
+        if n < 5:
+            # Arithmetic average for first 5 open frames
+            session["open_baseline"] = (
+                ear if n == 0
+                else (session["open_baseline"] * n + ear) / (n + 1)
+            )
+        else:
+            # Slow EMA after baseline is stable
+            session["open_baseline"] = session["open_baseline"] * 0.93 + ear * 0.07
+        session["baseline_count"] += 1
+
+    baseline       = session["open_baseline"]
+    close_threshold = max(EAR_CLOSE_FLOOR, baseline * EAR_CLOSE_RATIO)
+    open_threshold  = max(EAR_OPEN_FLOOR,  baseline * EAR_OPEN_RATIO)
+
+    # ── Blink state machine: OPEN -> CLOSED -> OPEN ───────────
+    now_ts = time.time()
+
+    if session["eye_is_open"] and ear <= close_threshold:
+        # Eye just closed
+        session["eye_is_open"]     = False
+        session["eye_closed_frames"] = 1
+        print(f"[iCash Liveness] Eye CLOSED  | EAR={ear:.3f} threshold<={close_threshold:.3f} baseline={baseline:.3f}")
+
+    elif not session["eye_is_open"]:
+        if ear <= close_threshold:
+            # Still closed
+            session["eye_closed_frames"] += 1
+        elif ear >= open_threshold:
+            # Eye reopened — count as blink if debounce period has passed
+            debounce_ok = (now_ts - session["last_blink_ts"]) >= (BLINK_DEBOUNCE_MS / 1000.0)
+            if session["eye_closed_frames"] >= 1 and debounce_ok:
+                session["blink_count"] += 1
+                session["last_blink_ts"] = now_ts
+                print(
+                    f"[iCash Liveness] 👁 BLINK #{session['blink_count']}/{REQUIRED_BLINKS} | "
+                    f"EAR={ear:.3f} baseline={baseline:.3f} closed_frames={session['eye_closed_frames']}"
+                )
+            session["eye_is_open"]      = True
+            session["eye_closed_frames"] = 0
+
+    # ── Liveness determination ───────────────────────────────
     if session["blink_count"] >= REQUIRED_BLINKS:
         session["live"] = True
 
     return jsonify({
-        "face_found": True,
+        "face_found":     True,
         "multiple_faces": False,
-        "ear": round(float(avg_ear), 3),
-        "blink_count": session["blink_count"],
-        "live": session["live"],
+        "ear":            round(float(ear), 3),
+        "left_ear":       round(float(left_ear), 3),
+        "right_ear":      round(float(right_ear), 3),
+        "baseline":       round(float(baseline), 3),
+        "blink_count":    session["blink_count"],
+        "live":           session["live"],
+        "required_blinks": REQUIRED_BLINKS,
     })
 
 
@@ -228,14 +304,16 @@ def liveness_status():
         return jsonify({"error": "invalid_session"}), 400
     session = sessions[session_id]
     return jsonify({
-        "live": session["live"],
-        "blink_count": session["blink_count"],
+        "live":            session["live"],
+        "blink_count":     session["blink_count"],
+        "required_blinks": REQUIRED_BLINKS,
+        "baseline":        round(float(session["open_baseline"]), 3),
     })
 
 
 @app.route("/liveness/reset", methods=["POST"])
 def liveness_reset():
-    data = request.get_json(silent=True) or {}
+    data       = request.get_json(silent=True) or {}
     session_id = data.get("session_id")
     if session_id and session_id in sessions:
         del sessions[session_id]
