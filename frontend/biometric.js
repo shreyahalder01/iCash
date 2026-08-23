@@ -195,33 +195,31 @@ class ClientBlinkDetector {
         this.baselineSamples++;
       }
 
-      // Aggressive thresholds: close at 78% of baseline, reopen at 87%
-      // Hard floor so it works even with baseline = 0.30 (0.30 * 0.78 = 0.234)
-      const closeThreshold = Math.max(0.19, this.openEyeBaseline * 0.78);
-      const openThreshold = Math.max(0.22, this.openEyeBaseline * 0.87);
+      // Aggressive thresholds: close at 75% of baseline, reopen at 87%
+      const closeThreshold = Math.max(0.18, this.openEyeBaseline * 0.75);
+      const openThreshold  = Math.max(0.21, this.openEyeBaseline * 0.87);
 
-      // Log every frame for live debugging in browser console
-      // console.debug(`[EAR] ear=${ear.toFixed(3)} base=${this.openEyeBaseline.toFixed(3)} close<=${closeThreshold.toFixed(3)} open>=${openThreshold.toFixed(3)} closed=${this.isClosed}`);
+      // Live EAR debug — open browser DevTools > Console to watch values
+      console.debug(
+        `[EAR] ${ear.toFixed(3)} | base=${this.openEyeBaseline.toFixed(3)} close<=${closeThreshold.toFixed(3)} open>=${openThreshold.toFixed(3)} closed=${this.isClosed} frames=${this.closedFrames} blinks=${this.blinkCount}`
+      );
 
       if (ear <= closeThreshold) {
         this.closedFrames++;
         this.isClosed = true;
       } else if (ear >= openThreshold && this.isClosed) {
-        // Eye has reopened after a confirmed closure — count as blink
+        // Eye reopened after confirmed closure → count blink
         if (this.closedFrames >= 1 && now - this.lastBlinkTime >= 120) {
           this.blinkCount++;
           this.lastBlinkTime = now;
-          if (this.blinkCount >= this.requiredBlinks) {
-            this.hasBlinked = true;
-          }
+          if (this.blinkCount >= this.requiredBlinks) this.hasBlinked = true;
           console.log(
-            `[iCash Biometrics] 👁 Blink #${this.blinkCount}/${this.requiredBlinks} | EAR=${ear.toFixed(3)} base=${this.openEyeBaseline.toFixed(3)} closed_frames=${this.closedFrames}`
+            `[iCash Biometrics] 👁 BLINK #${this.blinkCount}/${this.requiredBlinks} | EAR=${ear.toFixed(3)} base=${this.openEyeBaseline.toFixed(3)} closed_frames=${this.closedFrames}`
           );
         }
         this.isClosed = false;
         this.closedFrames = 0;
       } else if (ear >= openThreshold && !this.isClosed) {
-        // Eye is comfortably open — reset closed counter
         this.closedFrames = 0;
       }
 
@@ -360,22 +358,40 @@ function drawOverlay(canvas, video, detections, state, progress, blinkInfo) {
     ctx.fillStyle = color;
     ctx.fillText(`${Math.round(score * 100)}% Match`, box.x + 4, box.y - 6);
 
-    // Liveness & Blink indicator badge (2 blinks required)
+    // Liveness & Blink indicator badge — drawn inside the face box so it never overflows
     const count = (blinkInfo && blinkInfo.blinkCount) || 0;
     const hasBlinked = (blinkInfo && (blinkInfo.hasBlinked || count >= 2)) || (currentLivenessState && currentLivenessState.live);
-    const ly = box.y + box.height + 16;
-    ctx.font = 'bold 12px sans-serif';
 
+    let badgeText, badgeColor;
     if (hasBlinked) {
-      ctx.fillStyle = '#22C55E';
-      ctx.fillText('✓ Liveness Verified (2/2 Blinks)', box.x + 4, ly);
+      badgeText  = '✓ Liveness OK  (2/2)';
+      badgeColor = '#22C55E';
     } else if (count === 1) {
-      ctx.fillStyle = '#38BDF8';
-      ctx.fillText('👁 1st Blink OK! Blink Once More (1/2)', box.x + 4, ly);
+      badgeText  = '👁 Blink once more  1/2';
+      badgeColor = '#38BDF8';
     } else {
-      ctx.fillStyle = '#F59E0B';
-      ctx.fillText(`👁 Blink Twice for Anti-Spoof: ${count}/2`, box.x + 4, ly);
+      badgeText  = '👁 Blink twice  0/2';
+      badgeColor = '#F59E0B';
     }
+
+    // Draw pill background so text never overflows the bounding box
+    const badgeFontSize = Math.max(11, Math.min(14, box.width / 18));
+    ctx.font = `bold ${badgeFontSize}px sans-serif`;
+    const textW   = ctx.measureText(badgeText).width;
+    const padX    = 8;
+    const padY    = 4;
+    const badgeH  = badgeFontSize + padY * 2;
+    const badgeX  = box.x + (box.width - textW - padX * 2) / 2;   // centred in box
+    const badgeY  = box.y + box.height - badgeH - 4;              // just inside bottom edge
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    ctx.beginPath();
+    ctx.roundRect(badgeX, badgeY, textW + padX * 2, badgeH, 6);
+    ctx.fill();
+    ctx.fillStyle = badgeColor;
+    ctx.fillText(badgeText, badgeX + padX, badgeY + padY + badgeFontSize - 2);
+    ctx.restore();
 
     // Progress bar (enrollment)
     if (progress !== undefined && progress >= 0) {
