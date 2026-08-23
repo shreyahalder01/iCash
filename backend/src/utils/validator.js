@@ -18,7 +18,7 @@ const registerSchema = z.object({
   dob: z.string().optional(),
   role: z.enum(['USER', 'MERCHANT', 'ADMIN']).optional(),
   pin: digits4,
-  emergencyPin: digits4.optional(),
+  emergencyPin: digits4.optional().or(z.literal('')).optional(),
   isSenior: z.boolean().optional(),
   emergencyContactName: z.string().optional(),
   emergencyContactPhone: mobile10.optional().or(z.literal('')).optional(),

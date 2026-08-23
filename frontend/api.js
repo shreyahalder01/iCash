@@ -101,7 +101,22 @@ async function request(endpoint, options = {}) {
       data = {};
     }
   } else {
-    data = { message: await response.text() };
+    // No JSON API answered this request — most likely the static host's
+    // SPA/404 fallback served back index.html (or some other HTML/plain
+    // page) instead of a real API response. Never surface that raw body
+    // to the UI: log it for debugging and treat the request as failed.
+    const rawText = await response.text();
+    console.error(
+      `[iCash API] Expected JSON from ${url} but got "${contentType || 'unknown content-type'}". ` +
+        `This usually means no backend is reachable at this origin. First 300 chars of response:`,
+      rawText.slice(0, 300)
+    );
+    const error = new Error(
+      'Unable to reach banking services right now. Please try again shortly, or contact support if this continues.'
+    );
+    error.status = response.status;
+    error.nonJson = true;
+    throw error;
   }
 
   if (!response.ok) {

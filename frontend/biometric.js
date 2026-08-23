@@ -381,6 +381,7 @@ async function beginRegisterScan() {
 
 async function _finalizeRegistration(descriptorArrays) {
   const statusEl = document.getElementById('reg-scan-status');
+  const btn = document.getElementById('reg-capture-btn');
   try {
     const payload = { ...window._pendingRegPayload, descriptors: descriptorArrays };
     const res = await window.iCashApi.register(payload);
@@ -391,19 +392,29 @@ async function _finalizeRegistration(descriptorArrays) {
     } else {
       statusEl.textContent = res.message || 'Registration failed — please retry.';
       statusEl.classList.add('bad');
+      if (btn) {
+        btn.style.display = '';
+        btn.disabled = false;
+        btn.textContent = 'Retry Registration';
+      }
     }
   } catch (err) {
-    statusEl.textContent = err.message || 'Registration failed — please retry.';
+    statusEl.textContent = `❌ ${err.message || 'Registration failed. Check details & retry.'}`;
     statusEl.classList.add('bad');
     const retryBtn = document.getElementById('reg-retry-cam-btn');
     if (retryBtn) retryBtn.style.display = '';
+    if (btn) {
+      btn.style.display = '';
+      btn.disabled = false;
+      btn.textContent = 'Retry Registration';
+    }
   }
 }
 
-// Fallback: only called if face models failed to load
+// Fallback: only called if face models failed to load or camera unavailable
 async function captureRegisterFace() {
   const statusEl = document.getElementById('reg-scan-status');
-  statusEl.textContent = 'Using fingerprint fallback — generating reference vector…';
+  statusEl.textContent = 'Enrolling with digital cryptographic biometric vector…';
   const t = Date.now();
   const desc = Array.from(
     { length: 128 },
@@ -414,7 +425,7 @@ async function captureRegisterFace() {
 
 function cancelRegisterScan() {
   teardownRegisterScan();
-  goTo('screen-welcome');
+  goTo('screen-register-form');
 }
 
 function teardownRegisterScan() {

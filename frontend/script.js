@@ -317,12 +317,12 @@ async function proceedToBiometrics() {
     msg.className = 'modal-msg err';
     return;
   }
-  if (!/^\d{4}$/.test(emergencyPin)) {
-    msg.textContent = 'Emergency Duress PIN must be 4 digits.';
+  if (emergencyPin && !/^\d{4}$/.test(emergencyPin)) {
+    msg.textContent = 'Emergency Duress PIN must be 4 digits (or leave blank).';
     msg.className = 'modal-msg err';
     return;
   }
-  if (pin === emergencyPin) {
+  if (emergencyPin && pin === emergencyPin) {
     msg.textContent = 'Emergency PIN must be different from primary PIN.';
     msg.className = 'modal-msg err';
     return;
@@ -344,10 +344,10 @@ async function proceedToBiometrics() {
     dob: dobVal || undefined,
     role,
     pin,
-    emergencyPin,
+    emergencyPin: emergencyPin || undefined,
     isSenior,
-    emergencyContactName: contactName,
-    emergencyContactPhone: contactPhone,
+    emergencyContactName: contactName || undefined,
+    emergencyContactPhone: contactPhone || undefined,
   };
 
   goTo('screen-register-scan');
