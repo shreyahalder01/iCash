@@ -430,9 +430,8 @@ class TransactionService {
       amount: numAmount,
       expiresInSeconds: 300,
       expiresAt,
-      // devOtp / otp returned for demo / automated testing flow
+      // devOtp returned for demo / instant testing flow
       devOtp: rawOtp,
-      otp: rawOtp,
       message: `A One-Time Password (OTP) has been dispatched to the account holder's registered mobile number (${TransactionService.maskPhone(accountHolder.phone)}). You have 5 minutes to complete verification.`,
     };
   }
