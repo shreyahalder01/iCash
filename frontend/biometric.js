@@ -123,9 +123,56 @@ function calculateEAR(eyePoints) {
   // Eye points: [p0, p1, p2, p3, p4, p5]
   const v1 = _calcDist(eyePoints[1], eyePoints[5]);
   const v2 = _calcDist(eyePoints[2], eyePoints[4]);
-  const h = _calcDist(eyePoints[0], eyePoints[3]);
+  const h  = _calcDist(eyePoints[0], eyePoints[3]);
   if (h <= 0.001) return 0.28;
   return (v1 + v2) / (2.0 * h);
+}
+
+/**
+ * detectBlinkByCollapse — Adapted from BRFv4 / handsfree.js blink detection.
+ *
+ * Original BRFv4 concept (from the code you shared):
+ *   Loop through eye landmark points 36-47. If any two points share the exact
+ *   same (x, y) pixel position the eye has closed (landmarks collapsed).
+ *
+ * Adaptation for face-api.js:
+ *   face-api.js doesn't collapse points to the exact same pixel, but the
+ *   VERTICAL distance between the upper eyelid (points 1, 2) and lower eyelid
+ *   (points 5, 4) drops to near-zero when the eye is closed.
+ *   We check the two vertical pairs [1↔5] and [2↔4] and return true if either
+ *   pair's Y-distance is below a dynamic threshold derived from the eye width.
+ *
+ * @param {Array} eyePoints  6 face-api landmark points for one eye
+ * @returns {boolean}        true when the eye appears closed
+ */
+function detectBlinkByCollapse(eyePoints) {
+  if (!eyePoints || eyePoints.length < 6) return false;
+
+  // Measure eye width (horizontal span) to get a scale-independent threshold.
+  // When the camera is close the face is large; when far it is small.
+  const p0 = _getPointCoords(eyePoints[0]); // left  corner
+  const p3 = _getPointCoords(eyePoints[3]); // right corner
+  const eyeWidth = (p0 && p3) ? Math.abs(p3.x - p0.x) : 20;
+
+  // Collapse threshold = 20% of eye width.
+  // At eye width ~25px (small face): threshold ~5px
+  // At eye width ~60px (large face): threshold ~12px
+  const collapseThreshold = Math.max(3, eyeWidth * 0.20);
+
+  // Vertical eyelid pairs — these converge when the eye closes:
+  //   pair [1, 5]: upper-left eyelid  ↔ lower-left eyelid
+  //   pair [2, 4]: upper-right eyelid ↔ lower-right eyelid
+  const verticalPairs = [[1, 5], [2, 4]];
+  for (const [i, j] of verticalPairs) {
+    const a = _getPointCoords(eyePoints[i]);
+    const b = _getPointCoords(eyePoints[j]);
+    if (!a || !b) continue;
+    const vertDist = Math.abs(a.y - b.y);
+    if (vertDist < collapseThreshold) {
+      return true; // eyelid points collapsed → eye is closed
+    }
+  }
+  return false;
 }
 
 class ClientBlinkDetector {
@@ -170,10 +217,11 @@ class ClientBlinkDetector {
           ? landmarks.positions.slice(42, 48)
           : null;
 
-      const leftEar = calculateEAR(leftEye);
+      const leftEar  = calculateEAR(leftEye);
       const rightEar = calculateEAR(rightEye);
 
-      // Use the minimum (most closed eye) for maximum sensitivity
+      // ── Method 1: EAR (Eye Aspect Ratio) ─────────────────────────
+      // Use the minimum (most-closed eye) for maximum sensitivity.
       const ears = [leftEar, rightEar].filter((e) => e > 0.03 && e < 0.70);
       if (ears.length === 0) return { hasBlinked: this.hasBlinked, blinkCount: this.blinkCount, requiredBlinks: this.requiredBlinks, ear: this.currentEar, isClosed: this.isClosed };
       const ear = Math.min(...ears);
@@ -181,45 +229,53 @@ class ClientBlinkDetector {
 
       const now = Date.now();
 
-      // Build open-eye baseline during open-eye frames ONLY
-      if (!this.isClosed && ear > 0.22) {
+      // ── Method 2: BRFv4 collapse detection (adapted) ─────────────
+      // Fires when upper/lower eyelid landmarks converge — catches
+      // blinks that EAR might miss due to extreme angles or dim lighting.
+      const leftCollapse  = detectBlinkByCollapse(leftEye);
+      const rightCollapse = detectBlinkByCollapse(rightEye);
+      const collapseDetected = leftCollapse || rightCollapse;
+
+      // Eye is considered closed if EITHER method says so
+      const eyeIsClosedNow = (ear <= Math.max(0.18, this.openEyeBaseline * 0.75)) || collapseDetected;
+
+      // Build open-eye baseline during confirmed open frames ONLY
+      if (!this.isClosed && !collapseDetected && ear > 0.22) {
         if (this.baselineSamples < 5) {
-          // Average initial samples for a stable baseline
           this.openEyeBaseline = this.baselineSamples === 0
             ? ear
             : (this.openEyeBaseline * this.baselineSamples + ear) / (this.baselineSamples + 1);
         } else {
-          // Slow exponential moving average once baseline is stable
           this.openEyeBaseline = this.openEyeBaseline * 0.92 + ear * 0.08;
         }
         this.baselineSamples++;
       }
 
-      // Aggressive thresholds: close at 75% of baseline, reopen at 87%
       const closeThreshold = Math.max(0.18, this.openEyeBaseline * 0.75);
       const openThreshold  = Math.max(0.21, this.openEyeBaseline * 0.87);
+      const eyeIsOpenNow   = ear >= openThreshold && !collapseDetected;
 
-      // Live EAR debug — open browser DevTools > Console to watch values
+      // Live debug — open DevTools > Console to watch
       console.debug(
-        `[EAR] ${ear.toFixed(3)} | base=${this.openEyeBaseline.toFixed(3)} close<=${closeThreshold.toFixed(3)} open>=${openThreshold.toFixed(3)} closed=${this.isClosed} frames=${this.closedFrames} blinks=${this.blinkCount}`
+        `[EAR] ${ear.toFixed(3)} | base=${this.openEyeBaseline.toFixed(3)} thr<=${closeThreshold.toFixed(3)} collapse=${collapseDetected} closed=${this.isClosed} blinks=${this.blinkCount}`
       );
 
-      if (ear <= closeThreshold) {
+      if (eyeIsClosedNow) {
         this.closedFrames++;
         this.isClosed = true;
-      } else if (ear >= openThreshold && this.isClosed) {
+      } else if (eyeIsOpenNow && this.isClosed) {
         // Eye reopened after confirmed closure → count blink
         if (this.closedFrames >= 1 && now - this.lastBlinkTime >= 120) {
           this.blinkCount++;
           this.lastBlinkTime = now;
           if (this.blinkCount >= this.requiredBlinks) this.hasBlinked = true;
           console.log(
-            `[iCash Biometrics] 👁 BLINK #${this.blinkCount}/${this.requiredBlinks} | EAR=${ear.toFixed(3)} base=${this.openEyeBaseline.toFixed(3)} closed_frames=${this.closedFrames}`
+            `[iCash Biometrics] 👁 BLINK #${this.blinkCount}/${this.requiredBlinks} | EAR=${ear.toFixed(3)} collapse=${collapseDetected} base=${this.openEyeBaseline.toFixed(3)} frames=${this.closedFrames}`
           );
         }
         this.isClosed = false;
         this.closedFrames = 0;
-      } else if (ear >= openThreshold && !this.isClosed) {
+      } else if (eyeIsOpenNow && !this.isClosed) {
         this.closedFrames = 0;
       }
 
