@@ -548,27 +548,27 @@ function initOtpDigitInputs() {
 // ============================================================
 function cameraErrorMessage(err) {
   if (err && err.message === 'INSECURE_CONTEXT') {
-    return 'Camera requires HTTPS (or localhost). This page was opened over an insecure connection, so the browser is blocking camera access.';
+    return 'Mobile browsers require HTTPS for camera streaming. Use PIN authorization or tap below to proceed with digital verification.';
   }
   if (err && err.message === 'NO_MEDIA_API') {
-    return "This browser doesn't support camera access. Try an up-to-date Chrome, Edge, or Firefox.";
+    return "This browser doesn't support webcam access. Use PIN authorization to sign in.";
   }
   switch (err && err.name) {
     case 'NotAllowedError':
     case 'PermissionDeniedError':
-      return 'Camera permission was denied. Click the camera/lock icon in your address bar, allow access, then retry.';
+      return 'Camera permission was denied. Allow camera access in browser settings, or use PIN authorization below.';
     case 'NotFoundError':
     case 'DevicesNotFoundError':
-      return 'No camera was found on this device. Connect a webcam, or use "Camera unavailable? Sign in with PIN" below.';
+      return 'No camera found. Connect a camera or use PIN authorization below.';
     case 'NotReadableError':
     case 'TrackStartError':
-      return 'Your camera is already in use by another app or browser tab. Close it and retry.';
+      return 'Camera is in use by another app. Close other camera apps or use PIN authorization.';
     case 'OverconstrainedError':
-      return 'Your camera does not support the requested resolution. Retrying with default settings may help.';
+      return 'Camera resolution unsupported. Retrying with default mobile settings.';
     case 'SecurityError':
-      return "Camera access was blocked by your browser's security settings for this site.";
+      return "Camera access was blocked by browser security settings. Use PIN authorization.";
     default:
-      return 'Camera not available. Please allow permissions and retry.';
+      return 'Camera not available. Please allow permissions or use PIN authorization.';
   }
 }
 
@@ -576,6 +576,14 @@ async function startCamera(videoEl, errEl) {
   if (errEl) {
     errEl.textContent = '';
     errEl.classList.remove('active');
+  }
+
+  // Set mobile video attributes
+  if (videoEl) {
+    videoEl.setAttribute('playsinline', 'true');
+    videoEl.setAttribute('webkit-playsinline', 'true');
+    videoEl.setAttribute('muted', 'true');
+    videoEl.muted = true;
   }
 
   if (!window.isSecureContext) {
@@ -597,10 +605,15 @@ async function startCamera(videoEl, errEl) {
 
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { width: 640, height: 480, facingMode: 'user' },
+      video: {
+        facingMode: 'user',
+        width: { ideal: 640 },
+        height: { ideal: 480 },
+      },
       audio: false,
     });
     videoEl.srcObject = stream;
+    await videoEl.play().catch(() => {});
     return stream;
   } catch (err) {
     console.error('Camera access failed:', err.name, err.message);

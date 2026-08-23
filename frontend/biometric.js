@@ -716,9 +716,12 @@ async function launchBiometricGate(title, lead) {
   } catch (e) {
     statusEl.textContent = cameraErrorMessage(e);
     statusEl.classList.add('bad');
+    toggleVerifyPin();
     if (btn) {
       btn.style.display = '';
       btn.disabled = false;
+      btn.textContent = 'Authorize with PIN';
+      btn.onclick = () => submitVerifyPin();
     }
     return;
   }
