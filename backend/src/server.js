@@ -61,9 +61,22 @@ app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(generalApiLimiter);
 
-// Health check — used by frontend/api.js to auto-detect the API base URL.
-app.get('/api/health', (req, res) => {
-  res.json({ ok: true, service: 'icash-backend', time: new Date().toISOString() });
+// Health check — used by frontend/api.js to auto-detect the API base URL and check DB health.
+app.get('/api/health', async (req, res) => {
+  let dbStatus = 'not_configured';
+  try {
+    const prisma = require('./prisma');
+    await prisma.$queryRaw`SELECT 1`;
+    dbStatus = 'connected';
+  } catch (e) {
+    dbStatus = `unreachable (${e.code || e.message || 'error'})`;
+  }
+  res.json({
+    ok: true,
+    service: 'icash-backend',
+    database: dbStatus,
+    time: new Date().toISOString(),
+  });
 });
 
 app.use('/api/auth', authRoutes);
@@ -180,6 +193,26 @@ async function handler(contextOrReq, res, next) {
 // Attach Express properties onto handler
 Object.setPrototypeOf(handler, app);
 
+function autoSyncDatabase() {
+  const dbUrl = process.env.DATABASE_URL;
+  if (!dbUrl || dbUrl.includes('localhost:5432')) {
+    console.log('ℹ️  Using default DATABASE_URL. For persistent cloud storage, provide your PostgreSQL URL (e.g. Supabase or Neon).');
+    return;
+  }
+  try {
+    const { execSync } = require('child_process');
+    console.log('🔄 Checking database schema with Prisma db push...');
+    const prismaBin = path.join(__dirname, '..', '..', 'node_modules', '.bin', process.platform === 'win32' ? 'prisma.cmd' : 'prisma');
+    const cmd = require('fs').existsSync(prismaBin)
+      ? `"${prismaBin}" db push --schema=backend/prisma/schema.prisma --skip-generate`
+      : 'npx --no-install prisma db push --schema=backend/prisma/schema.prisma --skip-generate';
+    execSync(cmd, { stdio: 'inherit', env: process.env });
+    console.log('✅ Database schema synchronized.');
+  } catch (err) {
+    console.warn('⚠️  Database schema sync note:', err.message);
+  }
+}
+
 function startServer(port) {
   const server = app.listen(port, () => {
     console.log(`\n=======================================================`);
@@ -188,6 +221,9 @@ function startServer(port) {
     console.log(`🗄️  Database: PostgreSQL with Prisma ORM`);
     console.log(`👁️  Biometrics: Facial Feature Vector Verification Gate`);
     console.log(`=======================================================\n`);
+
+    // Auto sync schema if cloud database is configured
+    setTimeout(autoSyncDatabase, 1500);
   });
 
   server.on('error', (err) => {

@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@prisma/client": "^6.4.1",
+    "@supabase/server": "^1.4.1",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.112.3",
     "appwrite": "^26.2.0",
