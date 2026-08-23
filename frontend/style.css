@@ -555,13 +555,18 @@ textarea:focus {
   transform: translateX(-50%);
   background: rgba(7, 9, 14, 0.88);
   border: 1px solid var(--border);
-  padding: 5px 12px;
+  padding: 5px 14px;
   border-radius: var(--radius-pill);
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 10px;
   color: var(--primary);
+  /* Prevent overflow — truncate with ellipsis if too long */
+  max-width: 92%;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   backdrop-filter: blur(8px);
+  text-align: center;
 }
 
 .scan-status.bad {
