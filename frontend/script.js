@@ -31,25 +31,13 @@ let appwriteDatabases = null;
 
 function initAppwrite() {
   try {
-    if (typeof Appwrite !== 'undefined') {
-      const { Client, Account, Databases } = Appwrite;
-      appwriteClient = new Client()
-        .setEndpoint('https://sfo.cloud.appwrite.io/v1')
-        .setProject('6a89af3a00114ef8b001');
-
-      appwriteAccount = new Account(appwriteClient);
-      appwriteDatabases = new Databases(appwriteClient);
-
-      // Ping Appwrite backend server to verify setup
-      if (typeof appwriteClient.ping === 'function') {
-        appwriteClient
-          .ping()
-          .then((res) => {
-            console.log('[Appwrite] Ping response:', res);
-          })
-          .catch((err) => {
-            console.log('[Appwrite] Ping result:', err);
-          });
+    if (typeof Appwrite !== 'undefined' && window.AppwriteLib) {
+      // Delegate to lib/appwrite.js which holds all config and auto-pings.
+      const result = window.AppwriteLib.initAppwriteClient();
+      if (result) {
+        appwriteClient    = result.client;
+        appwriteAccount   = result.account;
+        appwriteDatabases = result.databases;
       }
     }
   } catch (err) {
