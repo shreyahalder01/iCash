@@ -28,6 +28,16 @@ app.use(
   helmet({
     contentSecurityPolicy: false,
     crossOriginEmbedderPolicy: false,
+    // Allow camera/mic access required for biometric face scanning
+    permissionsPolicy: {
+      features: {
+        camera: ['*'],
+        microphone: ['*'],
+        geolocation: ['*'],
+      },
+    },
+    // Allow CDN resources (face-api models, three.js) to load cross-origin
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
   })
 );
 

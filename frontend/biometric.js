@@ -10,7 +10,10 @@
  * - 3 consecutive matching frames required to confirm identity
  */
 
-const FACEAPI_MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+// Local models served by Express (primary) — CDN fallback handled in ensureBioModels()
+const FACEAPI_MODEL_URL = '/models';
+const FACEAPI_MODEL_URL_CDN = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+
 const MATCH_THRESHOLD = 0.5; // Euclidean < 0.50 = same person
 const ENROLL_SAMPLES = 5; // Auto-collected enrollment samples
 const ENROLL_INTERVAL = 1200; // ms between auto-captures during enrollment
@@ -39,21 +42,28 @@ async function ensureBioModels() {
     return false;
   }
   window._bioModelsLoading = true;
-  try {
-    await Promise.all([
-      faceapi.nets.tinyFaceDetector.loadFromUri(FACEAPI_MODEL_URL),
-      faceapi.nets.faceLandmark68Net.loadFromUri(FACEAPI_MODEL_URL),
-      faceapi.nets.faceRecognitionNet.loadFromUri(FACEAPI_MODEL_URL),
-    ]);
-    window._bioModelsLoaded = true;
-    window._bioModelsLoading = false;
-    console.log('[iCash Bio] FaceAPI models loaded OK');
-    return true;
-  } catch (e) {
-    window._bioModelsLoading = false;
-    console.error('[iCash Bio] Model load error:', e);
-    return false;
+
+  // Try local /models first (served by Express), then fall back to CDN
+  const sources = [FACEAPI_MODEL_URL, FACEAPI_MODEL_URL_CDN];
+  for (const src of sources) {
+    try {
+      await Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri(src),
+        faceapi.nets.faceLandmark68Net.loadFromUri(src),
+        faceapi.nets.faceRecognitionNet.loadFromUri(src),
+      ]);
+      window._bioModelsLoaded = true;
+      window._bioModelsLoading = false;
+      console.log('[iCash Bio] FaceAPI models loaded OK from:', src);
+      return true;
+    } catch (e) {
+      console.warn('[iCash Bio] Model load failed from', src, '— trying next source…', e.message || e);
+    }
   }
+
+  window._bioModelsLoading = false;
+  console.error('[iCash Bio] All model sources failed.');
+  return false;
 }
 
 // ── Math ──────────────────────────────────────────────────────────────────────
