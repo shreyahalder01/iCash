@@ -31,36 +31,28 @@ from scipy.spatial import distance as dist
 app = Flask(__name__)
 CORS(app)
 
-# ============================================================
-# CONFIGURATION & CONSTANTS
-# ============================================================
+# ── Configuration & Constants ───────────────────────────────────────────────
 
-# Blink detection thresholds
-# EAR_CLOSE: below this -> eye is considered closed (blink detected)
-# EAR_OPEN:  above this after closure -> blink registered
-# Raised from 0.23 to 0.26 to catch soft/partial blinks reliably.
-EAR_CLOSE_RATIO = 0.80      # close threshold = baseline * 0.80  (adaptive)
-EAR_OPEN_RATIO  = 0.88      # open  threshold = baseline * 0.88  (adaptive)
-EAR_CLOSE_FLOOR = 0.20      # hard floor for close threshold
-EAR_OPEN_FLOOR  = 0.23      # hard floor for open threshold
+# Adaptive EAR blink thresholds (relative to each person's open-eye baseline)
+EAR_CLOSE_RATIO = 0.80  # eye closed when EAR < baseline * 0.80
+EAR_OPEN_RATIO  = 0.88  # eye opened when EAR > baseline * 0.88
+EAR_CLOSE_FLOOR = 0.20  # hard minimum for close threshold
+EAR_OPEN_FLOOR  = 0.23  # hard minimum for open  threshold
 
-REQUIRED_BLINKS = 2           # Must blink TWICE to confirm liveness (matches frontend)
-SESSION_TIMEOUT_SECONDS = 90  # Session timeout in seconds
-BLINK_DEBOUNCE_MS = 150       # Min ms between two counted blinks (prevents double-count)
+REQUIRED_BLINKS         = 2   # blinks needed to pass liveness (matches frontend)
+SESSION_TIMEOUT_SECONDS = 90  # seconds before idle session is purged
+BLINK_DEBOUNCE_MS       = 150 # min ms gap between two distinct blinks
 
-MODEL_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_DIR            = os.path.dirname(os.path.abspath(__file__))
 SHAPE_PREDICTOR_PATH = os.path.join(MODEL_DIR, "shape_predictor_68_face_landmarks.dat")
-MODEL_URL = "https://raw.githubusercontent.com/davisking/dlib-models/master/shape_predictor_68_face_landmarks.dat.bz2"
+MODEL_URL            = "https://raw.githubusercontent.com/davisking/dlib-models/master/shape_predictor_68_face_landmarks.dat.bz2"
 
-# dlib 68-point facial landmark indices (0-indexed)
-# Points 36-41 = right eye (from camera perspective = person's left)
-# Points 42-47 = left  eye (from camera perspective = person's right)
+# dlib 68-point facial landmark eye indices (0-indexed)
+# 36-41 = person's RIGHT eye  |  42-47 = person's LEFT eye
 RIGHT_EYE_IDX = list(range(36, 42))
 LEFT_EYE_IDX  = list(range(42, 48))
 
-# ============================================================
-# AUTO-DOWNLOAD & LOAD DLIB MODELS
-# ============================================================
+# ── Model Auto-Download & Load ───────────────────────────────────────────────
 def ensure_model_exists():
     if not os.path.exists(SHAPE_PREDICTOR_PATH) or os.path.getsize(SHAPE_PREDICTOR_PATH) < 50_000_000:
         print(f"[iCash Liveness] Downloading 68-point facial landmark model from {MODEL_URL}...")
@@ -80,9 +72,7 @@ detector  = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor(SHAPE_PREDICTOR_PATH)
 print("[iCash Liveness] dlib 68-point models loaded successfully! Server ready.")
 
-# ============================================================
-# IN-MEMORY SESSION STORE
-# ============================================================
+# ── In-Memory Session Store ───────────────────────────────────────────────
 sessions = {}
 
 
@@ -124,9 +114,7 @@ def decode_base64_image(data_url):
         return None
 
 
-# ============================================================
-# ROUTES
-# ============================================================
+# ── Routes ────────────────────────────────────────────────────────────
 
 @app.route("/", methods=["GET"])
 def home():
