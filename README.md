@@ -71,7 +71,7 @@ A high-security, full-stack biometric digital banking platform built with **Node
 
 ### 4. ☁️ Appwrite Cloud SDK Integration
 
-- Integrated `appwrite` SDK (`lib/appwrite.js`) connected to Appwrite Cloud (`https://sfo.cloud.appwrite.io/v1`, Project ID: `6a89af3a00114ef8b001`).
+- Integrated `appwrite` SDK (`frontend/lib/appwrite.js`) connected to Appwrite Cloud (`https://sfo.cloud.appwrite.io/v1`, Project ID: `6a89af3a00114ef8b001`).
 - Automatic client verification ping (`client.ping()`) upon app launch.
 
 ---
@@ -93,7 +93,7 @@ iCash/
 │   │   ├── controllers/          # Auth, Accounts, Transactions, Biometric controllers
 │   │   ├── routes/               # REST API route definitions
 │   │   ├── middleware/           # Auth, RBAC, Rate-limiting, Zod Validation
-│   │   ├── services/             # Atomic business logic & PostgreSQL queries
+│   │   ├── services/             # Atomic business logic, SMS provider & queries
 │   │   ├── utils/                # Token signing, Bcrypt, and Zod schemas
 │   │   ├── prisma.js             # Prisma ORM singleton instance
 │   │   └── server.js             # Express application entrypoint
@@ -109,8 +109,6 @@ iCash/
 │   ├── decompress.py             # BZ2 decompression helper
 │   ├── requirements.txt          # Python dependencies (flask, opencv, dlib, scipy)
 │   └── shape_predictor_68_face_landmarks.dat # 68-point facial landmarks model
-├── lib/
-│   └── appwrite.js               # Root Appwrite Web SDK client
 ├── package.json                  # Root scripts (build, dev, test, liveness)
 └── README.md
 ```
@@ -168,7 +166,7 @@ npm run prisma:seed
 
 ```bash
 npm run dev
-# App will run on http://localhost:5000
+# App will run on http://localhost:4000
 ```
 
 #### B. Start the Real-Time Liveness Detection Server:
@@ -255,5 +253,3 @@ npm test
 ## 📄 License
 
 MIT License. Developed for enterprise biometric banking and financial digital security.
-#   i C a s h  
- 
