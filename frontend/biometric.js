@@ -1,13 +1,15 @@
 /**
- * iCash Real Biometric Engine — face-api.js
+ * iCash Real Biometric Engine
  *
- * Features:
- * - Auto-detects face; no button click needed for enrollment or login
- * - Collects 5 real 128D descriptor samples automatically
- * - Rejects if >1 person is in frame
- * - Real Euclidean distance matching (threshold 0.50) for login and transactions
- * - Live color-coded bounding box overlay with progress bar
- * - 3 consecutive matching frames required to confirm identity
+ * Blink Detection — three parallel methods (first to fire wins):
+ *   1. EAR (Eye Aspect Ratio) via face-api.js 68-point landmarks
+ *   2. BRFv4-style eyelid collapse detection (adapted for face-api.js)
+ *   3. MediaPipe Facemesh 468-landmark EAR (theankurkedia/blink-detection approach)
+ *
+ * Face Recognition:
+ *   - TinyFaceDetector + 128-D FaceRecognitionNet (face-api.js)
+ *   - Euclidean distance threshold 0.52
+ *   - 5 auto-collected enrollment samples, 2 consecutive matches to confirm identity
  */
 
 // Local models served by Express (primary) — CDN fallback handled in ensureBioModels()
@@ -68,6 +70,46 @@ async function ensureBioModels() {
   return false;
 }
 
+// ── Ankur Kedia blink-detection engine (MediaPipe Facemesh + EAR) ─────────────
+// Standalone bundled engine based on https://github.com/theankurkedia/blink-detection
+// Uses 468-point 3D facial landmarks and 0.27 EAR threshold for ultra-accurate blink detection.
+
+let _ankurBlinkLib = null;
+let _ankurBlinkLoading = false;
+let _ankurBlinkReady = false;
+
+async function initAnkurBlinkEngine(video) {
+  if (_ankurBlinkReady && _ankurBlinkLib) return _ankurBlinkLib;
+  if (_ankurBlinkLoading) {
+    for (let i = 0; i < 40; i++) {
+      await sleep(100);
+      if (_ankurBlinkReady) return _ankurBlinkLib;
+    }
+    return _ankurBlinkLib;
+  }
+  _ankurBlinkLoading = true;
+  try {
+    const raw = window['blink-detection']?.default || window['blink-detection'] || window.blink;
+    if (raw && typeof raw.loadModel === 'function') {
+      await raw.loadModel();
+      _ankurBlinkLib = raw;
+      if (video && typeof raw.setUpCamera === 'function') {
+        try {
+          await raw.setUpCamera(video);
+        } catch {
+          // Camera already playing; video element attached
+        }
+      }
+      _ankurBlinkReady = true;
+      console.log('[iCash Biometrics] Ankur Kedia blink-detection engine initialized ✓');
+    }
+  } catch (e) {
+    console.warn('[iCash Biometrics] Ankur Kedia engine init:', e.message || e);
+  }
+  _ankurBlinkLoading = false;
+  return _ankurBlinkLib;
+}
+
 // ── Math ──────────────────────────────────────────────────────────────────────
 function euclidean(a, b) {
   if (!a || !b || a.length !== b.length) return Infinity;
@@ -118,58 +160,38 @@ function _calcDist(p1, p2) {
   return Math.hypot(pt1.x - pt2.x, pt1.y - pt2.y);
 }
 
+/**
+ * calculateEAR — Eye Aspect Ratio formula (Ankur Kedia / Soukupová & Čech)
+ * Eye points: [p0, p1, p2, p3, p4, p5]
+ * EAR = (||p1 - p5|| + ||p2 - p4||) / (2 * ||p0 - p3||)
+ */
 function calculateEAR(eyePoints) {
-  if (!eyePoints || eyePoints.length < 6) return 0.28;
-  // Eye points: [p0, p1, p2, p3, p4, p5]
+  if (!eyePoints || eyePoints.length < 6) return 0.30;
   const v1 = _calcDist(eyePoints[1], eyePoints[5]);
   const v2 = _calcDist(eyePoints[2], eyePoints[4]);
   const h  = _calcDist(eyePoints[0], eyePoints[3]);
-  if (h <= 0.001) return 0.28;
+  if (h <= 0.001) return 0.30;
   return (v1 + v2) / (2.0 * h);
 }
 
 /**
- * detectBlinkByCollapse — Adapted from BRFv4 / handsfree.js blink detection.
- *
- * Original BRFv4 concept (from the code you shared):
- *   Loop through eye landmark points 36-47. If any two points share the exact
- *   same (x, y) pixel position the eye has closed (landmarks collapsed).
- *
- * Adaptation for face-api.js:
- *   face-api.js doesn't collapse points to the exact same pixel, but the
- *   VERTICAL distance between the upper eyelid (points 1, 2) and lower eyelid
- *   (points 5, 4) drops to near-zero when the eye is closed.
- *   We check the two vertical pairs [1↔5] and [2↔4] and return true if either
- *   pair's Y-distance is below a dynamic threshold derived from the eye width.
- *
- * @param {Array} eyePoints  6 face-api landmark points for one eye
- * @returns {boolean}        true when the eye appears closed
+ * detectBlinkByCollapse — Eyelid distance collapse check
  */
 function detectBlinkByCollapse(eyePoints) {
   if (!eyePoints || eyePoints.length < 6) return false;
+  const p0 = _getPointCoords(eyePoints[0]);
+  const p3 = _getPointCoords(eyePoints[3]);
+  const eyeWidth = (p0 && p3) ? Math.abs(p3.x - p0.x) : 25;
+  const collapseThreshold = Math.max(3.5, eyeWidth * 0.24);
 
-  // Measure eye width (horizontal span) to get a scale-independent threshold.
-  // When the camera is close the face is large; when far it is small.
-  const p0 = _getPointCoords(eyePoints[0]); // left  corner
-  const p3 = _getPointCoords(eyePoints[3]); // right corner
-  const eyeWidth = (p0 && p3) ? Math.abs(p3.x - p0.x) : 20;
-
-  // Collapse threshold = 20% of eye width.
-  // At eye width ~25px (small face): threshold ~5px
-  // At eye width ~60px (large face): threshold ~12px
-  const collapseThreshold = Math.max(3, eyeWidth * 0.20);
-
-  // Vertical eyelid pairs — these converge when the eye closes:
-  //   pair [1, 5]: upper-left eyelid  ↔ lower-left eyelid
-  //   pair [2, 4]: upper-right eyelid ↔ lower-right eyelid
   const verticalPairs = [[1, 5], [2, 4]];
   for (const [i, j] of verticalPairs) {
     const a = _getPointCoords(eyePoints[i]);
     const b = _getPointCoords(eyePoints[j]);
     if (!a || !b) continue;
-    const vertDist = Math.abs(a.y - b.y);
+    const vertDist = Math.hypot(a.x - b.x, a.y - b.y);
     if (vertDist < collapseThreshold) {
-      return true; // eyelid points collapsed → eye is closed
+      return true;
     }
   }
   return false;
@@ -182,18 +204,33 @@ class ClientBlinkDetector {
   }
 
   reset() {
-    this.openEyeBaseline = 0.30; // will adapt within first ~10 frames
+    this.openEyeBaseline = 0.30;
     this.baselineSamples = 0;
-    this.prevEar = null;
-    this.closedFrames = 0;
-    this.blinkCount = 0;
-    this.isClosed = false;
-    this.hasBlinked = false;
-    this.currentEar = 0.30;
-    this.lastBlinkTime = 0;
+    this.prevEar         = null;
+    this.closedFrames    = 0;
+    this.blinkCount      = 0;
+    this.isClosed        = false;
+    this.hasBlinked      = false;
+    this.currentEar      = 0.30;
+    this.lastBlinkTime   = 0;
+    this._mpPredicting   = false;
   }
 
-  update(landmarks) {
+  update(landmarks, video) {
+    const now = Date.now();
+
+    // Async poll Ankur Kedia's MediaPipe model in background if video is provided
+    if (video && _ankurBlinkReady && _ankurBlinkLib && !this._mpPredicting) {
+      this._mpPredicting = true;
+      _ankurBlinkLib.getBlinkPrediction().then((pred) => {
+        this._mpPredicting = false;
+        if (pred && (pred.blink || pred.wink || pred.left || pred.right)) {
+          this.closedFrames++;
+          this.isClosed = true;
+        }
+      }).catch(() => { this._mpPredicting = false; });
+    }
+
     if (!landmarks) {
       return {
         hasBlinked: this.hasBlinked,
@@ -205,7 +242,6 @@ class ClientBlinkDetector {
     }
 
     try {
-      // Extract both eyes robustly
       const leftEye = landmarks.getLeftEye
         ? landmarks.getLeftEye()
         : landmarks.positions
@@ -220,57 +256,59 @@ class ClientBlinkDetector {
       const leftEar  = calculateEAR(leftEye);
       const rightEar = calculateEAR(rightEye);
 
-      // ── Method 1: EAR (Eye Aspect Ratio) ─────────────────────────
-      // Use the minimum (most-closed eye) for maximum sensitivity.
-      const ears = [leftEar, rightEar].filter((e) => e > 0.03 && e < 0.70);
-      if (ears.length === 0) return { hasBlinked: this.hasBlinked, blinkCount: this.blinkCount, requiredBlinks: this.requiredBlinks, ear: this.currentEar, isClosed: this.isClosed };
+      const ears = [leftEar, rightEar].filter((e) => e > 0.02 && e < 0.70);
+      if (ears.length === 0) {
+        return {
+          hasBlinked: this.hasBlinked,
+          blinkCount: this.blinkCount,
+          requiredBlinks: this.requiredBlinks,
+          ear: this.currentEar,
+          isClosed: this.isClosed,
+        };
+      }
       const ear = Math.min(...ears);
       this.currentEar = ear;
 
-      const now = Date.now();
-
-      // ── Method 2: BRFv4 collapse detection (adapted) ─────────────
-      // Fires when upper/lower eyelid landmarks converge — catches
-      // blinks that EAR might miss due to extreme angles or dim lighting.
       const leftCollapse  = detectBlinkByCollapse(leftEye);
       const rightCollapse = detectBlinkByCollapse(rightEye);
       const collapseDetected = leftCollapse || rightCollapse;
 
-      // Eye is considered closed if EITHER method says so
-      const eyeIsClosedNow = (ear <= Math.max(0.18, this.openEyeBaseline * 0.75)) || collapseDetected;
+      // Ankur Kedia EAR Threshold Constant = 0.27
+      const ANKUR_EAR_THRESHOLD = 0.27;
 
-      // Build open-eye baseline during confirmed open frames ONLY
-      if (!this.isClosed && !collapseDetected && ear > 0.22) {
+      // Rolling open-eye baseline calibration
+      if (!this.isClosed && !collapseDetected && ear > 0.24) {
         if (this.baselineSamples < 5) {
           this.openEyeBaseline = this.baselineSamples === 0
             ? ear
             : (this.openEyeBaseline * this.baselineSamples + ear) / (this.baselineSamples + 1);
         } else {
-          this.openEyeBaseline = this.openEyeBaseline * 0.92 + ear * 0.08;
+          this.openEyeBaseline = this.openEyeBaseline * 0.90 + ear * 0.10;
         }
         this.baselineSamples++;
       }
 
-      const closeThreshold = Math.max(0.18, this.openEyeBaseline * 0.75);
-      const openThreshold  = Math.max(0.21, this.openEyeBaseline * 0.87);
-      const eyeIsOpenNow   = ear >= openThreshold && !collapseDetected;
+      // Close threshold: triggered if EAR <= 0.27 or relative drop >= 14%
+      const closeThreshold = Math.min(ANKUR_EAR_THRESHOLD, Math.max(0.23, this.openEyeBaseline * 0.86));
+      const openThreshold  = Math.max(0.25, this.openEyeBaseline * 0.90);
+      const earDropped     = (this.openEyeBaseline - ear) >= 0.035;
 
-      // Live debug — open DevTools > Console to watch
-      console.debug(
-        `[EAR] ${ear.toFixed(3)} | base=${this.openEyeBaseline.toFixed(3)} thr<=${closeThreshold.toFixed(3)} collapse=${collapseDetected} closed=${this.isClosed} blinks=${this.blinkCount}`
-      );
+      const eyeIsClosedNow = (ear <= closeThreshold) || earDropped || collapseDetected;
+      const eyeIsOpenNow   = (ear >= openThreshold) && !collapseDetected && !earDropped;
 
       if (eyeIsClosedNow) {
         this.closedFrames++;
         this.isClosed = true;
       } else if (eyeIsOpenNow && this.isClosed) {
-        // Eye reopened after confirmed closure → count blink
-        if (this.closedFrames >= 1 && now - this.lastBlinkTime >= 120) {
+        // Transition: CLOSED -> OPEN = BLINK!
+        if (this.closedFrames >= 1 && (now - this.lastBlinkTime >= 100)) {
           this.blinkCount++;
           this.lastBlinkTime = now;
-          if (this.blinkCount >= this.requiredBlinks) this.hasBlinked = true;
+          if (this.blinkCount >= this.requiredBlinks) {
+            this.hasBlinked = true;
+          }
           console.log(
-            `[iCash Biometrics] 👁 BLINK #${this.blinkCount}/${this.requiredBlinks} | EAR=${ear.toFixed(3)} collapse=${collapseDetected} base=${this.openEyeBaseline.toFixed(3)} frames=${this.closedFrames}`
+            `[iCash Biometrics] 👁 BLINK #${this.blinkCount}/${this.requiredBlinks} | EAR=${ear.toFixed(3)} (base=${this.openEyeBaseline.toFixed(3)}, close<=${closeThreshold.toFixed(3)}) closedFrames=${this.closedFrames}`
           );
         }
         this.isClosed = false;
@@ -497,6 +535,7 @@ async function beginRegisterScan() {
   try {
     await startCamera(video, errEl);
     await initLivenessSession();
+    initAnkurBlinkEngine(video).catch(() => {});
   } catch (e) {
     statusEl.textContent = cameraErrorMessage(e);
     statusEl.classList.add('bad');
@@ -564,8 +603,8 @@ async function beginRegisterScan() {
     const desc = det.descriptor;
     const score = det.detection.score;
 
-    // Update blink detector with fresh landmarks
-    const blinkStatus = regBlinkDetector.update(det.landmarks);
+    // Update blink detector with fresh landmarks & MediaPipe video stream
+    const blinkStatus = regBlinkDetector.update(det.landmarks, video);
     const count = blinkStatus.blinkCount || 0;
 
     if (score < 0.45) {
@@ -720,6 +759,7 @@ async function beginLoginScan() {
   try {
     await startCamera(video, errEl);
     await initLivenessSession();
+    initAnkurBlinkEngine(video).catch(() => {});
   } catch (e) {
     statusEl.textContent = cameraErrorMessage(e);
     statusEl.classList.add('bad');
@@ -806,7 +846,7 @@ async function beginLoginScan() {
 
     const det = detections[0];
     const live = det.descriptor;
-    const blinkStatus = loginBlinkDetector.update(det.landmarks);
+    const blinkStatus = loginBlinkDetector.update(det.landmarks, video);
 
     if (!storedDescriptors || storedDescriptors.length === 0) {
       _loginLoopActive = false;
@@ -1055,7 +1095,7 @@ async function launchBiometricGate(title, lead) {
 
     const det = detections[0];
     const live = det.descriptor;
-    const blinkStatus = gateBlinkDetector.update(det.landmarks);
+    const blinkStatus = gateBlinkDetector.update(det.landmarks, video);
 
     if (!storedDescriptors || storedDescriptors.length === 0) {
       _verifyLoopActive = false;
