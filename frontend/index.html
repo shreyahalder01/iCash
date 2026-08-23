@@ -104,10 +104,10 @@
             <div style="border-top: 1px solid var(--border); padding-top: 16px">
               <button
                 class="mini-btn"
-                style="width: 100%; justify-content: center"
-                onclick="openDelegateCollectModal()"
+                style="width: 100%; justify-content: center; font-weight: 600; background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.25); color: #f87171;"
+                onclick="openEmergencyWithdrawalModal()"
               >
-                ✦ Senior Citizen Assisted Banking: Collect Delegated Cash
+                🚨 Emergency &amp; Authorized Representative Cash Withdrawal
               </button>
             </div>
           </div>
@@ -203,34 +203,73 @@
             </p>
           </div>
 
-          <!-- Senior Citizen Trusted Contact -->
+          <!-- Trusted Emergency Contacts & Authorized Representatives -->
           <div
             class="field"
-            id="reg-senior-block"
+            id="reg-emergency-contacts-section"
             style="
-              display: none;
               background: var(--bg-inset);
               border: 1px solid var(--border-strong);
-              border-radius: 12px;
-              padding: 14px;
+              border-radius: 14px;
+              padding: 16px;
+              margin-top: 16px;
             "
           >
-            <label style="color: var(--primary)"
-              >Senior Assisted Banking · Authorized Contact</label
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <label style="color: var(--primary); font-size: 13px; font-weight: 600; margin: 0;">
+                🛡️ Trusted Emergency Contacts &amp; Authorized Representatives
+              </label>
+              <span style="font-size: 10px; color: var(--text-faint); font-family: var(--font-mono);">
+                Optional but Recommended
+              </span>
+            </div>
+            <p style="color: var(--text-muted); font-size: 11px; margin-bottom: 12px; line-height: 1.4;">
+              Authorized persons can withdraw emergency funds on your behalf. Before release, the system will strictly require your <strong>real-time 5-minute OTP approval</strong>.
+            </p>
+
+            <div id="reg-emergency-contacts-list" style="display: flex; flex-direction: column; gap: 10px;">
+              <!-- Contact Row 1 -->
+              <div class="emergency-contact-row" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+                  <div>
+                    <label style="font-size: 11px;">Full Name *</label>
+                    <input class="reg-ec-name" placeholder="e.g. Priya Sharma" autocomplete="off" />
+                  </div>
+                  <div>
+                    <label style="font-size: 11px;">10-Digit Mobile *</label>
+                    <input class="reg-ec-phone" placeholder="9876543210" inputmode="numeric" maxlength="10" autocomplete="off" />
+                  </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                  <div>
+                    <label style="font-size: 11px;">Relationship</label>
+                    <select class="reg-ec-relation">
+                      <option value="Spouse">Spouse</option>
+                      <option value="Parent">Parent</option>
+                      <option value="Child">Child / Son / Daughter</option>
+                      <option value="Sibling">Sibling / Brother / Sister</option>
+                      <option value="Caregiver">Designated Caregiver</option>
+                      <option value="Legal Representative">Legal Representative / Attorney</option>
+                      <option value="Trusted Relative">Trusted Relative / Friend</option>
+                      <option value="Other">Other Authorized Person</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style="font-size: 11px;">Gov ID Proof (Optional)</label>
+                    <input class="reg-ec-idnum" placeholder="Aadhaar/PAN/DL (Optional)" autocomplete="off" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              class="mini-btn"
+              style="margin-top: 10px; width: 100%; justify-content: center; font-size: 11.5px;"
+              onclick="addRegistrationEmergencyContactRow()"
             >
-            <input
-              id="reg-emergency-contact-name"
-              placeholder="Trusted Contact's Full Name"
-              style="margin-bottom: 8px"
-              autocomplete="off"
-            />
-            <input
-              id="reg-emergency-contact-phone"
-              placeholder="10-digit mobile number"
-              inputmode="numeric"
-              maxlength="10"
-              autocomplete="off"
-            />
+              + Add Another Authorized Contact
+            </button>
           </div>
 
           <div class="modal-msg" id="reg-msg"></div>
@@ -1831,6 +1870,216 @@
         </div>
         <div class="modal-msg" id="payreq-msg"></div>
         <button class="btn btn-primary" onclick="submitPaymentRequest()">Generate POS Code</button>
+      </div>
+    </div>
+
+    <!-- EMERGENCY & AUTHORIZED REPRESENTATIVE CASH WITHDRAWAL MODAL -->
+    <div class="modal-backdrop" id="modal-emergency-withdrawal">
+      <div class="modal" style="max-width: 520px;">
+        <button class="close-x" onclick="closeEmergencyWithdrawalModal()">&#10005;</button>
+
+        <!-- STEP 1: IDENTITY & WITHDRAWAL DETAILS -->
+        <div id="emg-step-1">
+          <div class="eyebrow" style="color: #ef4444;">🚨 Emergency Authorized Cash Withdrawal</div>
+          <h2>Authorized Representative Withdrawal</h2>
+          <p class="lead">
+            Withdraw cash on behalf of an account holder during emergencies. The system will verify authorization and dispatch a real-time <strong>5-minute OTP</strong> to the account holder's registered mobile.
+          </p>
+
+          <div class="field">
+            <label>Account Holder Identifier *</label>
+            <input
+              id="emg-acc-identifier"
+              placeholder="Account holder's 10-digit mobile, Aadhaar last 4, or full name"
+              autocomplete="off"
+            />
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="field">
+              <label>Your Full Name (Representative) *</label>
+              <input
+                id="emg-auth-name"
+                placeholder="As registered with account holder"
+                autocomplete="off"
+              />
+            </div>
+            <div class="field">
+              <label>Your Mobile Number *</label>
+              <input
+                id="emg-auth-phone"
+                placeholder="10-digit mobile number"
+                inputmode="numeric"
+                maxlength="10"
+                autocomplete="off"
+              />
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="field">
+              <label>Your Gov ID Type</label>
+              <select id="emg-auth-idtype">
+                <option value="Aadhaar Card">Aadhaar Card</option>
+                <option value="PAN Card">PAN Card</option>
+                <option value="Driving License">Driving License</option>
+                <option value="Voter ID">Voter ID</option>
+                <option value="Passport">Passport</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Your Gov ID Number</label>
+              <input
+                id="emg-auth-idnum"
+                placeholder="e.g. XXXX XXXX 1234"
+                autocomplete="off"
+              />
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Withdrawal Amount (₹) *</label>
+            <input
+              id="emg-amount"
+              type="number"
+              placeholder="e.g. 5000"
+              inputmode="numeric"
+              min="100"
+            />
+            <div class="chip-row" style="margin-top: 6px;">
+              <div class="chip" onclick="document.getElementById('emg-amount').value = 1000">₹1,000</div>
+              <div class="chip" onclick="document.getElementById('emg-amount').value = 2000">₹2,000</div>
+              <div class="chip" onclick="document.getElementById('emg-amount').value = 5000">₹5,000</div>
+              <div class="chip" onclick="document.getElementById('emg-amount').value = 10000">₹10,000</div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Emergency Reason</label>
+            <input
+              id="emg-reason"
+              placeholder="e.g. Medical emergency, urgent prescription, travel assistance"
+              autocomplete="off"
+            />
+          </div>
+
+          <div class="modal-msg" id="emg-msg-1"></div>
+
+          <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px;">
+            <button class="btn btn-ghost" onclick="closeEmergencyWithdrawalModal()">Cancel</button>
+            <button class="btn btn-danger" id="emg-submit-req-btn" onclick="submitEmergencyWithdrawalRequest()">
+              Verify &amp; Dispatch 5-Min OTP &rarr;
+            </button>
+          </div>
+        </div>
+
+        <!-- STEP 2: LIVE 5-MINUTE OTP VERIFICATION -->
+        <div id="emg-step-2" style="display: none; text-align: center;">
+          <div class="eyebrow" style="color: #ef4444;">⏱ 5-Minute Live Authorization Window</div>
+          <h2>Account Holder Approval</h2>
+          <p class="lead" style="font-size: 13px;">
+            A 6-digit One-Time Password was dispatched to the account holder's registered mobile:
+            <br /><strong id="emg-holder-phone-badge" style="color: var(--primary); font-size: 15px;">+91 ••••••0000</strong>
+          </p>
+
+          <!-- Animated Circular Countdown Timer -->
+          <div class="emg-timer-container">
+            <div class="emg-timer-circle">
+              <svg class="emg-timer-svg" viewBox="0 0 100 100">
+                <circle class="emg-timer-bg" cx="50" cy="50" r="44"></circle>
+                <circle id="emg-timer-progress" class="emg-timer-bar" cx="50" cy="50" r="44"></circle>
+              </svg>
+              <div class="emg-timer-text">
+                <span id="emg-timer-digits">05:00</span>
+                <small>REMAINING</small>
+              </div>
+            </div>
+          </div>
+
+          <div id="emg-dev-otp-banner" class="dev-otp-pill" style="display: none;"></div>
+
+          <p style="font-size: 11.5px; color: var(--text-muted); margin: 12px 0 16px;">
+            The account holder must receive the OTP on their mobile and provide it to you.
+            <br /><strong>Without correct OTP verification within 5 minutes, money cannot be released.</strong>
+          </p>
+
+          <div class="field" style="max-width: 260px; margin: 0 auto 12px;">
+            <label style="text-align: center;">Enter 6-Digit OTP</label>
+            <input
+              id="emg-otp-input"
+              class="otp-large-input"
+              placeholder="••••••"
+              maxlength="6"
+              inputmode="numeric"
+              autocomplete="off"
+            />
+          </div>
+
+          <div class="modal-msg" id="emg-msg-2"></div>
+
+          <div style="display: flex; gap: 10px; justify-content: center; margin-top: 16px;">
+            <button class="btn btn-ghost" onclick="resetEmergencyStep1()">Back / Edit Details</button>
+            <button class="btn btn-primary" id="emg-verify-otp-btn" onclick="submitEmergencyWithdrawalOtp()">
+              Verify OTP &amp; Authorize Cash Release
+            </button>
+          </div>
+        </div>
+
+        <!-- STEP 3: OFFICIAL CASH RELEASE VOUCHER -->
+        <div id="emg-step-3" style="display: none;">
+          <div style="text-align: center; margin-bottom: 16px;">
+            <div style="width: 54px; height: 54px; border-radius: 50%; background: rgba(34, 197, 94, 0.12); color: #22c55e; display: inline-flex; align-items: center; justify-content: center; font-size: 26px; margin-bottom: 8px;">
+              ✓
+            </div>
+            <div class="eyebrow" style="color: var(--success);">Authorization Complete</div>
+            <h2>Cash Disbursement Voucher</h2>
+            <p style="font-size: 12.5px; color: var(--text-muted);">
+              Funds have been atomically debited and authorized for cash disbursement.
+            </p>
+          </div>
+
+          <div class="emergency-voucher-card">
+            <div class="voucher-header">
+              <span>iCash Federal Digital Bank</span>
+              <span class="voucher-tag">OFFICIAL RECEIPT</span>
+            </div>
+            <div class="voucher-amount-row">
+              <span class="voucher-label">Amount Released</span>
+              <span class="voucher-amount" id="emg-receipt-amt">₹0.00</span>
+            </div>
+            <div class="voucher-details-grid">
+              <div>
+                <span class="voucher-label">Disbursement Ref</span>
+                <strong id="emg-receipt-ref">TX_EMERGENCY_000</strong>
+              </div>
+              <div>
+                <span class="voucher-label">Timestamp</span>
+                <strong id="emg-receipt-date">—</strong>
+              </div>
+              <div>
+                <span class="voucher-label">Account Holder</span>
+                <strong id="emg-receipt-holder">—</strong>
+              </div>
+              <div>
+                <span class="voucher-label">Authorized Representative</span>
+                <strong id="emg-receipt-rep">—</strong>
+              </div>
+              <div>
+                <span class="voucher-label">ID Verification</span>
+                <strong id="emg-receipt-idproof">Verified ✓</strong>
+              </div>
+              <div>
+                <span class="voucher-label">Authorization Protocol</span>
+                <strong style="color: var(--primary);">5-Min SMS OTP Verified ✓</strong>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px;">
+            <button class="btn btn-ghost" onclick="window.print()">🖨️ Print Voucher</button>
+            <button class="btn btn-primary" onclick="closeEmergencyWithdrawalModal()">Done</button>
+          </div>
+        </div>
       </div>
     </div>
 

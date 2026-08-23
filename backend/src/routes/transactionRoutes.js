@@ -8,16 +8,35 @@ const {
   transactionCreateSchema,
   delegateGenerateSchema,
   delegateClaimSchema,
+  emergencyWithdrawalRequestSchema,
+  emergencyWithdrawalVerifySchema,
+  emergencyContactsUpdateSchema,
 } = require('../utils/validator');
 
-// Public route: Trusted contact claims senior citizen funds using OTP (senior citizen name + OTP)
+// ── Public Routes for Authorized Representative & Emergency Cash ────────────
+
+// 1. Authorized person requests emergency withdrawal -> dispatches 5-min OTP to account holder's registered mobile
+router.post(
+  '/emergency-withdrawal/request',
+  validateRequest(emergencyWithdrawalRequestSchema),
+  TransactionController.requestEmergencyWithdrawal
+);
+
+// 2. Authorized person enters 6-digit OTP received by account holder to release cash
+router.post(
+  '/emergency-withdrawal/verify',
+  validateRequest(emergencyWithdrawalVerifySchema),
+  TransactionController.verifyEmergencyWithdrawal
+);
+
+// Legacy aliases for backward compatibility
 router.post(
   '/delegate/claim',
   validateRequest(delegateClaimSchema),
   TransactionController.claimDelegateWithdrawal
 );
 
-// Protected routes
+// ── Protected User Routes ───────────────────────────────────────────────────
 router.use(authenticate);
 
 router.get('/', TransactionController.getTransactions);
@@ -29,6 +48,15 @@ router.post(
   TransactionController.createTransaction
 );
 router.post('/topup', transactionLimiter, TransactionController.topUpDemoFunds);
+
+// Emergency contacts management
+router.get('/emergency-contacts', TransactionController.getEmergencyContacts);
+router.post(
+  '/emergency-contacts',
+  validateRequest(emergencyContactsUpdateSchema),
+  TransactionController.updateEmergencyContacts
+);
+
 router.post(
   '/delegate/generate',
   validateRequest(delegateGenerateSchema),

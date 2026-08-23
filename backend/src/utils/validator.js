@@ -21,7 +21,9 @@ const registerSchema = z.object({
   emergencyPin: digits4.optional().or(z.literal('')).optional(),
   isSenior: z.boolean().optional(),
   emergencyContactName: z.string().optional(),
-  emergencyContactPhone: mobile10.optional().or(z.literal('')).optional(),
+  emergencyContactPhone: z.string().optional().or(z.literal('')).optional(),
+  emergencyContactRelation: z.string().optional(),
+  emergencyContacts: z.array(z.any()).optional().default([]),
   descriptors: z.array(z.array(z.number())).optional().default([]),
 });
 
@@ -81,12 +83,39 @@ const transactionCreateSchema = z.object({
 });
 
 const delegateGenerateSchema = z.object({
-  amount: z.number().positive('Enter a valid authorization amount.'),
+  amount: z.number().positive('Enter a valid authorization amount.').or(z.string()),
 });
 
 const delegateClaimSchema = z.object({
   seniorName: z.string().min(2, "Senior citizen's full name is required."),
   otp: z.string().regex(/^\d{6}$/, 'OTP must be 6 digits.'),
+});
+
+const emergencyWithdrawalRequestSchema = z.object({
+  accountIdentifier: z.string().min(2, 'Account identifier is required.'),
+  authorizedName: z.string().min(2, 'Authorized person name is required.'),
+  authorizedPhone: z.string().min(8, 'Authorized person phone number is required.'),
+  authorizedIdType: z.string().optional(),
+  authorizedIdNumber: z.string().optional(),
+  amount: z.number().positive('Amount must be positive.').or(z.string()),
+  reason: z.string().optional(),
+});
+
+const emergencyWithdrawalVerifySchema = z.object({
+  requestId: z.string().min(1, 'Request identifier is required.'),
+  otp: z.string().regex(/^\d{6}$/, 'OTP must be 6 digits.'),
+});
+
+const emergencyContactsUpdateSchema = z.object({
+  contacts: z.array(
+    z.object({
+      name: z.string().min(2, 'Contact name is required.'),
+      phone: z.string().min(8, 'Contact phone is required.'),
+      relation: z.string().optional(),
+      idType: z.string().optional().nullable(),
+      idNumber: z.string().optional().nullable(),
+    })
+  ),
 });
 
 // ---------------- Complaints ----------------
@@ -141,6 +170,9 @@ module.exports = {
   transactionCreateSchema,
   delegateGenerateSchema,
   delegateClaimSchema,
+  emergencyWithdrawalRequestSchema,
+  emergencyWithdrawalVerifySchema,
+  emergencyContactsUpdateSchema,
   complaintCreateSchema,
   complaintResolveSchema,
   merchantPaymentRequestSchema,

@@ -330,12 +330,26 @@ async function proceedToBiometrics() {
 
   const age = dobVal ? computeAge(dobVal) : null;
   const isSenior = age !== null && age >= 60;
-  let contactName = '',
-    contactPhone = '';
-  if (isSenior) {
-    contactName = document.getElementById('reg-emergency-contact-name').value.trim();
-    contactPhone = document.getElementById('reg-emergency-contact-phone').value.trim();
-  }
+
+  // Extract all trusted emergency contacts / authorized persons
+  const emergencyContacts = [];
+  const contactRows = document.querySelectorAll('#reg-emergency-contacts-list .emergency-contact-row');
+  contactRows.forEach((row) => {
+    const cName = row.querySelector('.reg-ec-name')?.value.trim();
+    const cPhone = row.querySelector('.reg-ec-phone')?.value.trim();
+    const cRel = row.querySelector('.reg-ec-relation')?.value.trim();
+    const cIdNum = row.querySelector('.reg-ec-idnum')?.value.trim();
+    if (cName && cPhone) {
+      emergencyContacts.push({
+        name: cName,
+        phone: cPhone,
+        relation: cRel || 'Trusted Representative',
+        idNumber: cIdNum || null,
+      });
+    }
+  });
+
+  const primaryContact = emergencyContacts[0] || null;
 
   window._pendingRegPayload = {
     fullName: name,
@@ -346,12 +360,60 @@ async function proceedToBiometrics() {
     pin,
     emergencyPin: emergencyPin || undefined,
     isSenior,
-    emergencyContactName: contactName || undefined,
-    emergencyContactPhone: contactPhone || undefined,
+    emergencyContactName: primaryContact ? primaryContact.name : undefined,
+    emergencyContactPhone: primaryContact ? primaryContact.phone : undefined,
+    emergencyContactRelation: primaryContact ? primaryContact.relation : undefined,
+    emergencyContacts: emergencyContacts.length > 0 ? emergencyContacts : undefined,
   };
 
   goTo('screen-register-scan');
   beginRegisterScan();
+}
+
+function addRegistrationEmergencyContactRow() {
+  const container = document.getElementById('reg-emergency-contacts-list');
+  if (!container) return;
+  const count = container.querySelectorAll('.emergency-contact-row').length + 1;
+  const row = document.createElement('div');
+  row.className = 'emergency-contact-row';
+  row.style.cssText =
+    'background: var(--bg-surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px; position: relative;';
+  row.innerHTML = `
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+      <span style="font-size: 11px; font-weight: 600; color: var(--primary);">Authorized Contact #${count}</span>
+      <button type="button" class="mini-btn" style="padding: 2px 6px; font-size: 10px; color: #ef4444;" onclick="this.closest('.emergency-contact-row').remove()">Remove ✕</button>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+      <div>
+        <label style="font-size: 11px;">Full Name *</label>
+        <input class="reg-ec-name" placeholder="Full Name" autocomplete="off" />
+      </div>
+      <div>
+        <label style="font-size: 11px;">10-Digit Mobile *</label>
+        <input class="reg-ec-phone" placeholder="10-digit mobile" inputmode="numeric" maxlength="10" autocomplete="off" />
+      </div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+      <div>
+        <label style="font-size: 11px;">Relationship</label>
+        <select class="reg-ec-relation">
+          <option value="Spouse">Spouse</option>
+          <option value="Parent">Parent</option>
+          <option value="Child">Child / Son / Daughter</option>
+          <option value="Sibling">Sibling / Brother / Sister</option>
+          <option value="Caregiver">Designated Caregiver</option>
+          <option value="Legal Representative">Legal Representative / Attorney</option>
+          <option value="Trusted Relative">Trusted Relative / Friend</option>
+          <option value="Other">Other Authorized Person</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size: 11px;">Gov ID Proof (Optional)</label>
+        <input class="reg-ec-idnum" placeholder="Aadhaar/PAN/DL (Optional)" autocomplete="off" />
+      </div>
+    </div>
+  `;
+  container.appendChild(row);
 }
 
 // Alias for backwards compatibility
@@ -1370,47 +1432,230 @@ function renderAllTransactionsView() {
   renderTransactionsTable();
 }
 
-function openDelegateCollectModal() {
-  goTo('screen-delegate-collect');
-  document.getElementById('delegate-collect-name').value = '';
-  document.getElementById('delegate-collect-otp').value = '';
-  document.getElementById('delegate-collect-msg').textContent = '';
+// ============================================================
+// EMERGENCY & AUTHORIZED REPRESENTATIVE WITHDRAWAL ENGINE
+// ============================================================
+
+let _emgCountdownInterval = null;
+let _emgTimeRemaining = 300; // 5 minutes in seconds
+
+function openEmergencyWithdrawalModal() {
+  const modal = document.getElementById('modal-emergency-withdrawal');
+  if (!modal) return;
+  modal.classList.add('active');
+  resetEmergencyStep1();
 }
 
-async function attemptDelegateWithdraw() {
-  const name = document.getElementById('delegate-collect-name').value.trim();
-  const otp = document.getElementById('delegate-collect-otp').value.trim();
-  const msg = document.getElementById('delegate-collect-msg');
-  const btn = document.getElementById('delegate-claim-btn');
+// Alias for legacy senior collection button
+function openDelegateCollectModal() {
+  openEmergencyWithdrawalModal();
+}
 
-  if (!name || name.length < 2) {
-    msg.textContent = 'Please enter senior citizen full name.';
+function closeEmergencyWithdrawalModal() {
+  if (_emgCountdownInterval) {
+    clearInterval(_emgCountdownInterval);
+    _emgCountdownInterval = null;
+  }
+  const modal = document.getElementById('modal-emergency-withdrawal');
+  if (modal) modal.classList.remove('active');
+}
+
+function resetEmergencyStep1() {
+  if (_emgCountdownInterval) {
+    clearInterval(_emgCountdownInterval);
+    _emgCountdownInterval = null;
+  }
+  document.getElementById('emg-step-1').style.display = 'block';
+  document.getElementById('emg-step-2').style.display = 'none';
+  document.getElementById('emg-step-3').style.display = 'none';
+  document.getElementById('emg-msg-1').textContent = '';
+  document.getElementById('emg-msg-2').textContent = '';
+  document.getElementById('emg-otp-input').value = '';
+}
+
+async function submitEmergencyWithdrawalRequest() {
+  const ident = document.getElementById('emg-acc-identifier').value.trim();
+  const authName = document.getElementById('emg-auth-name').value.trim();
+  const authPhone = document.getElementById('emg-auth-phone').value.trim();
+  const authIdType = document.getElementById('emg-auth-idtype').value;
+  const authIdNum = document.getElementById('emg-auth-idnum').value.trim();
+  const amount = Number(document.getElementById('emg-amount').value);
+  const reason = document.getElementById('emg-reason').value.trim();
+  const msg = document.getElementById('emg-msg-1');
+  const btn = document.getElementById('emg-submit-req-btn');
+
+  if (!ident || ident.length < 2) {
+    msg.textContent = "Please enter the account holder's identifier (mobile, Aadhaar last 4, or full name).";
     msg.className = 'modal-msg err';
     return;
   }
-  if (!/^\d{6}$/.test(otp)) {
-    msg.textContent = 'Please enter valid 6-digit delegation OTP.';
+  if (!authName || authName.length < 2) {
+    msg.textContent = 'Please enter your full name as the authorized representative.';
+    msg.className = 'modal-msg err';
+    return;
+  }
+  if (!authPhone || !/^\d{10}$/.test(authPhone)) {
+    msg.textContent = 'Please enter your valid 10-digit mobile number.';
+    msg.className = 'modal-msg err';
+    return;
+  }
+  if (!amount || amount <= 0) {
+    msg.textContent = 'Please enter a valid withdrawal amount.';
     msg.className = 'modal-msg err';
     return;
   }
 
-  msg.textContent = 'Verifying delegation authorization…';
+  msg.textContent = 'Verifying emergency authorization with banking core…';
   msg.className = 'modal-msg';
   if (btn) btn.disabled = true;
 
   try {
-    const res = await window.iCashApi.claimDelegateWithdrawal({ seniorName: name, otp });
+    const res = await window.iCashApi.requestEmergencyWithdrawal({
+      accountIdentifier: ident,
+      authorizedName: authName,
+      authorizedPhone: authPhone,
+      authorizedIdType: authIdType,
+      authorizedIdNumber: authIdNum || undefined,
+      amount,
+      reason: reason || 'Emergency Cash Withdrawal',
+    });
+
     if (btn) btn.disabled = false;
+
     if (res.ok) {
-      document.getElementById('delegate-success-detail').textContent =
-        `₹${Number(res.amount).toLocaleString('en-IN')} successfully authorized and disbursed for senior account holder: ${name}.`;
-      document.getElementById('delegate-success-ref').textContent =
-        `Disbursement Ref: ${res.transactionId || 'TXN_SETTLED'}`;
-      goTo('screen-delegate-success');
+      window._currentEmgRequestId = res.requestId;
+      window._currentEmgResponse = res;
+
+      // Update Step 2 UI
+      document.getElementById('emg-holder-phone-badge').textContent =
+        res.accountHolderPhoneMasked || '+91 ••••••0000';
+
+      const devPill = document.getElementById('emg-dev-otp-banner');
+      if (res.devOtp) {
+        devPill.style.display = 'inline-flex';
+        devPill.innerHTML = `<span>⚡ SMS Dispatched: OTP is <strong>${res.devOtp}</strong></span>`;
+      } else {
+        devPill.style.display = 'none';
+      }
+
+      document.getElementById('emg-step-1').style.display = 'none';
+      document.getElementById('emg-step-2').style.display = 'block';
+      document.getElementById('emg-step-3').style.display = 'none';
+      document.getElementById('emg-otp-input').value = '';
+      document.getElementById('emg-otp-input').focus();
+
+      // Start 5-minute countdown (300 seconds)
+      startEmergencyCountdown(res.expiresInSeconds || 300);
     }
   } catch (err) {
     if (btn) btn.disabled = false;
-    msg.textContent = err.message || 'Delegation withdrawal failed.';
+    msg.textContent = err.message || 'Authorization failed. Please check details.';
+    msg.className = 'modal-msg err';
+  }
+}
+
+function startEmergencyCountdown(totalSeconds) {
+  if (_emgCountdownInterval) clearInterval(_emgCountdownInterval);
+  _emgTimeRemaining = totalSeconds;
+
+  const digitsEl = document.getElementById('emg-timer-digits');
+  const barEl = document.getElementById('emg-timer-progress');
+  const msgEl = document.getElementById('emg-msg-2');
+  const verifyBtn = document.getElementById('emg-verify-otp-btn');
+  const circumference = 2 * Math.PI * 44; // r=44 => ~276.46
+
+  function updateDisplay() {
+    const mins = Math.floor(_emgTimeRemaining / 60);
+    const secs = _emgTimeRemaining % 60;
+    if (digitsEl) {
+      digitsEl.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    if (barEl) {
+      const progressFraction = _emgTimeRemaining / totalSeconds;
+      const offset = circumference * (1 - progressFraction);
+      barEl.style.strokeDashoffset = offset;
+      if (_emgTimeRemaining <= 60) {
+        barEl.style.stroke = '#ef4444';
+      } else if (_emgTimeRemaining <= 180) {
+        barEl.style.stroke = '#f59e0b';
+      } else {
+        barEl.style.stroke = '#6366f1';
+      }
+    }
+
+    if (_emgTimeRemaining <= 0) {
+      clearInterval(_emgCountdownInterval);
+      _emgCountdownInterval = null;
+      if (msgEl) {
+        msgEl.textContent = '⚠️ The 5-minute authorization window has expired. Please initiate a new request.';
+        msgEl.className = 'modal-msg err';
+      }
+      if (verifyBtn) verifyBtn.disabled = true;
+    } else {
+      _emgTimeRemaining--;
+    }
+  }
+
+  if (verifyBtn) verifyBtn.disabled = false;
+  updateDisplay();
+  _emgCountdownInterval = setInterval(updateDisplay, 1000);
+}
+
+async function submitEmergencyWithdrawalOtp() {
+  const otp = document.getElementById('emg-otp-input').value.trim();
+  const msg = document.getElementById('emg-msg-2');
+  const btn = document.getElementById('emg-verify-otp-btn');
+
+  if (!otp || !/^\d{6}$/.test(otp)) {
+    msg.textContent = 'Please enter the valid 6-digit OTP received by the account holder.';
+    msg.className = 'modal-msg err';
+    return;
+  }
+
+  msg.textContent = 'Verifying OTP & authorizing instant fund release…';
+  msg.className = 'modal-msg';
+  if (btn) btn.disabled = true;
+
+  try {
+    const res = await window.iCashApi.verifyEmergencyWithdrawal({
+      requestId: window._currentEmgRequestId,
+      otp,
+    });
+
+    if (btn) btn.disabled = false;
+
+    if (res.ok) {
+      if (_emgCountdownInterval) {
+        clearInterval(_emgCountdownInterval);
+        _emgCountdownInterval = null;
+      }
+
+      // Populate Step 3 Voucher
+      document.getElementById('emg-receipt-amt').textContent = `₹${Number(res.amount).toLocaleString('en-IN')}`;
+      document.getElementById('emg-receipt-ref').textContent = res.referenceNumber || res.transactionId || 'TX_EMERGENCY';
+      document.getElementById('emg-receipt-date').textContent = new Date().toLocaleString('en-IN', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      });
+      document.getElementById('emg-receipt-holder').textContent = res.accountHolderName || 'Account Holder';
+      document.getElementById('emg-receipt-rep').textContent = `${res.authorizedPersonName} (${res.authorizedPersonPhone})`;
+      document.getElementById('emg-receipt-idproof').textContent = res.authorizedIdNumber
+        ? `${res.authorizedIdType || 'Gov ID'}: ${res.authorizedIdNumber}`
+        : 'Authorized Representative Verified ✓';
+
+      document.getElementById('emg-step-1').style.display = 'none';
+      document.getElementById('emg-step-2').style.display = 'none';
+      document.getElementById('emg-step-3').style.display = 'block';
+
+      showAlertToast(`🚨 Emergency Cash Release Authorized: ₹${Number(res.amount).toLocaleString('en-IN')} released to ${res.authorizedPersonName}.`);
+
+      // Refresh dashboard if user is signed in
+      if (typeof loadDashboardData === 'function') loadDashboardData();
+    }
+  } catch (err) {
+    if (btn) btn.disabled = false;
+    msg.textContent = err.message || 'OTP verification failed. Please check the code received by the account holder.';
     msg.className = 'modal-msg err';
   }
 }

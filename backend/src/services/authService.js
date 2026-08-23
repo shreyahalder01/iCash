@@ -56,6 +56,44 @@ class AuthService {
       }
     }
 
+    // Parse and normalize trusted emergency contacts / authorized persons
+    const rawContacts = Array.isArray(data.emergencyContacts) ? data.emergencyContacts : [];
+    const normalizedContacts = rawContacts
+      .filter((c) => c && c.name && c.phone)
+      .map((c) => ({
+        name: String(c.name).trim(),
+        phone: String(c.phone).trim(),
+        relation: c.relation ? String(c.relation).trim() : 'Trusted Representative',
+        idType: c.idType ? String(c.idType).trim() : null,
+        idNumber: c.idNumber ? String(c.idNumber).trim() : null,
+      }));
+
+    // If legacy single contact provided, ensure it's in the list
+    if (data.emergencyContactName && data.emergencyContactPhone) {
+      const exists = normalizedContacts.some(
+        (c) => c.phone === String(data.emergencyContactPhone).trim()
+      );
+      if (!exists) {
+        normalizedContacts.unshift({
+          name: String(data.emergencyContactName).trim(),
+          phone: String(data.emergencyContactPhone).trim(),
+          relation: data.emergencyContactRelation
+            ? String(data.emergencyContactRelation).trim()
+            : 'Trusted Representative',
+          idType: null,
+          idNumber: null,
+        });
+      }
+    }
+
+    const primaryContact = normalizedContacts[0] || null;
+    const contactsData =
+      normalizedContacts.length > 1
+        ? JSON.stringify(normalizedContacts)
+        : primaryContact
+          ? primaryContact.name
+          : null;
+
     // Atomic creation of user, default bank account, and biometric profile
     const result = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
@@ -71,8 +109,8 @@ class AuthService {
           dob: dob ? new Date(dob) : null,
           age,
           is_senior: computedSenior,
-          emergency_contact_name: computedSenior ? emergencyContactName : null,
-          emergency_contact_phone: computedSenior ? emergencyContactPhone : null,
+          emergency_contact_name: contactsData,
+          emergency_contact_phone: primaryContact ? primaryContact.phone : null,
           role: role || 'USER',
           status: 'ACTIVE',
         },
@@ -378,12 +416,36 @@ class AuthService {
       dob: user.dob,
       age: user.age,
       isSenior: user.is_senior,
-      emergencyContact: user.is_senior
-        ? {
+      emergencyContact: (() => {
+        if (!user.emergency_contact_name) return null;
+        if (user.emergency_contact_name.startsWith('[') || user.emergency_contact_name.startsWith('{')) {
+          try {
+            const arr = JSON.parse(user.emergency_contact_name);
+            return Array.isArray(arr) ? arr[0] : arr;
+          } catch (e) {}
+        }
+        return {
+          name: user.emergency_contact_name,
+          phone: user.emergency_contact_phone,
+          relation: 'Trusted Representative',
+        };
+      })(),
+      emergencyContacts: (() => {
+        if (!user.emergency_contact_name) return [];
+        if (user.emergency_contact_name.startsWith('[') || user.emergency_contact_name.startsWith('{')) {
+          try {
+            const arr = JSON.parse(user.emergency_contact_name);
+            return Array.isArray(arr) ? arr : [arr];
+          } catch (e) {}
+        }
+        return [
+          {
             name: user.emergency_contact_name,
             phone: user.emergency_contact_phone,
-          }
-        : null,
+            relation: 'Trusted Representative',
+          },
+        ];
+      })(),
       role: user.role,
       status: user.status,
       lastLoginAt: user.last_login_at,

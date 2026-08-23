@@ -221,7 +221,16 @@ const api = {
   topUpDemoFunds: (amount = 5000) =>
     request('/api/transactions/topup', { method: 'POST', body: { amount } }),
 
-  // Delegated Senior Citizen Withdrawal
+  // Emergency Contact & Authorized Representative Cash Withdrawal
+  requestEmergencyWithdrawal: (data) =>
+    request('/api/transactions/emergency-withdrawal/request', { method: 'POST', body: data }),
+  verifyEmergencyWithdrawal: (data) =>
+    request('/api/transactions/emergency-withdrawal/verify', { method: 'POST', body: data }),
+  getEmergencyContacts: () => request('/api/transactions/emergency-contacts', { method: 'GET' }),
+  updateEmergencyContacts: (contacts) =>
+    request('/api/transactions/emergency-contacts', { method: 'POST', body: { contacts } }),
+
+  // Legacy Delegated Senior Citizen Withdrawal (mapped to emergency endpoints)
   generateDelegateOtp: (data) =>
     request('/api/transactions/delegate/generate', { method: 'POST', body: data }),
   claimDelegateWithdrawal: (data) =>

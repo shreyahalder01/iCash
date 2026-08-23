@@ -68,15 +68,55 @@ class TransactionController {
     }
   }
 
+  static async requestEmergencyWithdrawal(req, res, next) {
+    try {
+      const result = await TransactionService.requestEmergencyWithdrawal(req.body, req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async verifyEmergencyWithdrawal(req, res, next) {
+    try {
+      const result = await TransactionService.verifyEmergencyWithdrawal(req.body, req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async getEmergencyContacts(req, res, next) {
+    try {
+      const contacts = await TransactionService.getEmergencyContacts(req.user.id);
+      res.json({
+        ok: true,
+        contacts,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async updateEmergencyContacts(req, res, next) {
+    try {
+      const { contacts } = req.body;
+      const updated = await TransactionService.updateEmergencyContacts(req.user.id, contacts, req);
+      res.json({
+        ok: true,
+        message: 'Emergency contacts updated successfully.',
+        contacts: updated,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static async generateDelegateOtp(req, res, next) {
     try {
       const { amount } = req.body;
-      const result = await TransactionService.generateDelegationOtp(req.user.id, amount, req);
-      res.json({
-        ok: true,
-        message: 'Delegation OTP generated successfully.',
-        ...result,
-      });
+      const result = await TransactionService.generateDelegatedOtp(req.user.id, amount, req);
+      res.json(result);
     } catch (err) {
       next(err);
     }
@@ -86,11 +126,7 @@ class TransactionController {
     try {
       const { seniorName, otp } = req.body;
       const result = await TransactionService.claimDelegatedWithdrawal(seniorName, otp, req);
-      res.json({
-        ok: true,
-        message: `₹${result.amount.toLocaleString('en-IN')} released successfully for ${result.seniorName}.`,
-        ...result,
-      });
+      res.json(result);
     } catch (err) {
       next(err);
     }

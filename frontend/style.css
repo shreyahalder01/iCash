@@ -2025,3 +2025,173 @@ textarea:focus {
 .cam-fallback.active {
   display: block;
 }
+
+/* ---------------------------------------------------------------- */
+/* Emergency & Authorized Representative Withdrawal UI              */
+/* ---------------------------------------------------------------- */
+
+.emg-timer-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 18px auto;
+}
+
+.emg-timer-circle {
+  position: relative;
+  width: 120px;
+  height: 120px;
+}
+
+.emg-timer-svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.emg-timer-bg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.08);
+  stroke-width: 7;
+}
+
+.emg-timer-bar {
+  fill: none;
+  stroke: #ef4444;
+  stroke-width: 7;
+  stroke-linecap: round;
+  stroke-dasharray: 276.46;
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset 1s linear, stroke 0.3s ease;
+}
+
+.emg-timer-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.emg-timer-text span {
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: 800;
+  color: #ef4444;
+  letter-spacing: -0.5px;
+}
+
+.emg-timer-text small {
+  font-size: 8.5px;
+  color: var(--text-faint);
+  letter-spacing: 1px;
+  font-family: var(--font-mono);
+  margin-top: -2px;
+}
+
+.otp-large-input {
+  font-family: var(--font-mono) !important;
+  font-size: 28px !important;
+  letter-spacing: 10px !important;
+  text-align: center !important;
+  font-weight: 700 !important;
+  padding: 10px 14px !important;
+  background: var(--bg-surface) !important;
+  border: 1.5px solid var(--primary) !important;
+  color: var(--text-main) !important;
+  border-radius: 12px !important;
+}
+
+.dev-otp-pill {
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px dashed rgba(99, 102, 241, 0.4);
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #a5b4fc;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px auto 12px;
+}
+
+.emergency-voucher-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  padding: 18px;
+  margin: 12px 0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.voucher-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px dashed var(--border);
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.voucher-tag {
+  background: rgba(34, 197, 94, 0.12);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.5px;
+}
+
+.voucher-amount-row {
+  text-align: center;
+  padding: 10px 0 16px;
+  border-bottom: 1px dashed var(--border);
+  margin-bottom: 14px;
+}
+
+.voucher-label {
+  display: block;
+  font-size: 10.5px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+  margin-bottom: 4px;
+}
+
+.voucher-amount {
+  font-size: 32px;
+  font-weight: 800;
+  font-family: var(--font-display);
+  color: var(--text-main);
+}
+
+.voucher-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  font-size: 11.5px;
+}
+
+.voucher-details-grid strong {
+  display: block;
+  color: var(--text-main);
+  margin-top: 2px;
+  word-break: break-all;
+}
+
+.emergency-contact-row {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.emergency-contact-row:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+}
