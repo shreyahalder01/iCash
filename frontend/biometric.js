@@ -89,18 +89,42 @@ function bestMatch(storedList, live) {
 }
 
 // ── Real-Time Client-Side Eye Aspect Ratio (EAR) Blink Detector ─────────────
+function _getPointCoords(p) {
+  if (!p) return null;
+  const x =
+    typeof p.x === 'number'
+      ? p.x
+      : typeof p._x === 'number'
+        ? p._x
+        : Array.isArray(p)
+          ? p[0]
+          : null;
+  const y =
+    typeof p.y === 'number'
+      ? p.y
+      : typeof p._y === 'number'
+        ? p._y
+        : Array.isArray(p)
+          ? p[1]
+          : null;
+  if (x === null || y === null || isNaN(x) || isNaN(y)) return null;
+  return { x, y };
+}
+
 function _calcDist(p1, p2) {
-  if (!p1 || !p2) return 0;
-  return Math.hypot(p1.x - p2.x, p1.y - p2.y);
+  const pt1 = _getPointCoords(p1);
+  const pt2 = _getPointCoords(p2);
+  if (!pt1 || !pt2) return 0;
+  return Math.hypot(pt1.x - pt2.x, pt1.y - pt2.y);
 }
 
 function calculateEAR(eyePoints) {
-  if (!eyePoints || eyePoints.length < 6) return 0.3;
+  if (!eyePoints || eyePoints.length < 6) return 0.28;
   // Eye points: [p0, p1, p2, p3, p4, p5]
   const v1 = _calcDist(eyePoints[1], eyePoints[5]);
   const v2 = _calcDist(eyePoints[2], eyePoints[4]);
   const h = _calcDist(eyePoints[0], eyePoints[3]);
-  if (h === 0) return 0.3;
+  if (h <= 0.001) return 0.28;
   return (v1 + v2) / (2.0 * h);
 }
 
@@ -111,14 +135,15 @@ class ClientBlinkDetector {
   }
 
   reset() {
-    this.openEyeBaseline = 0.30;
+    this.openEyeBaseline = 0.29;
     this.baselineSamples = 0;
     this.closedFrames = 0;
     this.blinkCount = 0;
     this.isClosed = false;
     this.hasBlinked = false;
-    this.currentEar = 0.30;
+    this.currentEar = 0.29;
     this.lastBlinkTime = 0;
+    this.earHistory = [];
   }
 
   update(landmarks) {
@@ -139,30 +164,32 @@ class ClientBlinkDetector {
       const rightEar = calculateEAR(rightEye);
       
       const validEars = [leftEar, rightEar].filter((e) => e > 0.04 && e < 0.65);
-      const ear = validEars.length > 0 ? Math.min(...validEars) : 0.30;
+      const ear = validEars.length > 0 ? Math.min(...validEars) : 0.28;
       this.currentEar = ear;
 
-      // Update baseline during open-eye state
+      const now = Date.now();
+      this.earHistory.push({ ear, time: now });
+      if (this.earHistory.length > 20) this.earHistory.shift();
+
+      // Adaptively track baseline resting open EAR
       if (!this.isClosed && ear > 0.21) {
         this.openEyeBaseline =
-          this.baselineSamples < 4 ? ear : this.openEyeBaseline * 0.82 + ear * 0.18;
+          this.baselineSamples < 4 ? ear : this.openEyeBaseline * 0.80 + ear * 0.20;
         this.baselineSamples++;
       }
 
-      // Dynamic closing threshold: 76% of resting baseline or <= 0.245
-      const closeThreshold = Math.max(0.17, Math.min(0.245, this.openEyeBaseline * 0.76));
-      // Dynamic opening threshold: 88% of baseline or >= 0.21
-      const openThreshold = Math.max(0.21, this.openEyeBaseline * 0.88);
-
-      const now = Date.now();
+      // Closing threshold: drop below 82% of baseline or <= 0.25
+      const closeThreshold = Math.max(0.17, Math.min(0.252, this.openEyeBaseline * 0.82));
+      // Re-opening threshold: recover above 88% of baseline or >= 0.21
+      const openThreshold = Math.max(0.20, this.openEyeBaseline * 0.88);
 
       if (ear <= closeThreshold) {
         this.closedFrames++;
         this.isClosed = true;
       } else if (ear >= openThreshold) {
         if (this.isClosed && this.closedFrames >= 1) {
-          // Debounce: ensure at least 120ms between consecutive blinks
-          if (now - this.lastBlinkTime >= 120) {
+          // Debounce: ensure at least 100ms between consecutive distinct blinks
+          if (now - this.lastBlinkTime >= 100) {
             this.blinkCount++;
             this.lastBlinkTime = now;
             if (this.blinkCount >= this.requiredBlinks) {
