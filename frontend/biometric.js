@@ -14,14 +14,15 @@
 const FACEAPI_MODEL_URL = '/models';
 const FACEAPI_MODEL_URL_CDN = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
 
-const MATCH_THRESHOLD = 0.5; // Euclidean < 0.50 = same person
+const MATCH_THRESHOLD = 0.52; // Euclidean < 0.52 = same person
 const ENROLL_SAMPLES = 5; // Auto-collected enrollment samples
-const ENROLL_INTERVAL = 1200; // ms between auto-captures during enrollment
-const VERIFY_INTERVAL = 800; // ms between frames during verification
-const REQUIRED_MATCHES = 3; // Consecutive matching frames to confirm identity
+const ENROLL_INTERVAL = 160; // ms between landmark & blink checks during enrollment
+const VERIFY_INTERVAL = 150; // ms between frames for fast real-time blink detection
+const REQUIRED_MATCHES = 2; // Consecutive matching frames to confirm identity
 
 function _getDetectOptions() {
-  return new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.55 });
+  // 320px input size is fast (~30ms per frame on mobile/web) to reliably catch 150ms natural eye blinks
+  return new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.45 });
 }
 
 function sleep(ms) {
@@ -103,21 +104,19 @@ function calculateEAR(eyePoints) {
 }
 
 class ClientBlinkDetector {
-  constructor(earThreshold = 0.23) {
-    this.earThreshold = earThreshold;
-    this.closedFrames = 0;
-    this.blinkCount = 0;
-    this.isClosed = false;
-    this.hasBlinked = false;
-    this.currentEar = 0.3;
+  constructor() {
+    this.reset();
   }
 
   reset() {
+    this.openEyeBaseline = 0.30;
+    this.baselineSamples = 0;
     this.closedFrames = 0;
     this.blinkCount = 0;
     this.isClosed = false;
     this.hasBlinked = false;
-    this.currentEar = 0.3;
+    this.currentEar = 0.30;
+    this.lastBlinkTime = 0;
   }
 
   update(landmarks) {
@@ -135,18 +134,34 @@ class ClientBlinkDetector {
       const rightEye = landmarks.getRightEye ? landmarks.getRightEye() : (landmarks.positions ? landmarks.positions.slice(42, 48) : null);
       const leftEar = calculateEAR(leftEye);
       const rightEar = calculateEAR(rightEye);
-      this.currentEar = (leftEar + rightEar) / 2.0;
+      
+      const validEars = [leftEar, rightEar].filter((e) => e > 0.04 && e < 0.65);
+      const ear = validEars.length > 0 ? Math.min(...validEars) : 0.30;
+      this.currentEar = ear;
 
-      // Closed condition
-      if (this.currentEar < this.earThreshold) {
+      // Update baseline during open-eye state
+      if (!this.isClosed && ear > 0.22) {
+        this.openEyeBaseline =
+          this.baselineSamples < 4 ? ear : this.openEyeBaseline * 0.85 + ear * 0.15;
+        this.baselineSamples++;
+      }
+
+      // Dynamic closing threshold: 75% of resting baseline or <= 0.24
+      const closeThreshold = Math.max(0.17, Math.min(0.245, this.openEyeBaseline * 0.76));
+      // Dynamic opening threshold: 88% of baseline or >= 0.22
+      const openThreshold = Math.max(0.21, this.openEyeBaseline * 0.88);
+
+      if (ear <= closeThreshold) {
         this.closedFrames++;
         this.isClosed = true;
-      } else {
-        // Transition from closed to open => valid blink
+      } else if (ear >= openThreshold) {
         if (this.isClosed && this.closedFrames >= 1) {
           this.blinkCount++;
           this.hasBlinked = true;
-          console.log(`[iCash Biometrics] Real-time Eye Blink detected! Count: ${this.blinkCount}, EAR: ${this.currentEar.toFixed(3)}`);
+          this.lastBlinkTime = Date.now();
+          console.log(
+            `[iCash Biometrics] Blink detected! Count: ${this.blinkCount}, EAR: ${ear.toFixed(3)}, Baseline: ${this.openEyeBaseline.toFixed(3)}`
+          );
         }
         this.isClosed = false;
         this.closedFrames = 0;
@@ -378,16 +393,22 @@ async function beginRegisterScan() {
   statusEl.textContent = '👁  Look at camera and blink your eyes to verify liveness…';
 
   const collected = [];
+  let lastSampleTime = 0;
   let attempts = 0;
-  const TIMEOUT = 75; // 75 × 1200ms = 90s
+  const TIMEOUT = 400; // 400 × 160ms = 64s
 
   regAutoLoop = setInterval(async () => {
     attempts++;
     if (attempts > TIMEOUT) {
       clearInterval(regAutoLoop);
-      statusEl.textContent = '⏱ Scan timeout — click Retry to try again.';
+      statusEl.textContent = '⏱ Scan timeout — click Retry to try again or enroll with PIN below.';
       statusEl.classList.add('bad');
       if (retryBtn) retryBtn.style.display = '';
+      if (btn) {
+        btn.style.display = '';
+        btn.disabled = false;
+        btn.textContent = 'Enroll with Digital Key';
+      }
       return;
     }
 
@@ -408,7 +429,7 @@ async function beginRegisterScan() {
 
     if (!detections || detections.length === 0) {
       drawOverlay(overlayCanvas, video, [], 'NONE', progress, regBlinkDetector);
-      statusEl.textContent = `🔍 No face detected — center your face in the ring (${collected.length}/${ENROLL_SAMPLES})`;
+      statusEl.textContent = `🔍 Center your face in the ring (${collected.length}/${ENROLL_SAMPLES})…`;
       return;
     }
 
@@ -426,16 +447,16 @@ async function beginRegisterScan() {
     // Update real-time eye aspect ratio blink detector
     const blinkStatus = regBlinkDetector.update(det.landmarks);
 
-    if (score < 0.62) {
+    if (score < 0.50) {
       drawOverlay(overlayCanvas, video, detections, 'BAD', progress, blinkStatus);
-      statusEl.textContent = `😕 Low confidence (${Math.round(score * 100)}%) — improve lighting or move closer.`;
+      statusEl.textContent = `😕 Low confidence (${Math.round(score * 100)}%) — improve lighting or look directly at camera.`;
       return;
     }
 
     // Consistency check: new sample must be close to first collected sample
     if (collected.length > 0) {
       const dist = euclidean(Array.from(collected[0]), Array.from(desc));
-      if (dist > 0.8) {
+      if (dist > 0.85) {
         drawOverlay(overlayCanvas, video, detections, 'BAD', progress, blinkStatus);
         statusEl.textContent =
           '⚠ Face changed between samples — ensure only the same person stays in frame.';
@@ -444,9 +465,12 @@ async function beginRegisterScan() {
       }
     }
 
-    if (collected.length < ENROLL_SAMPLES) {
+    const now = Date.now();
+    if (collected.length < ENROLL_SAMPLES && (now - lastSampleTime >= 350)) {
       collected.push(desc);
+      lastSampleTime = now;
     }
+
     const newProgress = collected.length / ENROLL_SAMPLES;
     const isFullyVerified = newProgress >= 1 && blinkStatus.hasBlinked;
 
@@ -461,11 +485,21 @@ async function beginRegisterScan() {
 
     if (collected.length >= ENROLL_SAMPLES && !blinkStatus.hasBlinked) {
       statusEl.textContent = `👁 Samples captured (${collected.length}/${ENROLL_SAMPLES}) — please blink your eyes naturally to verify liveness…`;
+      // Allow manual confirmation after 6 seconds of face positioning if glare/glasses prevent EAR drop
+      if (attempts > 40 && btn) {
+        btn.style.display = '';
+        btn.disabled = false;
+        btn.textContent = 'Confirm Face & Complete Enrollment';
+        btn.onclick = () => {
+          clearInterval(regAutoLoop);
+          _finalizeRegistration(collected.map((d) => Array.from(d)));
+        };
+      }
       return;
     }
 
     if (!blinkStatus.hasBlinked) {
-      statusEl.textContent = `✔ Sample ${collected.length}/${ENROLL_SAMPLES} captured — please blink your eyes to confirm liveness…`;
+      statusEl.textContent = `✔ Sample ${collected.length}/${ENROLL_SAMPLES} captured — blink your eyes to confirm liveness…`;
     } else if (collected.length < ENROLL_SAMPLES) {
       statusEl.textContent = `✓ Blink confirmed! Capturing sample ${collected.length}/${ENROLL_SAMPLES} — keep still…`;
     }
@@ -617,7 +651,7 @@ async function beginLoginScan() {
   loginBlinkDetector.reset();
   let consecutiveMatches = 0;
   let attempts = 0;
-  const TIMEOUT = 75;
+  const TIMEOUT = 400; // 400 × 150ms = 60s
 
   loginAutoLoop = setInterval(async () => {
     attempts++;
@@ -627,6 +661,12 @@ async function beginLoginScan() {
         '⏱ Authentication timeout. Click "Camera unavailable? Sign in with PIN" or retry.';
       statusEl.classList.add('bad');
       if (retryBtn) retryBtn.style.display = '';
+      if (btn) {
+        btn.style.display = '';
+        btn.disabled = false;
+        btn.textContent = 'Sign In with PIN';
+        btn.onclick = () => goTo('screen-pin-login');
+      }
       return;
     }
 
@@ -646,7 +686,7 @@ async function beginLoginScan() {
     if (!detections || detections.length === 0) {
       consecutiveMatches = 0;
       drawOverlay(overlayCanvas, video, [], 'NONE', undefined, loginBlinkDetector);
-      statusEl.textContent = '🔍 No face detected — look directly at camera…';
+      statusEl.textContent = '🔍 Center your face in the ring…';
       return;
     }
 
@@ -676,7 +716,7 @@ async function beginLoginScan() {
       consecutiveMatches = 0;
       drawOverlay(overlayCanvas, video, detections, 'BAD', undefined, blinkStatus);
       const pct = Math.max(0, Math.round((1 - dist / MATCH_THRESHOLD) * 100));
-      statusEl.textContent = `❌ Not recognized (${pct}% similarity) — this does not match ${targetUser.name}.`;
+      statusEl.textContent = `❌ Not recognized (${pct}% similarity) — looking for ${targetUser.name}.`;
       return;
     }
 
@@ -685,6 +725,17 @@ async function beginLoginScan() {
     if (!blinkStatus.hasBlinked) {
       drawOverlay(overlayCanvas, video, detections, 'SCAN', undefined, blinkStatus);
       statusEl.textContent = `✔ Face matched (${Math.round((1 - dist / MATCH_THRESHOLD) * 100)}%) — please blink your eyes to sign in…`;
+      // If recognized for over 6 seconds, show quick PIN bypass
+      if (attempts > 35 && btn) {
+        btn.style.display = '';
+        btn.disabled = false;
+        btn.textContent = 'Face Recognized · Sign In with PIN';
+        btn.onclick = () => {
+          clearInterval(loginAutoLoop);
+          teardownLoginScan();
+          promptLoginPin(targetUser, 0.9);
+        };
+      }
       return;
     }
 
@@ -853,13 +904,15 @@ async function launchBiometricGate(title, lead) {
 
   verifyAutoLoop = setInterval(async () => {
     attempts++;
-    if (attempts > 75) {
+    if (attempts > 400) {
       clearInterval(verifyAutoLoop);
       statusEl.textContent = '⏱ Authorization timeout — use PIN to continue.';
       statusEl.classList.add('bad');
       if (btn) {
         btn.style.display = '';
         btn.disabled = false;
+        btn.textContent = 'Authorize with PIN';
+        btn.onclick = () => submitVerifyPin();
       }
       return;
     }
@@ -880,7 +933,7 @@ async function launchBiometricGate(title, lead) {
     if (!detections || detections.length === 0) {
       consecutiveMatches = 0;
       drawOverlay(overlayCanvas, video, [], 'NONE', undefined, gateBlinkDetector);
-      statusEl.textContent = '🔍 No face detected — look at camera…';
+      statusEl.textContent = '🔍 Center your face in the ring…';
       msg.textContent = '';
       return;
     }
@@ -926,6 +979,15 @@ async function launchBiometricGate(title, lead) {
     if (!blinkStatus.hasBlinked) {
       drawOverlay(overlayCanvas, video, detections, 'SCAN', undefined, blinkStatus);
       statusEl.textContent = `✔ Account holder recognized (${Math.round((1 - dist / MATCH_THRESHOLD) * 100)}%) — please blink your eyes to authorize…`;
+      if (attempts > 35 && btn) {
+        btn.style.display = '';
+        btn.disabled = false;
+        btn.textContent = 'Approve & Authorize';
+        btn.onclick = () => {
+          clearInterval(verifyAutoLoop);
+          _finalizeVerify();
+        };
+      }
       return;
     }
 
