@@ -303,6 +303,8 @@ const api = {
         // Reset call failed or server offline — safe to ignore
       }
     },
+  },
+
   // Server Configuration Helpers
   setServerUrl: (url) => {
     if (typeof localStorage !== 'undefined') {
