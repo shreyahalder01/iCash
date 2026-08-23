@@ -61,12 +61,21 @@ function errorHandler(err, req, res, next) {
     err.name === 'PrismaClientInitializationError' ||
     err.code === 'P1001' ||
     err.code === 'P1000' ||
-    (err.message && (err.message.includes("Can't reach database server") || err.message.includes('ECONNREFUSED')))
+    err.code === 'P1017' ||
+    (err.message && (err.message.includes("Can't reach database server") || err.message.includes('ECONNREFUSED') || err.message.includes('password authentication failed') || err.message.includes('Tenant or user not found')))
   ) {
+    const cleanDetail = err.message
+      ? err.message
+          .split('\n')
+          .map((s) => s.trim())
+          .filter((s) => s && !s.startsWith('-->') && !s.startsWith('at ') && !s.includes('PrismaClient'))
+          .slice(-1)[0] || err.message
+      : 'Database connection failed';
+
     return res.status(503).json({
       ok: false,
       error: 'DatabaseUnavailable',
-      message: 'Database connection failed. Please ensure DATABASE_URL (e.g. Supabase/Neon PostgreSQL) is set in your Render environment variables.',
+      message: `Database connection failed (${cleanDetail}). Please verify DATABASE_URL password and host in Render Environment.`,
     });
   }
 
