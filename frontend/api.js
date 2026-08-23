@@ -83,6 +83,43 @@ async function detectApiBase() {
   return currentBase || '';
 }
 
+let _cachedCsrfToken = null;
+
+function getCsrfCookie() {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(/(?:^|;\s*)_icash_csrf=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+async function fetchCsrfToken(force = false) {
+  if (!force) {
+    const cookieVal = getCsrfCookie();
+    if (cookieVal) {
+      _cachedCsrfToken = cookieVal;
+      return _cachedCsrfToken;
+    }
+    if (_cachedCsrfToken) return _cachedCsrfToken;
+  }
+  try {
+    const base = await detectApiBase();
+    const res = await fetch(`${base}/api/auth/csrf-token`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: { Accept: 'application/json' },
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.ok && json.csrfToken) {
+        _cachedCsrfToken = json.csrfToken;
+        return _cachedCsrfToken;
+      }
+    }
+  } catch (e) {
+    // Ignore network error on standalone/offline
+  }
+  return _cachedCsrfToken || getCsrfCookie();
+}
+
 async function request(endpoint, options = {}) {
   const base = await detectApiBase();
   const url = `${base}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
@@ -91,11 +128,22 @@ async function request(endpoint, options = {}) {
   const storedToken =
     typeof localStorage !== 'undefined' ? localStorage.getItem('icash_token') : null;
 
+  const method = (options.method || 'GET').toUpperCase();
+  const isStateChanging = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
+
   const headers = {
     'Content-Type': 'application/json',
     ...(storedToken ? { Authorization: `Bearer ${storedToken}` } : {}),
     ...(options.headers || {}),
   };
+
+  // Automatically attach CSRF token for state-changing requests
+  if (isStateChanging && !headers['X-CSRF-Token'] && !headers['x-csrf-token']) {
+    const csrf = await fetchCsrfToken();
+    if (csrf) {
+      headers['X-CSRF-Token'] = csrf;
+    }
+  }
 
   const config = {
     ...options,
@@ -140,8 +188,23 @@ async function request(endpoint, options = {}) {
       'Unable to reach banking services right now. Please try again shortly, or contact support if this continues.'
     );
     error.status = response.status;
-    error.nonJson = true;
+    error.body = rawText;
     throw error;
+  }
+
+  // Automatic retry once on expired/bad CSRF token
+  if (response.status === 403 && data && data.code === 'EBADCSRFTOKEN' && !options._csrfRetried) {
+    const newCsrf = await fetchCsrfToken(true);
+    if (newCsrf) {
+      return request(endpoint, {
+        ...options,
+        _csrfRetried: true,
+        headers: {
+          ...(options.headers || {}),
+          'X-CSRF-Token': newCsrf,
+        },
+      });
+    }
   }
 
   // Automatically save token on successful login or register
@@ -313,6 +376,8 @@ const api = {
       }
     },
   },
+
+  getCsrfToken: fetchCsrfToken,
 
   // Server Configuration Helpers
   setServerUrl: (url) => {

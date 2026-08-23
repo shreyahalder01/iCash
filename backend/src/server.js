@@ -12,8 +12,10 @@ const helmet = require('helmet');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 
+const crypto = require('crypto');
 const { errorHandler, notFoundHandler } = require('./middleware/errorMiddleware');
 const { generalApiLimiter } = require('./middleware/rateLimitMiddleware');
+const { csrfProtection } = require('./middleware/csrfMiddleware');
 
 const authRoutes = require('./routes/authRoutes');
 const otpRoutes = require('./routes/otpRoutes');
@@ -32,6 +34,12 @@ const FRONTEND_DIR = path.join(__dirname, '..', '..', 'frontend');
 // Disable server fingerprinting
 app.disable('x-powered-by');
 
+// Cryptographic Per-Request Nonce for CSP
+app.use((req, res, next) => {
+  res.locals.cspNonce = crypto.randomBytes(16).toString('base64');
+  next();
+});
+
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -39,7 +47,7 @@ app.use(
         defaultSrc: ["'self'"],
         scriptSrc: [
           "'self'",
-          "'unsafe-inline'",
+          (req, res) => `'nonce-${res.locals.cspNonce}'`,
           "'wasm-unsafe-eval'",
           'https://cdn.jsdelivr.net',
           'https://sfo.cloud.appwrite.io',
@@ -108,6 +116,7 @@ app.use(cookieParser());
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(generalApiLimiter);
+app.use(csrfProtection);
 
 // Health check — used by frontend/api.js to auto-detect the API base URL and check DB health.
 app.get('/api/health', async (req, res) => {

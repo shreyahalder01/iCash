@@ -628,6 +628,19 @@ async function beginRegisterScan() {
     const blinkStatus = regBlinkDetector.update(det.landmarks, video);
     const count = blinkStatus.blinkCount || 0;
 
+    // Anti-spoof presentation attack check from liveness server (previously
+    // missing here, so a photo/screen held up during enrollment was only
+    // caught by the weaker sample-diversity check below, after all samples
+    // were already collected).
+    if (currentLivenessState && currentLivenessState.spoof_detected) {
+      drawOverlay(overlayCanvas, video, detections, 'BAD', progress, blinkStatus);
+      statusEl.textContent = '⚠️ Presentation attack blocked: photo/screen spoof detected.';
+      statusEl.classList.add('bad');
+      collected.length = 0;
+      setTimeout(regStep, 150);
+      return;
+    }
+
     if (score < 0.45) {
       drawOverlay(overlayCanvas, video, detections, 'BAD', progress, blinkStatus);
       statusEl.textContent = `😕 Low confidence — improve lighting or look directly at camera.`;
@@ -921,6 +934,18 @@ async function beginLoginScan() {
       return;
     }
 
+    const serverLive = !!(currentLivenessState && currentLivenessState.live);
+    if (!serverLive) {
+      // Client-side EAR blinks matched, but the independent dlib server session
+      // hasn't confirmed a real open->closed->open transition yet (or spoof
+      // frames reset it). Requiring both stops a static/swapped photo pair from
+      // satisfying only the weaker in-browser detector.
+      drawOverlay(overlayCanvas, video, detections, 'SCAN', undefined, blinkStatus);
+      statusEl.textContent = `✔ Verifying blink with liveness server…`;
+      setTimeout(loginStep, 80);
+      return;
+    }
+
     drawOverlay(overlayCanvas, video, detections, 'GOOD', undefined, blinkStatus);
     statusEl.textContent = `✅ 2/2 Blinks — unlocking profile…`;
 
@@ -1180,6 +1205,14 @@ async function launchBiometricGate(title, lead) {
       } else {
         statusEl.textContent = `✔ 1st blink! Blink once more to authorize (1/2)…`;
       }
+      setTimeout(verifyStep, 80);
+      return;
+    }
+
+    const serverLive = !!(currentLivenessState && currentLivenessState.live);
+    if (!serverLive) {
+      drawOverlay(overlayCanvas, video, detections, 'SCAN', undefined, blinkStatus);
+      statusEl.textContent = `✔ Verifying blink with liveness server…`;
       setTimeout(verifyStep, 80);
       return;
     }

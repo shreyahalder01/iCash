@@ -11,6 +11,9 @@ const {
   confirmDeleteSchema,
 } = require('../utils/validator');
 
+const { getCsrfTokenHandler } = require('../middleware/csrfMiddleware');
+
+router.get('/csrf-token', getCsrfTokenHandler);
 router.post('/register', authLimiter, validateRequest(registerSchema), AuthController.register);
 router.post(
   '/login-aadhaar',

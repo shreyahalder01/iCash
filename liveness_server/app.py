@@ -153,6 +153,13 @@ def detect_anti_spoof(frame, face_rect, coords):
         if cr_std < 1.5 and cb_std < 1.5:
             return False, 0.1, "grayscale_print_spoof"
 
+        # Flat/warped 2D surfaces (printed photos, phone/tablet screens held up to the
+        # camera) lack real facial depth, so their landmark proportions fall outside
+        # plausible live-human geometry. This was previously computed but never
+        # enforced, which let sharp, full-color photos bypass anti-spoofing entirely.
+        if not valid_geometry:
+            return False, 0.15, "flat_geometry_spoof"
+
         return True, round(float(min(1.0, lap_var / 100.0)), 2), "live_human"
     except Exception as e:
         return True, 0.5, "fallback"
