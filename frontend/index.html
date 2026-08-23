@@ -8,6 +8,10 @@
       name="description"
       content="Next-generation digital banking secured with 128-dimensional biometric facial vectors, 256-bit encryption, and real-time fraud monitoring."
     />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://sfo.cloud.appwrite.io https://*.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' http://localhost:* http://127.0.0.1:* https://sfo.cloud.appwrite.io https://*.supabase.co https://cdn.jsdelivr.net https: ws: wss:; media-src 'self' blob: data:; object-src 'none'; frame-src 'none'; worker-src 'self' blob:;" />
+    <meta http-equiv="Permissions-Policy" content="camera=(self), microphone=(), geolocation=(), payment=(self)" />
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
@@ -124,161 +128,190 @@
             in plaintext.
           </p>
 
-          <div class="field">
-            <label>Full Name (as per Aadhaar)</label>
-            <input id="reg-name" placeholder="e.g. Sidd Paul" autocomplete="off" />
-          </div>
-          <div class="field">
-            <label>12-Digit Aadhaar Number</label>
-            <input
-              id="reg-aadhaar"
-              class="aadhaar-input"
-              placeholder="XXXX XXXX XXXX"
-              maxlength="14"
-              oninput="formatAadhaar(this)"
-              autocomplete="off"
-            />
-          </div>
-          <div class="field">
-            <label>Aadhaar-Linked Mobile Number</label>
-            <input
-              id="reg-mobile"
-              placeholder="10-digit mobile number"
-              inputmode="numeric"
-              maxlength="10"
-              autocomplete="off"
-            />
-          </div>
-          <div class="field">
-            <label>Date of Birth</label>
-            <input id="reg-dob" type="date" onchange="handleDobChange()" />
-            <p
-              id="reg-age-note"
+          <form id="form-register" onsubmit="event.preventDefault(); proceedToBiometrics();">
+            <div class="field">
+              <label>Full Name (as per Aadhaar)</label>
+              <input
+                id="reg-name"
+                type="text"
+                maxlength="80"
+                placeholder="e.g. Sidd Paul"
+                autocomplete="name"
+              />
+            </div>
+            <div class="field">
+              <label>12-Digit Aadhaar Number</label>
+              <input
+                id="reg-aadhaar"
+                type="text"
+                class="aadhaar-input"
+                placeholder="XXXX XXXX XXXX"
+                maxlength="14"
+                oninput="formatAadhaar(this)"
+                autocomplete="off"
+              />
+            </div>
+            <div class="field">
+              <label>Aadhaar-Linked Mobile Number</label>
+              <input
+                id="reg-mobile"
+                type="tel"
+                placeholder="10-digit mobile number"
+                inputmode="numeric"
+                maxlength="10"
+                autocomplete="tel"
+              />
+            </div>
+            <div class="field">
+              <label>Date of Birth</label>
+              <input id="reg-dob" type="date" onchange="handleDobChange()" />
+              <p
+                id="reg-age-note"
+                style="
+                  color: var(--text-faint);
+                  font-size: 11px;
+                  font-family: var(--font-mono);
+                  margin-top: 4px;
+                "
+              ></p>
+            </div>
+            <div class="field">
+              <label>Account Portfolio Type</label>
+              <select id="reg-role">
+                <option value="USER">Standard Savings &amp; Personal Banking</option>
+                <option value="MERCHANT">Commercial Merchant Current Account</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Set 4-Digit Primary Security PIN</label>
+              <input
+                id="reg-pin"
+                placeholder="••••"
+                maxlength="4"
+                type="password"
+                inputmode="numeric"
+                autocomplete="new-password"
+              />
+            </div>
+            <div class="field">
+              <label>Set 4-Digit Emergency Duress PIN</label>
+              <input
+                id="reg-emergency-pin"
+                placeholder="•••• (Different from primary PIN)"
+                maxlength="4"
+                type="password"
+                inputmode="numeric"
+                autocomplete="new-password"
+              />
+              <p
+                style="
+                  color: var(--text-faint);
+                  font-size: 10.5px;
+                  font-family: var(--font-mono);
+                  margin-top: 4px;
+                  line-height: 1.4;
+                "
+              >
+                Used to covertly trigger silent safety alarms if coerced to authenticate under duress.
+              </p>
+            </div>
+
+            <!-- Trusted Emergency Contacts & Authorized Representatives -->
+            <div
+              class="field"
+              id="reg-emergency-contacts-section"
               style="
-                color: var(--text-faint);
-                font-size: 11px;
-                font-family: var(--font-mono);
-                margin-top: 4px;
-              "
-            ></p>
-          </div>
-          <div class="field">
-            <label>Account Portfolio Type</label>
-            <select id="reg-role">
-              <option value="USER">Standard Savings &amp; Personal Banking</option>
-              <option value="MERCHANT">Commercial Merchant Current Account</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>Set 4-Digit Primary Security PIN</label>
-            <input
-              id="reg-pin"
-              placeholder="••••"
-              maxlength="4"
-              type="password"
-              inputmode="numeric"
-              autocomplete="off"
-            />
-          </div>
-          <div class="field">
-            <label>Set 4-Digit Emergency Duress PIN</label>
-            <input
-              id="reg-emergency-pin"
-              placeholder="•••• (Different from primary PIN)"
-              maxlength="4"
-              type="password"
-              inputmode="numeric"
-              autocomplete="off"
-            />
-            <p
-              style="
-                color: var(--text-faint);
-                font-size: 10.5px;
-                font-family: var(--font-mono);
-                margin-top: 4px;
-                line-height: 1.4;
+                background: var(--bg-inset);
+                border: 1px solid var(--border-strong);
+                border-radius: 14px;
+                padding: 16px;
+                margin-top: 16px;
               "
             >
-              Used to covertly trigger silent safety alarms if coerced to authenticate under duress.
-            </p>
-          </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <label style="color: var(--primary); font-size: 13px; font-weight: 600; margin: 0;">
+                  🛡️ Trusted Emergency Contacts &amp; Authorized Representatives
+                </label>
+                <span style="font-size: 10px; color: var(--text-faint); font-family: var(--font-mono);">
+                  Optional but Recommended
+                </span>
+              </div>
+              <p style="color: var(--text-muted); font-size: 11px; margin-bottom: 12px; line-height: 1.4;">
+                Authorized persons can withdraw emergency funds on your behalf. Before release, the system will strictly require your <strong>real-time 5-minute OTP approval</strong>.
+              </p>
 
-          <!-- Trusted Emergency Contacts & Authorized Representatives -->
-          <div
-            class="field"
-            id="reg-emergency-contacts-section"
-            style="
-              background: var(--bg-inset);
-              border: 1px solid var(--border-strong);
-              border-radius: 14px;
-              padding: 16px;
-              margin-top: 16px;
-            "
-          >
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <label style="color: var(--primary); font-size: 13px; font-weight: 600; margin: 0;">
-                🛡️ Trusted Emergency Contacts &amp; Authorized Representatives
-              </label>
-              <span style="font-size: 10px; color: var(--text-faint); font-family: var(--font-mono);">
-                Optional but Recommended
-              </span>
-            </div>
-            <p style="color: var(--text-muted); font-size: 11px; margin-bottom: 12px; line-height: 1.4;">
-              Authorized persons can withdraw emergency funds on your behalf. Before release, the system will strictly require your <strong>real-time 5-minute OTP approval</strong>.
-            </p>
-
-            <div id="reg-emergency-contacts-list" style="display: flex; flex-direction: column; gap: 10px;">
-              <!-- Contact Row 1 -->
-              <div class="emergency-contact-row" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px;">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
-                  <div>
-                    <label style="font-size: 11px;">Full Name *</label>
-                    <input class="reg-ec-name" placeholder="e.g. Priya Sharma" autocomplete="off" />
+              <div id="reg-emergency-contacts-list" style="display: flex; flex-direction: column; gap: 10px;">
+                <!-- Contact Row 1 -->
+                <div class="emergency-contact-row" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px;">
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+                    <div>
+                      <label style="font-size: 11px;">Full Name *</label>
+                      <input
+                        class="reg-ec-name"
+                        type="text"
+                        maxlength="80"
+                        placeholder="e.g. Priya Sharma"
+                        autocomplete="name"
+                      />
+                    </div>
+                    <div>
+                      <label style="font-size: 11px;">10-Digit Mobile *</label>
+                      <input
+                        class="reg-ec-phone"
+                        type="tel"
+                        placeholder="9876543210"
+                        inputmode="numeric"
+                        maxlength="10"
+                        autocomplete="tel"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label style="font-size: 11px;">10-Digit Mobile *</label>
-                    <input class="reg-ec-phone" placeholder="9876543210" inputmode="numeric" maxlength="10" autocomplete="off" />
-                  </div>
-                </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                  <div>
-                    <label style="font-size: 11px;">Relationship</label>
-                    <select class="reg-ec-relation">
-                      <option value="Spouse">Spouse</option>
-                      <option value="Parent">Parent</option>
-                      <option value="Child">Child / Son / Daughter</option>
-                      <option value="Sibling">Sibling / Brother / Sister</option>
-                      <option value="Caregiver">Designated Caregiver</option>
-                      <option value="Legal Representative">Legal Representative / Attorney</option>
-                      <option value="Trusted Relative">Trusted Relative / Friend</option>
-                      <option value="Other">Other Authorized Person</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label style="font-size: 11px;">Gov ID Proof (Optional)</label>
-                    <input class="reg-ec-idnum" placeholder="Aadhaar/PAN/DL (Optional)" autocomplete="off" />
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <div>
+                      <label style="font-size: 11px;">Relationship</label>
+                      <select class="reg-ec-relation">
+                        <option value="Spouse">Spouse</option>
+                        <option value="Parent">Parent</option>
+                        <option value="Child">Child / Son / Daughter</option>
+                        <option value="Sibling">Sibling / Brother / Sister</option>
+                        <option value="Caregiver">Designated Caregiver</option>
+                        <option value="Legal Representative">Legal Representative / Attorney</option>
+                        <option value="Trusted Relative">Trusted Relative / Friend</option>
+                        <option value="Other">Other Authorized Person</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style="font-size: 11px;">Gov ID Proof (Optional)</label>
+                      <input
+                        class="reg-ec-idnum"
+                        type="text"
+                        maxlength="30"
+                        placeholder="Aadhaar/PAN/DL (Optional)"
+                        autocomplete="off"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
+
+              <button
+                type="button"
+                class="mini-btn"
+                style="margin-top: 10px; width: 100%; justify-content: center; font-size: 11.5px;"
+                onclick="addRegistrationEmergencyContactRow()"
+              >
+                + Add Another Authorized Contact
+              </button>
             </div>
 
-            <button
-              type="button"
-              class="mini-btn"
-              style="margin-top: 10px; width: 100%; justify-content: center; font-size: 11.5px;"
-              onclick="addRegistrationEmergencyContactRow()"
-            >
-              + Add Another Authorized Contact
-            </button>
-          </div>
-
-          <div class="modal-msg" id="reg-msg"></div>
-          <div class="btn-row">
-            <button class="btn btn-ghost" onclick="goTo('screen-welcome')">Back</button>
-            <button class="btn btn-primary" onclick="proceedToBiometrics()">
-              Continue to Face Scan &rarr;
-            </button>
-          </div>
+            <div class="modal-msg" id="reg-msg"></div>
+            <div class="btn-row">
+              <button type="button" class="btn btn-ghost" onclick="goTo('screen-welcome')">Back</button>
+              <button type="submit" class="btn btn-primary">
+                Continue to Face Scan &rarr;
+              </button>
+            </div>
+          </form>
         </div>
       </div>
 
@@ -420,23 +453,26 @@
             <p class="lead">
               Biometric identity verified. Enter your 4-digit PIN to access accounts.
             </p>
-            <div class="field">
-              <label>4-Digit Security PIN</label>
-              <input
-                id="login-pin-input"
-                placeholder="••••"
-                maxlength="4"
-                type="password"
-                inputmode="numeric"
-              />
-            </div>
-            <div class="modal-msg" id="login-pin-msg"></div>
-            <div class="btn-row">
-              <button class="btn btn-ghost" onclick="goTo('screen-welcome')">Cancel</button>
-              <button class="btn btn-primary" onclick="submitLoginPin()">
-                Authorize &amp; Enter
-              </button>
-            </div>
+            <form id="form-login-pin" onsubmit="event.preventDefault(); submitLoginPin();">
+              <div class="field">
+                <label>4-Digit Security PIN</label>
+                <input
+                  id="login-pin-input"
+                  placeholder="••••"
+                  maxlength="4"
+                  type="password"
+                  inputmode="numeric"
+                  autocomplete="current-password"
+                />
+              </div>
+              <div class="modal-msg" id="login-pin-msg"></div>
+              <div class="btn-row">
+                <button type="button" class="btn btn-ghost" onclick="goTo('screen-welcome')">Cancel</button>
+                <button type="submit" class="btn btn-primary">
+                  Authorize &amp; Enter
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       </div>
@@ -449,25 +485,35 @@
           <p class="lead">
             Direct authorization for customers using standard security credentials.
           </p>
-          <div class="field">
-            <label>Last 4 Digits of Aadhaar</label>
-            <input id="pin-login-aadhaar" placeholder="••••" maxlength="4" inputmode="numeric" />
-          </div>
-          <div class="field">
-            <label>4-Digit PIN</label>
-            <input
-              id="pin-login-pin"
-              placeholder="••••"
-              maxlength="4"
-              type="password"
-              inputmode="numeric"
-            />
-          </div>
-          <div class="modal-msg" id="pin-login-msg"></div>
-          <div class="btn-row">
-            <button class="btn btn-ghost" onclick="goTo('screen-welcome')">Back</button>
-            <button class="btn btn-primary" onclick="attemptPinDirectLogin()">Sign In</button>
-          </div>
+          <form id="form-pin-login" onsubmit="event.preventDefault(); attemptPinDirectLogin();">
+            <div class="field">
+              <label>Last 4 Digits of Aadhaar</label>
+              <input
+                id="pin-login-aadhaar"
+                type="text"
+                placeholder="••••"
+                maxlength="4"
+                inputmode="numeric"
+                autocomplete="off"
+              />
+            </div>
+            <div class="field">
+              <label>4-Digit PIN</label>
+              <input
+                id="pin-login-pin"
+                placeholder="••••"
+                maxlength="4"
+                type="password"
+                inputmode="numeric"
+                autocomplete="current-password"
+              />
+            </div>
+            <div class="modal-msg" id="pin-login-msg"></div>
+            <div class="btn-row">
+              <button type="button" class="btn btn-ghost" onclick="goTo('screen-welcome')">Back</button>
+              <button type="submit" class="btn btn-primary">Sign In</button>
+            </div>
+          </form>
         </div>
       </div>
 
@@ -480,35 +526,40 @@
             Authorized trusted contacts can disburse approved withdrawals using the senior citizen's
             delegation OTP.
           </p>
-          <div class="field">
-            <label>Senior Citizen's Full Name</label>
-            <input
-              id="delegate-collect-name"
-              placeholder="e.g. Ramesh Chandra"
-              autocomplete="off"
-            />
-          </div>
-          <div class="field">
-            <label>6-Digit Authorization OTP</label>
-            <input
-              id="delegate-collect-otp"
-              maxlength="6"
-              inputmode="numeric"
-              placeholder="••••••"
-              autocomplete="off"
-            />
-          </div>
-          <div class="modal-msg" id="delegate-collect-msg"></div>
-          <div class="btn-row">
-            <button class="btn btn-ghost" onclick="goTo('screen-welcome')">Back</button>
-            <button
-              class="btn btn-primary"
-              id="delegate-claim-btn"
-              onclick="attemptDelegateWithdraw()"
-            >
-              Verify &amp; Disburse
-            </button>
-          </div>
+          <form id="form-delegate-collect" onsubmit="event.preventDefault(); attemptDelegateWithdraw();">
+            <div class="field">
+              <label>Senior Citizen's Full Name</label>
+              <input
+                id="delegate-collect-name"
+                type="text"
+                maxlength="80"
+                placeholder="e.g. Ramesh Chandra"
+                autocomplete="name"
+              />
+            </div>
+            <div class="field">
+              <label>6-Digit Authorization OTP</label>
+              <input
+                id="delegate-collect-otp"
+                type="text"
+                maxlength="6"
+                inputmode="numeric"
+                placeholder="••••••"
+                autocomplete="one-time-code"
+              />
+            </div>
+            <div class="modal-msg" id="delegate-collect-msg"></div>
+            <div class="btn-row">
+              <button type="button" class="btn btn-ghost" onclick="goTo('screen-welcome')">Back</button>
+              <button
+                type="submit"
+                class="btn btn-primary"
+                id="delegate-claim-btn"
+              >
+                Verify &amp; Disburse
+              </button>
+            </div>
+          </form>
         </div>
       </div>
 
@@ -878,8 +929,11 @@
                     <input
                       class="table-search-input"
                       id="tx-search-input"
+                      type="search"
+                      maxlength="100"
                       placeholder="Search transactions…"
                       oninput="handleTransactionSearch(this.value)"
+                      autocomplete="off"
                     />
                   </div>
 
@@ -1071,70 +1125,84 @@
                     Transfer money to verified beneficiaries with real-time biometric authorization.
                   </p>
 
-                  <div class="field">
-                    <label>Debiting Account</label>
-                    <select id="transfer-source-select"></select>
-                  </div>
-
-                  <div class="field">
-                    <label>Beneficiary Name</label>
-                    <input
-                      id="transfer-dest-name"
-                      placeholder="e.g. Rohan Sharma"
-                      autocomplete="off"
-                    />
-                  </div>
-
-                  <div class="field">
-                    <label>Transfer Amount (₹)</label>
-                    <input id="transfer-amount" inputmode="numeric" placeholder="0" />
-                  </div>
-
-                  <div class="chip-row">
-                    <div
-                      class="chip"
-                      onclick="document.getElementById('transfer-amount').value = 500"
-                    >
-                      ₹500
+                  <form id="form-transfer" onsubmit="event.preventDefault(); initiateTransferWorkflow();">
+                    <div class="field">
+                      <label>Debiting Account</label>
+                      <select id="transfer-source-select"></select>
                     </div>
-                    <div
-                      class="chip"
-                      onclick="document.getElementById('transfer-amount').value = 1000"
-                    >
-                      ₹1,000
-                    </div>
-                    <div
-                      class="chip"
-                      onclick="document.getElementById('transfer-amount').value = 2500"
-                    >
-                      ₹2,500
-                    </div>
-                    <div
-                      class="chip"
-                      onclick="document.getElementById('transfer-amount').value = 5000"
-                    >
-                      ₹5,000
-                    </div>
-                  </div>
 
-                  <div class="field">
-                    <label>Payment Purpose / Memo</label>
-                    <input
-                      id="transfer-memo"
-                      placeholder="e.g. Rent, invoice payment"
-                      autocomplete="off"
-                    />
-                  </div>
+                    <div class="field">
+                      <label>Beneficiary Name</label>
+                      <input
+                        id="transfer-dest-name"
+                        type="text"
+                        maxlength="80"
+                        placeholder="e.g. Rohan Sharma"
+                        autocomplete="name"
+                      />
+                    </div>
 
-                  <div class="modal-msg" id="transfer-msg"></div>
+                    <div class="field">
+                      <label>Transfer Amount (₹)</label>
+                      <input
+                        id="transfer-amount"
+                        type="number"
+                        inputmode="numeric"
+                        maxlength="10"
+                        min="1"
+                        max="10000000"
+                        placeholder="0"
+                      />
+                    </div>
 
-                  <button
-                    class="btn btn-indigo"
-                    style="margin-top: 10px"
-                    onclick="initiateTransferWorkflow()"
-                  >
-                    Proceed to Biometric Authorization Gate &rarr;
-                  </button>
+                    <div class="chip-row">
+                      <div
+                        class="chip"
+                        onclick="document.getElementById('transfer-amount').value = 500"
+                      >
+                        ₹500
+                      </div>
+                      <div
+                        class="chip"
+                        onclick="document.getElementById('transfer-amount').value = 1000"
+                      >
+                        ₹1,000
+                      </div>
+                      <div
+                        class="chip"
+                        onclick="document.getElementById('transfer-amount').value = 2500"
+                      >
+                        ₹2,500
+                      </div>
+                      <div
+                        class="chip"
+                        onclick="document.getElementById('transfer-amount').value = 5000"
+                      >
+                        ₹5,000
+                      </div>
+                    </div>
+
+                    <div class="field">
+                      <label>Payment Purpose / Memo</label>
+                      <input
+                        id="transfer-memo"
+                        type="text"
+                        maxlength="150"
+                        placeholder="e.g. Rent, invoice payment"
+                        autocomplete="off"
+                      />
+                    </div>
+
+                    <div class="modal-msg" id="transfer-msg"></div>
+
+                    <button
+                      type="submit"
+                      class="btn btn-indigo"
+                      style="margin-top: 10px"
+                    >
+                      Proceed to Biometric Authorization Gate &rarr;
+                    </button>
+                  </form>
                 </div>
               </div>
 
@@ -1170,8 +1238,11 @@
                     </div>
                     <input
                       class="table-search-input"
+                      type="search"
+                      maxlength="100"
                       placeholder="Filter ledger records…"
                       oninput="handleTransactionSearch(this.value)"
+                      autocomplete="off"
                     />
                   </div>
 
@@ -1398,29 +1469,32 @@
                     This will permanently delete your account and all associated data. This action
                     is irreversible. To confirm, enter your 4-digit security PIN below.
                   </p>
-                  <div class="field">
-                    <label>Confirm 4-digit PIN</label>
-                    <input
-                      id="delete-pin-input"
-                      maxlength="4"
-                      type="password"
-                      inputmode="numeric"
-                      placeholder="••••"
-                    />
-                  </div>
-                  <div class="modal-msg" id="delete-account-msg"></div>
-                  <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px">
-                    <button class="btn btn-ghost" onclick="closeModal('delete-account')">
-                      Cancel
-                    </button>
-                    <button
-                      class="btn btn-danger"
-                      id="delete-account-btn"
-                      onclick="confirmDeleteAccount()"
-                    >
-                      Delete Permanently
-                    </button>
-                  </div>
+                  <form id="form-delete-account" onsubmit="event.preventDefault(); confirmDeleteAccount();">
+                    <div class="field">
+                      <label>Confirm 4-digit PIN</label>
+                      <input
+                        id="delete-pin-input"
+                        maxlength="4"
+                        type="password"
+                        inputmode="numeric"
+                        placeholder="••••"
+                        autocomplete="current-password"
+                      />
+                    </div>
+                    <div class="modal-msg" id="delete-account-msg"></div>
+                    <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px">
+                      <button type="button" class="btn btn-ghost" onclick="closeModal('delete-account')">
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        class="btn btn-danger"
+                        id="delete-account-btn"
+                      >
+                        Delete Permanently
+                      </button>
+                    </div>
+                  </form>
                 </div>
               </div>
             </div>
@@ -1602,6 +1676,8 @@
           <span>🔍</span>
           <input
             id="cmd-input"
+            type="search"
+            maxlength="150"
             placeholder="Type a command or search (e.g. transfer, statement, security)..."
             oninput="handleCommandInput(this.value)"
             autocomplete="off"
@@ -1685,20 +1761,30 @@
         <p class="lead">
           Select or enter the amount to withdraw from your primary digital account.
         </p>
-        <div class="chip-row">
-          <div class="chip" onclick="setAmt('withdraw', 500)">₹500</div>
-          <div class="chip" onclick="setAmt('withdraw', 1000)">₹1,000</div>
-          <div class="chip" onclick="setAmt('withdraw', 2000)">₹2,000</div>
-          <div class="chip" onclick="setAmt('withdraw', 5000)">₹5,000</div>
-        </div>
-        <div class="field">
-          <label>Amount (₹)</label>
-          <input id="withdraw-amt" inputmode="numeric" placeholder="0" />
-        </div>
-        <div class="modal-msg" id="withdraw-msg"></div>
-        <button class="btn btn-primary" style="margin-top: 10px" onclick="confirmWithdraw()">
-          Proceed to Biometric Authorization
-        </button>
+        <form id="form-withdraw" onsubmit="event.preventDefault(); confirmWithdraw();">
+          <div class="chip-row">
+            <div class="chip" onclick="setAmt('withdraw', 500)">₹500</div>
+            <div class="chip" onclick="setAmt('withdraw', 1000)">₹1,000</div>
+            <div class="chip" onclick="setAmt('withdraw', 2000)">₹2,000</div>
+            <div class="chip" onclick="setAmt('withdraw', 5000)">₹5,000</div>
+          </div>
+          <div class="field">
+            <label>Amount (₹)</label>
+            <input
+              id="withdraw-amt"
+              type="number"
+              inputmode="numeric"
+              maxlength="10"
+              min="1"
+              max="1000000"
+              placeholder="0"
+            />
+          </div>
+          <div class="modal-msg" id="withdraw-msg"></div>
+          <button type="submit" class="btn btn-primary" style="margin-top: 10px">
+            Proceed to Biometric Authorization
+          </button>
+        </form>
       </div>
     </div>
 
@@ -1711,24 +1797,40 @@
         <p class="lead">
           Send funds securely to another verified account holder or external beneficiary.
         </p>
-        <div class="field">
-          <label>Beneficiary Full Name</label>
-          <input id="send-external-name" placeholder="e.g. Rohan Sharma" autocomplete="off" />
-        </div>
-        <div class="chip-row">
-          <div class="chip" onclick="setAmt('send', 500)">₹500</div>
-          <div class="chip" onclick="setAmt('send', 1000)">₹1,000</div>
-          <div class="chip" onclick="setAmt('send', 2500)">₹2,500</div>
-          <div class="chip" onclick="setAmt('send', 5000)">₹5,000</div>
-        </div>
-        <div class="field">
-          <label>Transfer Amount (₹)</label>
-          <input id="send-amt" inputmode="numeric" placeholder="0" />
-        </div>
-        <div class="modal-msg" id="send-msg"></div>
-        <button class="btn btn-indigo" style="margin-top: 10px" onclick="confirmSend()">
-          Proceed to Authorization
-        </button>
+        <form id="form-send" onsubmit="event.preventDefault(); confirmSend();">
+          <div class="field">
+            <label>Beneficiary Full Name</label>
+            <input
+              id="send-external-name"
+              type="text"
+              maxlength="80"
+              placeholder="e.g. Rohan Sharma"
+              autocomplete="name"
+            />
+          </div>
+          <div class="chip-row">
+            <div class="chip" onclick="setAmt('send', 500)">₹500</div>
+            <div class="chip" onclick="setAmt('send', 1000)">₹1,000</div>
+            <div class="chip" onclick="setAmt('send', 2500)">₹2,500</div>
+            <div class="chip" onclick="setAmt('send', 5000)">₹5,000</div>
+          </div>
+          <div class="field">
+            <label>Transfer Amount (₹)</label>
+            <input
+              id="send-amt"
+              type="number"
+              inputmode="numeric"
+              maxlength="10"
+              min="1"
+              max="1000000"
+              placeholder="0"
+            />
+          </div>
+          <div class="modal-msg" id="send-msg"></div>
+          <button type="submit" class="btn btn-indigo" style="margin-top: 10px">
+            Proceed to Authorization
+          </button>
+        </form>
       </div>
     </div>
 
@@ -1783,16 +1885,19 @@
             Use 4-digit security PIN instead
           </button>
           <div id="verify-pin-block" style="display: none; width: 100%">
-            <div class="field" style="margin-bottom: 8px">
-              <input
-                id="verify-pin-input"
-                placeholder="4-digit PIN"
-                maxlength="4"
-                type="password"
-                inputmode="numeric"
-              />
-            </div>
-            <button class="btn btn-primary" onclick="submitVerifyPin()">Authorize with PIN</button>
+            <form id="form-verify-pin" onsubmit="event.preventDefault(); submitVerifyPin();">
+              <div class="field" style="margin-bottom: 8px">
+                <input
+                  id="verify-pin-input"
+                  placeholder="4-digit PIN"
+                  maxlength="4"
+                  type="password"
+                  inputmode="numeric"
+                  autocomplete="current-password"
+                />
+              </div>
+              <button type="submit" class="btn btn-primary">Authorize with PIN</button>
+            </form>
           </div>
         </div>
         <div class="modal-msg" id="verify-msg"></div>
@@ -1808,24 +1913,39 @@
         <p class="lead">
           Link an external savings, current, or digital card to your iCash profile.
         </p>
-        <div class="field">
-          <label>Bank Name / Financial Institution</label>
-          <input id="new-acc-bank" placeholder="e.g. State Bank of India, HDFC, ICICI" />
-        </div>
-        <div class="field">
-          <label>Account Type</label>
-          <select id="new-acc-type">
-            <option value="SAVINGS">Savings Account</option>
-            <option value="CURRENT">Current Account</option>
-            <option value="VIRTUAL">Virtual Debit Card</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Opening / Current Balance (₹)</label>
-          <input id="new-acc-bal" placeholder="0" inputmode="numeric" />
-        </div>
-        <div class="modal-msg" id="add-acc-msg"></div>
-        <button class="btn btn-primary" onclick="submitAddAccount()">Link Account</button>
+        <form id="form-add-account" onsubmit="event.preventDefault(); submitAddAccount();">
+          <div class="field">
+            <label>Bank Name / Financial Institution</label>
+            <input
+              id="new-acc-bank"
+              type="text"
+              maxlength="80"
+              placeholder="e.g. State Bank of India, HDFC, ICICI"
+              autocomplete="off"
+            />
+          </div>
+          <div class="field">
+            <label>Account Type</label>
+            <select id="new-acc-type">
+              <option value="SAVINGS">Savings Account</option>
+              <option value="CURRENT">Current Account</option>
+              <option value="VIRTUAL">Virtual Debit Card</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Opening / Current Balance (₹)</label>
+            <input
+              id="new-acc-bal"
+              type="number"
+              inputmode="numeric"
+              maxlength="10"
+              min="0"
+              placeholder="0"
+            />
+          </div>
+          <div class="modal-msg" id="add-acc-msg"></div>
+          <button type="submit" class="btn btn-primary">Link Account</button>
+        </form>
       </div>
     </div>
 
@@ -1836,20 +1956,29 @@
         <div class="eyebrow">Customer Protection</div>
         <h2>File a Grievance or Dispute</h2>
         <p class="lead">Submit an official complaint ticket for administrative review.</p>
-        <div class="field">
-          <label>Subject</label>
-          <input id="complaint-subject" placeholder="e.g. Transaction dispute, billing inquiry" />
-        </div>
-        <div class="field">
-          <label>Incident Summary</label>
-          <textarea
-            id="complaint-desc"
-            rows="3"
-            placeholder="Describe the discrepancy in detail..."
-          ></textarea>
-        </div>
-        <div class="modal-msg" id="complaint-msg"></div>
-        <button class="btn btn-primary" onclick="submitComplaint()">Submit Grievance Ticket</button>
+        <form id="form-complaint" onsubmit="event.preventDefault(); submitComplaint();">
+          <div class="field">
+            <label>Subject</label>
+            <input
+              id="complaint-subject"
+              type="text"
+              maxlength="150"
+              placeholder="e.g. Transaction dispute, billing inquiry"
+              autocomplete="off"
+            />
+          </div>
+          <div class="field">
+            <label>Incident Summary</label>
+            <textarea
+              id="complaint-desc"
+              rows="3"
+              maxlength="1000"
+              placeholder="Describe the discrepancy in detail..."
+            ></textarea>
+          </div>
+          <div class="modal-msg" id="complaint-msg"></div>
+          <button type="submit" class="btn btn-primary">Submit Grievance Ticket</button>
+        </form>
       </div>
     </div>
 
@@ -1860,16 +1989,31 @@
         <div class="eyebrow">Point of Sale</div>
         <h2>Create Payment Request</h2>
         <p class="lead">Generate a dynamic checkout reference for customer billing.</p>
-        <div class="field">
-          <label>Billing Amount (₹)</label>
-          <input id="payreq-amt" inputmode="numeric" placeholder="0" />
-        </div>
-        <div class="field">
-          <label>Invoice Memo</label>
-          <input id="payreq-desc" placeholder="e.g. Counter Checkout #104" />
-        </div>
-        <div class="modal-msg" id="payreq-msg"></div>
-        <button class="btn btn-primary" onclick="submitPaymentRequest()">Generate POS Code</button>
+        <form id="form-payreq" onsubmit="event.preventDefault(); submitPaymentRequest();">
+          <div class="field">
+            <label>Billing Amount (₹)</label>
+            <input
+              id="payreq-amt"
+              type="number"
+              inputmode="numeric"
+              maxlength="10"
+              min="1"
+              placeholder="0"
+            />
+          </div>
+          <div class="field">
+            <label>Invoice Memo</label>
+            <input
+              id="payreq-desc"
+              type="text"
+              maxlength="150"
+              placeholder="e.g. Counter Checkout #104"
+              autocomplete="off"
+            />
+          </div>
+          <div class="modal-msg" id="payreq-msg"></div>
+          <button type="submit" class="btn btn-primary">Generate POS Code</button>
+        </form>
       </div>
     </div>
 
@@ -1886,91 +2030,104 @@
             Withdraw cash on behalf of an account holder during emergencies. The system will verify authorization and dispatch a real-time <strong>5-minute OTP</strong> to the account holder's registered mobile.
           </p>
 
-          <div class="field">
-            <label>Account Holder Identifier *</label>
-            <input
-              id="emg-acc-identifier"
-              placeholder="Account holder's 10-digit mobile, Aadhaar last 4, or full name"
-              autocomplete="off"
-            />
-          </div>
-
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <form id="form-emergency-request" onsubmit="event.preventDefault(); submitEmergencyWithdrawalRequest();">
             <div class="field">
-              <label>Your Full Name (Representative) *</label>
+              <label>Account Holder Identifier *</label>
               <input
-                id="emg-auth-name"
-                placeholder="As registered with account holder"
+                id="emg-acc-identifier"
+                type="text"
+                maxlength="80"
+                placeholder="Account holder's 10-digit mobile, Aadhaar last 4, or full name"
                 autocomplete="off"
               />
             </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div class="field">
+                <label>Your Full Name (Representative) *</label>
+                <input
+                  id="emg-auth-name"
+                  type="text"
+                  maxlength="80"
+                  placeholder="As registered with account holder"
+                  autocomplete="name"
+                />
+              </div>
+              <div class="field">
+                <label>Your Mobile Number *</label>
+                <input
+                  id="emg-auth-phone"
+                  type="tel"
+                  placeholder="10-digit mobile number"
+                  inputmode="numeric"
+                  maxlength="10"
+                  autocomplete="tel"
+                />
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div class="field">
+                <label>Your Gov ID Type</label>
+                <select id="emg-auth-idtype">
+                  <option value="Aadhaar Card">Aadhaar Card</option>
+                  <option value="PAN Card">PAN Card</option>
+                  <option value="Driving License">Driving License</option>
+                  <option value="Voter ID">Voter ID</option>
+                  <option value="Passport">Passport</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Your Gov ID Number</label>
+                <input
+                  id="emg-auth-idnum"
+                  type="text"
+                  maxlength="30"
+                  placeholder="e.g. XXXX XXXX 1234"
+                  autocomplete="off"
+                />
+              </div>
+            </div>
+
             <div class="field">
-              <label>Your Mobile Number *</label>
+              <label>Withdrawal Amount (₹) *</label>
               <input
-                id="emg-auth-phone"
-                placeholder="10-digit mobile number"
+                id="emg-amount"
+                type="number"
+                placeholder="e.g. 5000"
                 inputmode="numeric"
                 maxlength="10"
-                autocomplete="off"
+                min="100"
+                max="1000000"
               />
+              <div class="chip-row" style="margin-top: 6px;">
+                <div class="chip" onclick="document.getElementById('emg-amount').value = 1000">₹1,000</div>
+                <div class="chip" onclick="document.getElementById('emg-amount').value = 2000">₹2,000</div>
+                <div class="chip" onclick="document.getElementById('emg-amount').value = 5000">₹5,000</div>
+                <div class="chip" onclick="document.getElementById('emg-amount').value = 10000">₹10,000</div>
+              </div>
             </div>
-          </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
             <div class="field">
-              <label>Your Gov ID Type</label>
-              <select id="emg-auth-idtype">
-                <option value="Aadhaar Card">Aadhaar Card</option>
-                <option value="PAN Card">PAN Card</option>
-                <option value="Driving License">Driving License</option>
-                <option value="Voter ID">Voter ID</option>
-                <option value="Passport">Passport</option>
-              </select>
-            </div>
-            <div class="field">
-              <label>Your Gov ID Number</label>
+              <label>Emergency Reason</label>
               <input
-                id="emg-auth-idnum"
-                placeholder="e.g. XXXX XXXX 1234"
+                id="emg-reason"
+                type="text"
+                maxlength="200"
+                placeholder="e.g. Medical emergency, urgent prescription, travel assistance"
                 autocomplete="off"
               />
             </div>
-          </div>
 
-          <div class="field">
-            <label>Withdrawal Amount (₹) *</label>
-            <input
-              id="emg-amount"
-              type="number"
-              placeholder="e.g. 5000"
-              inputmode="numeric"
-              min="100"
-            />
-            <div class="chip-row" style="margin-top: 6px;">
-              <div class="chip" onclick="document.getElementById('emg-amount').value = 1000">₹1,000</div>
-              <div class="chip" onclick="document.getElementById('emg-amount').value = 2000">₹2,000</div>
-              <div class="chip" onclick="document.getElementById('emg-amount').value = 5000">₹5,000</div>
-              <div class="chip" onclick="document.getElementById('emg-amount').value = 10000">₹10,000</div>
+            <div class="modal-msg" id="emg-msg-1"></div>
+
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px;">
+              <button type="button" class="btn btn-ghost" onclick="closeEmergencyWithdrawalModal()">Cancel</button>
+              <button type="submit" class="btn btn-danger" id="emg-submit-req-btn">
+                Verify &amp; Dispatch 5-Min OTP &rarr;
+              </button>
             </div>
-          </div>
-
-          <div class="field">
-            <label>Emergency Reason</label>
-            <input
-              id="emg-reason"
-              placeholder="e.g. Medical emergency, urgent prescription, travel assistance"
-              autocomplete="off"
-            />
-          </div>
-
-          <div class="modal-msg" id="emg-msg-1"></div>
-
-          <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px;">
-            <button class="btn btn-ghost" onclick="closeEmergencyWithdrawalModal()">Cancel</button>
-            <button class="btn btn-danger" id="emg-submit-req-btn" onclick="submitEmergencyWithdrawalRequest()">
-              Verify &amp; Dispatch 5-Min OTP &rarr;
-            </button>
-          </div>
+          </form>
         </div>
 
         <!-- STEP 2: LIVE 5-MINUTE OTP VERIFICATION -->
@@ -2003,26 +2160,29 @@
             <br /><strong>Without correct OTP verification within 5 minutes, money cannot be released.</strong>
           </p>
 
-          <div class="field" style="max-width: 260px; margin: 0 auto 12px;">
-            <label style="text-align: center;">Enter 6-Digit OTP</label>
-            <input
-              id="emg-otp-input"
-              class="otp-large-input"
-              placeholder="••••••"
-              maxlength="6"
-              inputmode="numeric"
-              autocomplete="off"
-            />
-          </div>
+          <form id="form-emergency-verify" onsubmit="event.preventDefault(); submitEmergencyWithdrawalOtp();">
+            <div class="field" style="max-width: 260px; margin: 0 auto 12px;">
+              <label style="text-align: center;">Enter 6-Digit OTP</label>
+              <input
+                id="emg-otp-input"
+                class="otp-large-input"
+                type="text"
+                placeholder="••••••"
+                maxlength="6"
+                inputmode="numeric"
+                autocomplete="one-time-code"
+              />
+            </div>
 
-          <div class="modal-msg" id="emg-msg-2"></div>
+            <div class="modal-msg" id="emg-msg-2"></div>
 
-          <div style="display: flex; gap: 10px; justify-content: center; margin-top: 16px;">
-            <button class="btn btn-ghost" onclick="resetEmergencyStep1()">Back / Edit Details</button>
-            <button class="btn btn-primary" id="emg-verify-otp-btn" onclick="submitEmergencyWithdrawalOtp()">
-              Verify OTP &amp; Authorize Cash Release
-            </button>
-          </div>
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 16px;">
+              <button type="button" class="btn btn-ghost" onclick="resetEmergencyStep1()">Back / Edit Details</button>
+              <button type="submit" class="btn btn-primary" id="emg-verify-otp-btn">
+                Verify OTP &amp; Authorize Cash Release
+              </button>
+            </div>
+          </form>
         </div>
 
         <!-- STEP 3: OFFICIAL CASH RELEASE VOUCHER -->
@@ -2087,11 +2247,23 @@
     <div id="alert-toast"></div>
 
     <!-- SCRIPTS -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"
+      integrity="sha384-CI3ELBVUz9XQO+97x6nwMDPosPR5XvsxW2ua7N1Xeygeh1IxtgqtCkGfQY9WWdHu"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"
+      integrity="sha384-M5nePoB6/w/a9JhtegEibSLGiJy/+QMZZMfvcxjWVCQW/HPwrQ7i21V/Px/8AyVA"
+      crossorigin="anonymous"
+    ></script>
     <!-- Ankur Kedia blink-detection engine (bundled MediaPipe Facemesh + TF.js) -->
     <script src="lib/blink-detection.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/appwrite@16.1.0"></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/appwrite@16.1.0/dist/iife/index.js"
+      integrity="sha384-U/lNuKoc0RgMZFDPr5DQ9qOfMwakvWKZXjUfacRGMgPY3oIaQKRJV51IbLyL0ewl"
+      crossorigin="anonymous"
+    ></script>
     <script src="config.js"></script>
     <script src="lib/appwrite.js"></script>
     <script src="api.js"></script>

@@ -29,22 +29,70 @@ const app = express();
 const PORT = Number(process.env.PORT) || 4000;
 const FRONTEND_DIR = path.join(__dirname, '..', '..', 'frontend');
 
+// Disable server fingerprinting
+app.disable('x-powered-by');
+
 app.use(
   helmet({
-    contentSecurityPolicy: false,
-    crossOriginEmbedderPolicy: false,
-    // Allow camera/mic access required for biometric face scanning
-    permissionsPolicy: {
-      features: {
-        camera: ['*'],
-        microphone: ['*'],
-        geolocation: ['*'],
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: [
+          "'self'",
+          "'unsafe-inline'",
+          "'wasm-unsafe-eval'",
+          'https://cdn.jsdelivr.net',
+          'https://sfo.cloud.appwrite.io',
+          'https://*.supabase.co',
+        ],
+        styleSrc: [
+          "'self'",
+          "'unsafe-inline'",
+          'https://fonts.googleapis.com',
+          'https://cdn.jsdelivr.net',
+        ],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+        imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+        connectSrc: [
+          "'self'",
+          'http://localhost:*',
+          'http://127.0.0.1:*',
+          'https://sfo.cloud.appwrite.io',
+          'https://*.supabase.co',
+          'https://cdn.jsdelivr.net',
+          'https:',
+          'ws:',
+          'wss:',
+        ],
+        mediaSrc: ["'self'", 'blob:', 'data:'],
+        objectSrc: ["'none'"],
+        frameSrc: ["'none'"],
+        workerSrc: ["'self'", 'blob:'],
+        upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null,
       },
     },
-    // Allow CDN resources (face-api models, three.js) to load cross-origin
+    hsts: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true,
+    },
+    crossOriginOpenerPolicy: { policy: 'same-origin' },
     crossOriginResourcePolicy: { policy: 'cross-origin' },
+    crossOriginEmbedderPolicy: false,
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   })
 );
+
+// Explicit Security & Permissions Headers & Server Cloaking
+app.use((req, res, next) => {
+  res.setHeader(
+    'Permissions-Policy',
+    'camera=(self), microphone=(), geolocation=(), payment=(self), interest-cohort=()'
+  );
+  res.removeHeader('Server');
+  res.removeHeader('X-Powered-By');
+  next();
+});
 
 app.use(
   cors({

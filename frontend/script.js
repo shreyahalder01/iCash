@@ -386,11 +386,11 @@ function addRegistrationEmergencyContactRow() {
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
       <div>
         <label style="font-size: 11px;">Full Name *</label>
-        <input class="reg-ec-name" placeholder="Full Name" autocomplete="off" />
+        <input class="reg-ec-name" type="text" maxlength="80" placeholder="Full Name" autocomplete="name" />
       </div>
       <div>
         <label style="font-size: 11px;">10-Digit Mobile *</label>
-        <input class="reg-ec-phone" placeholder="10-digit mobile" inputmode="numeric" maxlength="10" autocomplete="off" />
+        <input class="reg-ec-phone" type="tel" placeholder="10-digit mobile" inputmode="numeric" maxlength="10" autocomplete="tel" />
       </div>
     </div>
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
@@ -409,7 +409,7 @@ function addRegistrationEmergencyContactRow() {
       </div>
       <div>
         <label style="font-size: 11px;">Gov ID Proof (Optional)</label>
-        <input class="reg-ec-idnum" placeholder="Aadhaar/PAN/DL (Optional)" autocomplete="off" />
+        <input class="reg-ec-idnum" type="text" maxlength="30" placeholder="Aadhaar/PAN/DL (Optional)" autocomplete="off" />
       </div>
     </div>
   `;
