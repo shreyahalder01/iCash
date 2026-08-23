@@ -16,12 +16,13 @@ const FACEAPI_MODEL_URL_CDN = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api
 
 const MATCH_THRESHOLD = 0.52; // Euclidean < 0.52 = same person
 const ENROLL_SAMPLES = 5; // Auto-collected enrollment samples
-const ENROLL_INTERVAL = 160; // ms between landmark & blink checks during enrollment
-const VERIFY_INTERVAL = 150; // ms between frames for fast real-time blink detection
+const ENROLL_INTERVAL = 100; // ms between landmark & blink checks during enrollment (fast 10fps)
+const VERIFY_INTERVAL = 100; // ms between frames for lightning-fast real-time double blink detection
 const REQUIRED_MATCHES = 2; // Consecutive matching frames to confirm identity
+const REQUIRED_BLINKS = 2; // Strict requirement: must blink 2 times
 
 function _getDetectOptions() {
-  // 320px input size is fast (~30ms per frame on mobile/web) to reliably catch 150ms natural eye blinks
+  // 320px input size is fast (~20ms per frame on mobile/web) to reliably catch 150ms natural eye blinks
   return new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.45 });
 }
 
@@ -104,7 +105,8 @@ function calculateEAR(eyePoints) {
 }
 
 class ClientBlinkDetector {
-  constructor() {
+  constructor(requiredBlinks = REQUIRED_BLINKS) {
+    this.requiredBlinks = requiredBlinks;
     this.reset();
   }
 
@@ -124,6 +126,7 @@ class ClientBlinkDetector {
       return {
         hasBlinked: this.hasBlinked,
         blinkCount: this.blinkCount,
+        requiredBlinks: this.requiredBlinks,
         ear: this.currentEar,
         isClosed: this.isClosed,
       };
@@ -140,28 +143,35 @@ class ClientBlinkDetector {
       this.currentEar = ear;
 
       // Update baseline during open-eye state
-      if (!this.isClosed && ear > 0.22) {
+      if (!this.isClosed && ear > 0.21) {
         this.openEyeBaseline =
-          this.baselineSamples < 4 ? ear : this.openEyeBaseline * 0.85 + ear * 0.15;
+          this.baselineSamples < 4 ? ear : this.openEyeBaseline * 0.82 + ear * 0.18;
         this.baselineSamples++;
       }
 
-      // Dynamic closing threshold: 75% of resting baseline or <= 0.24
+      // Dynamic closing threshold: 76% of resting baseline or <= 0.245
       const closeThreshold = Math.max(0.17, Math.min(0.245, this.openEyeBaseline * 0.76));
-      // Dynamic opening threshold: 88% of baseline or >= 0.22
+      // Dynamic opening threshold: 88% of baseline or >= 0.21
       const openThreshold = Math.max(0.21, this.openEyeBaseline * 0.88);
+
+      const now = Date.now();
 
       if (ear <= closeThreshold) {
         this.closedFrames++;
         this.isClosed = true;
       } else if (ear >= openThreshold) {
         if (this.isClosed && this.closedFrames >= 1) {
-          this.blinkCount++;
-          this.hasBlinked = true;
-          this.lastBlinkTime = Date.now();
-          console.log(
-            `[iCash Biometrics] Blink detected! Count: ${this.blinkCount}, EAR: ${ear.toFixed(3)}, Baseline: ${this.openEyeBaseline.toFixed(3)}`
-          );
+          // Debounce: ensure at least 120ms between consecutive blinks
+          if (now - this.lastBlinkTime >= 120) {
+            this.blinkCount++;
+            this.lastBlinkTime = now;
+            if (this.blinkCount >= this.requiredBlinks) {
+              this.hasBlinked = true;
+            }
+            console.log(
+              `[iCash Biometrics] Blink #${this.blinkCount}/${this.requiredBlinks} detected! EAR: ${ear.toFixed(3)}, Baseline: ${this.openEyeBaseline.toFixed(3)}`
+            );
+          }
         }
         this.isClosed = false;
         this.closedFrames = 0;
@@ -173,15 +183,16 @@ class ClientBlinkDetector {
     return {
       hasBlinked: this.hasBlinked,
       blinkCount: this.blinkCount,
+      requiredBlinks: this.requiredBlinks,
       ear: this.currentEar,
       isClosed: this.isClosed,
     };
   }
 }
 
-const regBlinkDetector = new ClientBlinkDetector();
-const loginBlinkDetector = new ClientBlinkDetector();
-const gateBlinkDetector = new ClientBlinkDetector();
+const regBlinkDetector = new ClientBlinkDetector(2);
+const loginBlinkDetector = new ClientBlinkDetector(2);
+const gateBlinkDetector = new ClientBlinkDetector(2);
 
 // ── Liveness Detection Helpers (OpenCV + dlib Microservice) ───────────────────
 let activeLivenessSessionId = null;
@@ -263,7 +274,7 @@ function drawOverlay(canvas, video, detections, state, progress, blinkInfo) {
     const score = det.detection.score;
 
     let color = '#2DD4BF'; // cyan = scanning
-    if (state === 'GOOD') color = '#22C55E'; // green = matched & blink verified
+    if (state === 'GOOD') color = '#22C55E'; // green = matched & 2 blinks verified
     if (state === 'BAD') color = '#EF4444'; // red = mismatch
     if (state === 'MULTI') color = '#F59E0B'; // amber = multiple people
 
@@ -299,18 +310,21 @@ function drawOverlay(canvas, video, detections, state, progress, blinkInfo) {
     ctx.fillStyle = color;
     ctx.fillText(`${Math.round(score * 100)}% Match`, box.x + 4, box.y - 6);
 
-    // Liveness & Blink indicator badge
-    const hasBlinked = (blinkInfo && (blinkInfo.hasBlinked || blinkInfo.blinkCount >= 1)) || (currentLivenessState && currentLivenessState.live);
-    const count = (blinkInfo && blinkInfo.blinkCount) || (currentLivenessState && currentLivenessState.blink_count) || 0;
+    // Liveness & Blink indicator badge (2 blinks required)
+    const count = (blinkInfo && blinkInfo.blinkCount) || 0;
+    const hasBlinked = (blinkInfo && (blinkInfo.hasBlinked || count >= 2)) || (currentLivenessState && currentLivenessState.live);
     const ly = box.y + box.height + 16;
-    ctx.font = 'bold 11.5px sans-serif';
+    ctx.font = 'bold 12px sans-serif';
 
     if (hasBlinked) {
       ctx.fillStyle = '#22C55E';
-      ctx.fillText('✓ Liveness Verified (Blink Detected)', box.x + 4, ly);
+      ctx.fillText('✓ Liveness Verified (2/2 Blinks)', box.x + 4, ly);
+    } else if (count === 1) {
+      ctx.fillStyle = '#38BDF8';
+      ctx.fillText('👁 1st Blink OK! Blink Once More (1/2)', box.x + 4, ly);
     } else {
       ctx.fillStyle = '#F59E0B';
-      ctx.fillText(`👁 Blink Eyes for Anti-Spoof: ${count}/1`, box.x + 4, ly);
+      ctx.fillText(`👁 Blink Twice for Anti-Spoof: ${count}/2`, box.x + 4, ly);
     }
 
     // Progress bar (enrollment)
@@ -466,13 +480,14 @@ async function beginRegisterScan() {
     }
 
     const now = Date.now();
-    if (collected.length < ENROLL_SAMPLES && (now - lastSampleTime >= 350)) {
+    if (collected.length < ENROLL_SAMPLES && (now - lastSampleTime >= 250)) {
       collected.push(desc);
       lastSampleTime = now;
     }
 
     const newProgress = collected.length / ENROLL_SAMPLES;
-    const isFullyVerified = newProgress >= 1 && blinkStatus.hasBlinked;
+    const count = blinkStatus.blinkCount || 0;
+    const isFullyVerified = newProgress >= 1 && count >= 2;
 
     drawOverlay(
       overlayCanvas,
@@ -483,31 +498,18 @@ async function beginRegisterScan() {
       blinkStatus
     );
 
-    if (collected.length >= ENROLL_SAMPLES && !blinkStatus.hasBlinked) {
-      statusEl.textContent = `👁 Samples captured (${collected.length}/${ENROLL_SAMPLES}) — please blink your eyes naturally to verify liveness…`;
-      // Allow manual confirmation after 6 seconds of face positioning if glare/glasses prevent EAR drop
-      if (attempts > 40 && btn) {
-        btn.style.display = '';
-        btn.disabled = false;
-        btn.textContent = 'Confirm Face & Complete Enrollment';
-        btn.onclick = () => {
-          clearInterval(regAutoLoop);
-          _finalizeRegistration(collected.map((d) => Array.from(d)));
-        };
-      }
-      return;
+    if (count === 0) {
+      statusEl.textContent = `👁 Center face (${collected.length}/${ENROLL_SAMPLES}) — please blink your eyes 2 times (0/2 blinks)…`;
+    } else if (count === 1) {
+      statusEl.textContent = `✔ 1st blink captured! Please blink 1 more time (1/2 blinks)…`;
+    } else {
+      statusEl.textContent = `✅ 2/2 blinks confirmed! Finalizing enrollment…`;
     }
 
-    if (!blinkStatus.hasBlinked) {
-      statusEl.textContent = `✔ Sample ${collected.length}/${ENROLL_SAMPLES} captured — blink your eyes to confirm liveness…`;
-    } else if (collected.length < ENROLL_SAMPLES) {
-      statusEl.textContent = `✓ Blink confirmed! Capturing sample ${collected.length}/${ENROLL_SAMPLES} — keep still…`;
-    }
-
-    if (collected.length >= ENROLL_SAMPLES && blinkStatus.hasBlinked) {
+    if (collected.length >= ENROLL_SAMPLES && count >= 2) {
       clearInterval(regAutoLoop);
       drawOverlay(overlayCanvas, video, detections, 'GOOD', 1.0, blinkStatus);
-      statusEl.textContent = '✅ Liveness & face verified (Blink confirmed) — registering account…';
+      statusEl.textContent = '✅ Liveness & face verified (2/2 blinks) — registering account…';
       await _finalizeRegistration(collected.map((d) => Array.from(d)));
     }
   }, ENROLL_INTERVAL);
@@ -721,28 +723,22 @@ async function beginLoginScan() {
     }
 
     consecutiveMatches++;
+    const count = blinkStatus.blinkCount || 0;
 
-    if (!blinkStatus.hasBlinked) {
+    if (count < 2) {
       drawOverlay(overlayCanvas, video, detections, 'SCAN', undefined, blinkStatus);
-      statusEl.textContent = `✔ Face matched (${Math.round((1 - dist / MATCH_THRESHOLD) * 100)}%) — please blink your eyes to sign in…`;
-      // If recognized for over 6 seconds, show quick PIN bypass
-      if (attempts > 35 && btn) {
-        btn.style.display = '';
-        btn.disabled = false;
-        btn.textContent = 'Face Recognized · Sign In with PIN';
-        btn.onclick = () => {
-          clearInterval(loginAutoLoop);
-          teardownLoginScan();
-          promptLoginPin(targetUser, 0.9);
-        };
+      if (count === 0) {
+        statusEl.textContent = `✔ Face matched (${Math.round((1 - dist / MATCH_THRESHOLD) * 100)}%) — please blink 2 times (0/2 blinks)…`;
+      } else {
+        statusEl.textContent = `✔ 1st blink verified! Blink once more to sign in (1/2 blinks)…`;
       }
       return;
     }
 
     drawOverlay(overlayCanvas, video, detections, 'GOOD', undefined, blinkStatus);
-    statusEl.textContent = `✔ Liveness & Face Verified (${consecutiveMatches}/${REQUIRED_MATCHES}) — signing in…`;
+    statusEl.textContent = `✅ 2/2 Blinks Verified — unlocking profile…`;
 
-    if (consecutiveMatches >= REQUIRED_MATCHES && blinkStatus.hasBlinked) {
+    if (consecutiveMatches >= REQUIRED_MATCHES && count >= 2) {
       clearInterval(loginAutoLoop);
       drawOverlay(overlayCanvas, video, detections, 'GOOD', undefined, blinkStatus);
       const confidence = Math.max(0, Math.min(1, 1 - dist / MATCH_THRESHOLD));
@@ -975,29 +971,25 @@ async function launchBiometricGate(title, lead) {
 
     consecutiveMatches++;
     msg.textContent = '';
+    const count = blinkStatus.blinkCount || 0;
 
-    if (!blinkStatus.hasBlinked) {
+    if (count < 2) {
       drawOverlay(overlayCanvas, video, detections, 'SCAN', undefined, blinkStatus);
-      statusEl.textContent = `✔ Account holder recognized (${Math.round((1 - dist / MATCH_THRESHOLD) * 100)}%) — please blink your eyes to authorize…`;
-      if (attempts > 35 && btn) {
-        btn.style.display = '';
-        btn.disabled = false;
-        btn.textContent = 'Approve & Authorize';
-        btn.onclick = () => {
-          clearInterval(verifyAutoLoop);
-          _finalizeVerify();
-        };
+      if (count === 0) {
+        statusEl.textContent = `✔ Account holder recognized (${Math.round((1 - dist / MATCH_THRESHOLD) * 100)}%) — please blink 2 times to authorize (0/2 blinks)…`;
+      } else {
+        statusEl.textContent = `✔ 1st blink verified! Blink once more to authorize transaction (1/2 blinks)…`;
       }
       return;
     }
 
     drawOverlay(overlayCanvas, video, detections, 'GOOD', undefined, blinkStatus);
-    statusEl.textContent = `✔ Liveness & Face Verified (${consecutiveMatches}/${REQUIRED_MATCHES}) — authorizing…`;
+    statusEl.textContent = `✅ 2/2 Blinks Verified — executing transaction…`;
 
-    if (consecutiveMatches >= REQUIRED_MATCHES && blinkStatus.hasBlinked) {
+    if (consecutiveMatches >= REQUIRED_MATCHES && count >= 2) {
       clearInterval(verifyAutoLoop);
       drawOverlay(overlayCanvas, video, detections, 'GOOD', undefined, blinkStatus);
-      statusEl.textContent = '✅ Liveness Verified (Blink confirmed) — executing transaction…';
+      statusEl.textContent = '✅ Liveness Verified (2/2 blinks) — executing transaction…';
       await _finalizeVerify();
     }
   }, VERIFY_INTERVAL);
