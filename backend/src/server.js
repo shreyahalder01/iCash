@@ -1,6 +1,11 @@
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
-require('dotenv').config();
+try {
+  const dotenv = require('dotenv');
+  dotenv.config({ path: path.join(__dirname, '..', '.env') });
+  dotenv.config();
+} catch (e) {
+  // dotenv optional in production where process.env is injected by host
+}
 
 const express = require('express');
 const helmet = require('helmet');

@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: icash-server
+    env: node
+    plan: free
+    buildCommand: npm install && node scripts/build.js
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: CORS_ORIGIN
+        value: "*"
+      - key: SMS_PROVIDER
+        value: console
+      - key: BIOMETRIC_PROVIDER
+        value: demo
