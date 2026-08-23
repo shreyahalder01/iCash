@@ -1160,13 +1160,25 @@ async function submitVerifyPin() {
 async function executePendingAction() {
   if (!pendingVerificationAction) return;
 
-  const res = await window.iCashApi.createTransaction(pendingVerificationAction);
-  if (res.ok) {
-    showAlertToast(
-      `✓ ${pendingVerificationAction.description} of ${fmtMoney(pendingVerificationAction.amount)} authorized.`
-    );
-    pendingVerificationAction = null;
-    loadDashboardData();
+  try {
+    const res = await window.iCashApi.createTransaction(pendingVerificationAction);
+    if (res.ok) {
+      showAlertToast(
+        `✓ ${pendingVerificationAction.description} of ${fmtMoney(pendingVerificationAction.amount)} authorized.`
+      );
+      pendingVerificationAction = null;
+      loadDashboardData();
+    }
+  } catch (err) {
+    if (err.status === 401) {
+      currentUser = null;
+      setTimeout(() => {
+        closeModal('verify');
+        goTo('screen-welcome');
+        showAlertToast('🔒 Session expired. Please sign in again to authorize transactions.', true);
+      }, 1800);
+    }
+    throw err;
   }
 }
 
