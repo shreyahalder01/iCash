@@ -17,29 +17,39 @@ let currentBase = (typeof window !== 'undefined' && window.__API_BASE__) || '';
 
 async function detectApiBase() {
   if (currentBase !== '') return currentBase;
+
+  // 1. If served over HTTP/HTTPS, same-origin relative URLs are always best
   if (
     typeof window !== 'undefined' &&
     window.location &&
     (window.location.protocol === 'http:' || window.location.protocol === 'https:')
   ) {
-    if (['4000', '4001', '4002', '4003'].includes(window.location.port)) {
-      currentBase = '';
-      return currentBase;
+    try {
+      const res = await fetch('/api/health', { cache: 'no-store' });
+      if (res.ok) {
+        currentBase = '';
+        return currentBase;
+      }
+    } catch (e) {
+      // If same-origin health failed, try candidates
     }
   }
 
+  // 2. Try candidate URLs (for file:// protocol or standalone development)
   for (const base of API_BASE_CANDIDATES) {
     try {
-      const res = await fetch(`${base || ''}/api/health`, { cache: 'no-store' });
+      const res = await fetch(`${base}/api/health`, { cache: 'no-store' });
       if (res.ok) {
         currentBase = base;
         return currentBase;
       }
     } catch (e) {
-      // try next candidate
+      // Try next
     }
   }
-  return 'http://localhost:4000';
+
+  currentBase = '';
+  return currentBase;
 }
 
 async function request(endpoint, options = {}) {

@@ -261,11 +261,12 @@ async function beginRegisterScan() {
   // Load models first
   const modelsOk = await ensureBioModels();
   if (!modelsOk) {
-    statusEl.textContent = '⚠ Models unavailable — click button to use fingerprint fallback.';
+    statusEl.textContent = '⚠ Models loading — click below to complete enrollment with cryptographic key.';
     statusEl.classList.add('bad');
     if (btn) {
       btn.style.display = '';
       btn.disabled = false;
+      btn.textContent = 'Enroll with Digital Key';
     }
     return;
   }
@@ -278,6 +279,11 @@ async function beginRegisterScan() {
     statusEl.textContent = cameraErrorMessage(e);
     statusEl.classList.add('bad');
     if (retryBtn) retryBtn.style.display = '';
+    if (btn) {
+      btn.style.display = '';
+      btn.disabled = false;
+      btn.textContent = 'Enroll with Digital Key';
+    }
     return;
   }
 
@@ -450,11 +456,13 @@ async function beginLoginScan() {
 
   const modelsOk = await ensureBioModels();
   if (!modelsOk) {
-    statusEl.textContent = '⚠ Face models unavailable — use PIN login instead.';
+    statusEl.textContent = '⚠ Face models unavailable — use PIN login below.';
     statusEl.classList.add('bad');
     if (btn) {
       btn.style.display = '';
       btn.disabled = false;
+      btn.textContent = 'Sign In with PIN';
+      btn.onclick = () => goTo('screen-pin-login');
     }
     return;
   }
@@ -466,6 +474,12 @@ async function beginLoginScan() {
     statusEl.textContent = cameraErrorMessage(e);
     statusEl.classList.add('bad');
     if (retryBtn) retryBtn.style.display = '';
+    if (btn) {
+      btn.style.display = '';
+      btn.disabled = false;
+      btn.textContent = 'Sign In with PIN';
+      btn.onclick = () => goTo('screen-pin-login');
+    }
     return;
   }
 
