@@ -8,7 +8,7 @@
       name="description"
       content="Next-generation digital banking secured with 128-dimensional biometric facial vectors, 256-bit encryption, and real-time fraud monitoring."
     />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://sfo.cloud.appwrite.io https://*.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' http://localhost:* http://127.0.0.1:* https://sfo.cloud.appwrite.io https://*.supabase.co https://cdn.jsdelivr.net https: ws: wss:; media-src 'self' blob: data:; object-src 'none'; frame-src 'none'; worker-src 'self' blob:;" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://*.cloud.appwrite.io https://sfo.cloud.appwrite.io https://nyc.cloud.appwrite.io https://*.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' http://localhost:* http://127.0.0.1:* https://*.cloud.appwrite.io https://sfo.cloud.appwrite.io https://nyc.cloud.appwrite.io https://*.supabase.co https://cdn.jsdelivr.net https: ws: wss:; media-src 'self' blob: data:; object-src 'none'; frame-src 'none'; worker-src 'self' blob:;" />
     <meta http-equiv="Permissions-Policy" content="camera=(self), microphone=(), geolocation=(), payment=(self)" />
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
@@ -105,7 +105,28 @@
               </div>
             </div>
 
-            <div style="border-top: 1px solid var(--border); padding-top: 16px">
+            <!-- Instant Portal Access for Demo / Rapid Testing -->
+            <div style="margin-top: 14px; background: rgba(45, 212, 191, 0.06); border: 1px dashed rgba(45, 212, 191, 0.35); border-radius: 12px; padding: 12px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-size: 11px; font-weight: 600; color: var(--primary); font-family: var(--font-mono); text-transform: uppercase;">⚡ 1-Click Demo Portal Access</span>
+                <button class="mini-btn" style="padding: 4px 10px; font-size: 11px; background: var(--primary); color: #000; font-weight: 600;" onclick="quickDemoLogin('4821', '4821')">
+                  Enter Portal &rarr;
+                </button>
+              </div>
+              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                <button class="mini-btn" style="font-size: 10.5px; padding: 3px 8px;" onclick="quickDemoLogin('4821', '4821')">
+                  👤 Sidd Paul (4821)
+                </button>
+                <button class="mini-btn" style="font-size: 10.5px; padding: 3px 8px;" onclick="quickDemoLogin('9999', '9999')">
+                  🛡️ Admin (9999)
+                </button>
+                <button class="mini-btn" style="font-size: 10.5px; padding: 3px 8px;" onclick="quickDemoLogin('7712', '7712')">
+                  👴 Ramesh (Senior)
+                </button>
+              </div>
+            </div>
+
+            <div style="border-top: 1px solid var(--border); padding-top: 14px; margin-top: 14px;">
               <button
                 class="mini-btn"
                 style="width: 100%; justify-content: center; font-weight: 600; background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.25); color: #f87171;"
@@ -380,6 +401,20 @@
             <div id="aadhaar-login-status" style="margin-top: 8px"></div>
           </div>
 
+          <!-- Quick Fill Demo Profiles -->
+          <div style="display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; align-items: center;">
+            <span style="font-size: 10.5px; color: var(--text-faint);">Demo Aadhaar:</span>
+            <button type="button" class="mini-btn" style="font-size: 10px; padding: 2px 7px;" onclick="document.getElementById('login-aadhaar-last4').value='4821'; verifyAadhaarLogin();">
+              4821 (Sidd)
+            </button>
+            <button type="button" class="mini-btn" style="font-size: 10px; padding: 2px 7px;" onclick="document.getElementById('login-aadhaar-last4').value='9999'; verifyAadhaarLogin();">
+              9999 (Admin)
+            </button>
+            <button type="button" class="mini-btn" style="font-size: 10px; padding: 2px 7px;" onclick="document.getElementById('login-aadhaar-last4').value='8888'; verifyAadhaarLogin();">
+              8888 (Merchant)
+            </button>
+          </div>
+
           <div class="btn-row">
             <button class="btn btn-ghost" onclick="goTo('screen-welcome')">Back</button>
             <button class="btn btn-primary" onclick="verifyAadhaarLogin()">Continue &rarr;</button>
@@ -508,6 +543,17 @@
                 autocomplete="current-password"
               />
             </div>
+            
+            <div style="display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; align-items: center;">
+              <span style="font-size: 10.5px; color: var(--text-faint);">Demo Fill:</span>
+              <button type="button" class="mini-btn" style="font-size: 10px; padding: 2px 7px;" onclick="document.getElementById('pin-login-aadhaar').value='4821'; document.getElementById('pin-login-pin').value='4821'; attemptPinDirectLogin();">
+                Sidd Paul (4821 / 4821)
+              </button>
+              <button type="button" class="mini-btn" style="font-size: 10px; padding: 2px 7px;" onclick="document.getElementById('pin-login-aadhaar').value='9999'; document.getElementById('pin-login-pin').value='9999'; attemptPinDirectLogin();">
+                Admin (9999 / 9999)
+              </button>
+            </div>
+
             <div class="modal-msg" id="pin-login-msg"></div>
             <div class="btn-row">
               <button type="button" class="btn btn-ghost" onclick="goTo('screen-welcome')">Back</button>
