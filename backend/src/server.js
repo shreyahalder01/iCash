@@ -40,6 +40,7 @@ app.use(
         scriptSrc: [
           "'self'",
           "'unsafe-inline'",
+          "'unsafe-hashes'",
           "'wasm-unsafe-eval'",
           'https://cdn.jsdelivr.net',
           'https://*.cloud.appwrite.io',
