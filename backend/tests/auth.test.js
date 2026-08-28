@@ -70,7 +70,8 @@ describe('Auth & Session APIs', () => {
       .post('/api/auth/login-aadhaar')
       .send({ aadhaarLast4: '9012' });
 
-    const userId = lookup.body.users[0].id;
+    const user = lookup.body.users.find((u) => u.phone === testPhone) || lookup.body.users[0];
+    const userId = user.id;
 
     const res = await request(app).post('/api/auth/login-pin').send({ userId, pin: '5566' });
 
@@ -85,7 +86,8 @@ describe('Auth & Session APIs', () => {
       .post('/api/auth/login-aadhaar')
       .send({ aadhaarLast4: '9012' });
 
-    const userId = lookup.body.users[0].id;
+    const user = lookup.body.users.find((u) => u.phone === testPhone) || lookup.body.users[0];
+    const userId = user.id;
 
     const res = await request(app).post('/api/auth/login-pin').send({ userId, pin: '9988' });
 
@@ -106,7 +108,8 @@ describe('Auth & Session APIs', () => {
       .post('/api/auth/login-aadhaar')
       .send({ aadhaarLast4: '9012' });
 
-    const userId = lookup.body.users[0].id;
+    const user = lookup.body.users.find((u) => u.phone === testPhone) || lookup.body.users[0];
+    const userId = user.id;
 
     // 5 failed PIN attempts
     for (let i = 0; i < 4; i++) {

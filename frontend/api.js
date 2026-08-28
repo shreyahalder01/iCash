@@ -314,7 +314,9 @@ const api = {
     },
   },
 
-  // Server Configuration Helpers
+  // Server Configuration & Health Helpers
+  getHealth: () => request('/api/health', { method: 'GET' }),
+  checkLiveness: () => request('/api/healthz', { method: 'GET' }),
   setServerUrl: (url) => {
     if (typeof localStorage !== 'undefined') {
       if (url && url.trim()) {

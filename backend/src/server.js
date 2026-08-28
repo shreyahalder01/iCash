@@ -15,6 +15,7 @@ const cookieParser = require('cookie-parser');
 const { errorHandler, notFoundHandler } = require('./middleware/errorMiddleware');
 const { generalApiLimiter } = require('./middleware/rateLimitMiddleware');
 
+const healthRoutes = require('./routes/healthRoutes');
 const authRoutes = require('./routes/authRoutes');
 const otpRoutes = require('./routes/otpRoutes');
 const biometricRoutes = require('./routes/biometricRoutes');
@@ -115,23 +116,16 @@ app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(generalApiLimiter);
 
-// Health check — used by frontend/api.js to auto-detect the API base URL and check DB health.
-app.get('/api/health', async (req, res) => {
-  let dbStatus = 'not_configured';
-  try {
-    const prisma = require('./prisma');
-    await prisma.$queryRaw`SELECT 1`;
-    dbStatus = 'connected';
-  } catch (e) {
-    dbStatus = `unreachable (${e.code || e.message || 'error'})`;
-  }
-  res.json({
-    ok: true,
-    service: 'icash-backend',
-    database: dbStatus,
-    time: new Date().toISOString(),
-  });
-});
+// Health & Probe endpoints (mounted at root and /api for container, proxy, and LB discovery)
+const HealthController = require('./controllers/healthController');
+app.use('/health', healthRoutes);
+app.get('/healthz', HealthController.getLiveness);
+app.get('/live', HealthController.getLiveness);
+app.get('/ready', HealthController.getReadiness);
+app.use('/api/health', healthRoutes);
+app.get('/api/healthz', HealthController.getLiveness);
+app.get('/api/live', HealthController.getLiveness);
+app.get('/api/ready', HealthController.getReadiness);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/otp', otpRoutes);
@@ -185,10 +179,18 @@ async function handler(contextOrReq, res, next) {
     };
 
     // Health check
-    if (reqPath === '/api/health' || reqPath === '/health') {
+    if (
+      reqPath === '/api/health' ||
+      reqPath === '/health' ||
+      reqPath === '/healthz' ||
+      reqPath === '/live' ||
+      reqPath === '/ready' ||
+      reqPath === '/api/ready'
+    ) {
       return typeof appwriteRes.json === 'function'
         ? appwriteRes.json({
             ok: true,
+            status: 'healthy',
             service: 'icash-backend',
             mode: 'appwrite-function',
             time: new Date().toISOString(),
