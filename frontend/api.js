@@ -192,6 +192,7 @@ const api = {
   register: (userData) => request('/api/auth/register', { method: 'POST', body: userData }),
   loginAadhaar: (data) => request('/api/auth/login-aadhaar', { method: 'POST', body: data }),
   loginPin: (data) => request('/api/auth/login-pin', { method: 'POST', body: data }),
+  loginBiometric: (data) => request('/api/auth/login-biometric', { method: 'POST', body: data }),
   loginEmergencyPin: (data) =>
     request('/api/auth/login-emergency-pin', { method: 'POST', body: data }),
   logout: () => request('/api/auth/logout', { method: 'POST' }),

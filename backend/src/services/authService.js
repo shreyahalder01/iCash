@@ -309,6 +309,100 @@ class AuthService {
   }
 
   /**
+   * Biometric Face Login: Authenticates user by matching live 128-D descriptor
+   * against enrolled face templates.
+   */
+  static async loginWithBiometric(userId, liveDescriptor, req) {
+    if (!userId) {
+      const err = new Error('User identity is required for biometric authentication.');
+      err.status = 400;
+      throw err;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        accounts: {
+          where: { status: 'ACTIVE' },
+          orderBy: { is_primary: 'desc' },
+        },
+        biometric_profile: true,
+        merchant_profile: true,
+      },
+    });
+
+    if (!user) {
+      const err = new Error('The credentials you entered are incorrect.');
+      err.status = 401;
+      throw err;
+    }
+
+    if (user.status === 'LOCKED' || (user.locked_until && user.locked_until > new Date())) {
+      const err = new Error(
+        'For your protection, access to this account has been temporarily restricted.'
+      );
+      err.status = 403;
+      throw err;
+    }
+
+    if (!user.biometric_profile || !user.biometric_profile.face_descriptors) {
+      const err = new Error('No registered biometric face profile found for this account.');
+      err.status = 404;
+      throw err;
+    }
+
+    const verifyResult = await biometricService.verify(
+      user.biometric_profile.face_descriptors,
+      liveDescriptor
+    );
+
+    if (!verifyResult.matched) {
+      await SecurityService.recordEvent({
+        userId: user.id,
+        eventType: 'BIOMETRIC_FAILED',
+        severity: 'HIGH',
+        description: `Biometric login failed — face vector distance (${verifyResult.distance}) exceeded threshold.`,
+        ipAddress: req?.ip,
+        deviceReference: req?.headers['user-agent'],
+      });
+      const lockStatus = await SecurityService.handleFailedLogin(user, req);
+      const msg = lockStatus?.isLocked
+        ? 'For your protection, access to this account has been temporarily restricted.'
+        : 'Biometric face mismatch — identity could not be verified.';
+      const err = new Error(msg);
+      err.status = 401;
+      throw err;
+    }
+
+    await SecurityService.handleSuccessfulLogin(user, req);
+    await SecurityService.recordEvent({
+      userId: user.id,
+      eventType: 'BIOMETRIC_SUCCESS',
+      severity: 'LOW',
+      description: `Biometric facial authentication confirmed (confidence: ${Math.round((verifyResult.confidence || 0.95) * 100)}%).`,
+      ipAddress: req?.ip,
+      deviceReference: req?.headers['user-agent'],
+    });
+
+    const token = signToken({ userId: user.id, role: user.role });
+    await prisma.loginSession.create({
+      data: {
+        user_id: user.id,
+        session_reference: `SES_BIO_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+        ip_address: req?.ip,
+        user_agent: req?.headers['user-agent'],
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      },
+    });
+
+    return {
+      user: this.toSafeUser(user, user.accounts[0]),
+      token,
+      confidence: verifyResult.confidence,
+    };
+  }
+
+  /**
    * Verify authenticated phone credentials via Phone.email user_json_url
    */
   /**

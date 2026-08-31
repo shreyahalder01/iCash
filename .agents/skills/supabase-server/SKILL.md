@@ -57,35 +57,32 @@ Environment variables are auto-injected by the platform — zero config. **All i
 
 ```ts
 // withSupabase — high-level wrapper
-import { withSupabase } from 'npm:@supabase/server'
+import { withSupabase } from 'npm:@supabase/server';
 
 export default {
   fetch: withSupabase({ auth: 'user' }, async (_req, ctx) => {
-    const { data } = await ctx.supabase.from('todos').select()
-    return Response.json(data)
+    const { data } = await ctx.supabase.from('todos').select();
+    return Response.json(data);
   }),
-}
+};
 ```
 
 ```ts
 // createSupabaseContext — returns { data, error } for custom response control
-import { createSupabaseContext } from 'npm:@supabase/server'
+import { createSupabaseContext } from 'npm:@supabase/server';
 
 export default {
   fetch: async (req: Request) => {
     const { data: ctx, error } = await createSupabaseContext(req, {
       auth: 'user',
-    })
+    });
     if (error) {
-      return Response.json(
-        { message: error.message, code: error.code },
-        { status: error.status },
-      )
+      return Response.json({ message: error.message, code: error.code }, { status: error.status });
     }
-    const { data } = await ctx.supabase.from('todos').select()
-    return Response.json(data)
+    const { data } = await ctx.supabase.from('todos').select();
+    return Response.json(data);
   },
-}
+};
 ```
 
 ### Cloudflare Workers
@@ -93,14 +90,14 @@ export default {
 Requires `nodejs_compat` compatibility flag in `wrangler.toml`, or pass env overrides via the `env` config option. See `docs/environment-variables.md`.
 
 ```ts
-import { withSupabase } from '@supabase/server'
+import { withSupabase } from '@supabase/server';
 
 export default {
   fetch: withSupabase({ auth: 'user' }, async (_req, ctx) => {
-    const { data } = await ctx.supabase.from('todos').select()
-    return Response.json(data)
+    const { data } = await ctx.supabase.from('todos').select();
+    return Response.json(data);
   }),
-}
+};
 ```
 
 ### Hono
@@ -109,36 +106,36 @@ CORS is not handled by the adapter — use `hono/cors` middleware. See `docs/ada
 
 ```ts
 // Node.js / Bun
-import { Hono } from 'hono'
-import { withSupabase } from '@supabase/server/adapters/hono'
+import { Hono } from 'hono';
+import { withSupabase } from '@supabase/server/adapters/hono';
 
-const app = new Hono()
-app.use('*', withSupabase({ auth: 'user' }))
+const app = new Hono();
+app.use('*', withSupabase({ auth: 'user' }));
 
 app.get('/todos', async (c) => {
-  const { supabase } = c.var.supabaseContext
-  const { data } = await supabase.from('todos').select()
-  return c.json(data)
-})
+  const { supabase } = c.var.supabaseContext;
+  const { data } = await supabase.from('todos').select();
+  return c.json(data);
+});
 
-export default app
+export default app;
 ```
 
 ```ts
 // Deno / Supabase Edge Functions
-import { Hono } from 'npm:hono'
-import { withSupabase } from 'npm:@supabase/server/adapters/hono'
+import { Hono } from 'npm:hono';
+import { withSupabase } from 'npm:@supabase/server/adapters/hono';
 
-const app = new Hono()
-app.use('*', withSupabase({ auth: 'user' }))
+const app = new Hono();
+app.use('*', withSupabase({ auth: 'user' }));
 
 app.get('/todos', async (c) => {
-  const { supabase } = c.var.supabaseContext
-  const { data } = await supabase.from('todos').select()
-  return c.json(data)
-})
+  const { supabase } = c.var.supabaseContext;
+  const { data } = await supabase.from('todos').select();
+  return c.json(data);
+});
 
-export default { fetch: app.fetch }
+export default { fetch: app.fetch };
 ```
 
 ### Cookie-based environments (compose with `@supabase/ssr`)
@@ -147,12 +144,8 @@ For Next.js / SvelteKit / Remix, **compose `@supabase/server` with [`@supabase/s
 
 ```ts
 // Key imports for building the adapter
-import { createServerClient } from '@supabase/ssr'
-import {
-  verifyCredentials,
-  createContextClient,
-  createAdminClient,
-} from '@supabase/server/core'
+import { createServerClient } from '@supabase/ssr';
+import { verifyCredentials, createContextClient, createAdminClient } from '@supabase/server/core';
 ```
 
 ### Server-to-server (secret key auth)
@@ -162,18 +155,18 @@ For internal services, cron jobs, or automation calling your Edge Function. The 
 **Edge Function (Deno):**
 
 ```ts
-import { withSupabase } from 'npm:@supabase/server'
+import { withSupabase } from 'npm:@supabase/server';
 
 // Only accept the "automations" named secret key
 export default {
   fetch: withSupabase({ auth: 'secret:automations' }, async (req, ctx) => {
-    const body = await req.json()
+    const body = await req.json();
     const { data } = await ctx.supabaseAdmin
       .from('scheduled_tasks')
-      .insert({ name: body.taskName, scheduled_at: body.scheduledAt })
-    return Response.json({ success: true, data })
+      .insert({ name: body.taskName, scheduled_at: body.scheduledAt });
+    return Response.json({ success: true, data });
   }),
-}
+};
 ```
 
 **Caller (external service):**
@@ -189,7 +182,7 @@ await fetch('https://<project>.supabase.co/functions/v1/my-function', {
     taskName: 'cleanup',
     scheduledAt: new Date().toISOString(),
   }),
-})
+});
 ```
 
 Bare `auth: 'secret'` matches only the `default` key. Use `auth: 'secret:name'` to require a specific named key, or `auth: 'secret:*'` to accept any secret key in the set.
@@ -223,43 +216,42 @@ verify_jwt = false  # called with secret key, not a user JWT
 **Called function** (`supabase/functions/process-order/index.ts`):
 
 ```ts
-import { withSupabase } from 'npm:@supabase/server'
+import { withSupabase } from 'npm:@supabase/server';
 
 export default {
   fetch: withSupabase({ auth: 'secret' }, async (req, ctx) => {
-    const { orderId } = await req.json()
+    const { orderId } = await req.json();
     const { data } = await ctx.supabaseAdmin
       .from('orders')
       .update({ status: 'processing' })
       .eq('id', orderId)
       .select()
-      .single()
-    return Response.json(data)
+      .single();
+    return Response.json(data);
   }),
-}
+};
 ```
 
 **Calling function** (`supabase/functions/checkout/index.ts`):
 
 ```ts
-import { withSupabase } from 'npm:@supabase/server'
+import { withSupabase } from 'npm:@supabase/server';
 
 export default {
   fetch: withSupabase({ auth: 'user' }, async (req, ctx) => {
-    const { orderId } = await req.json()
+    const { orderId } = await req.json();
 
     // Calls process-order with the secret key automatically
-    const { data, error } = await ctx.supabaseAdmin.functions.invoke(
-      'process-order',
-      { body: { orderId } },
-    )
+    const { data, error } = await ctx.supabaseAdmin.functions.invoke('process-order', {
+      body: { orderId },
+    });
 
     if (error) {
-      return Response.json({ error: error.message }, { status: 500 })
+      return Response.json({ error: error.message }, { status: 500 });
     }
-    return Response.json(data)
+    return Response.json(data);
   }),
-}
+};
 ```
 
 ### Calling from database with pg_net
@@ -319,41 +311,41 @@ supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_...
 **Function** (`supabase/functions/stripe-webhook/index.ts`):
 
 ```ts
-import { withSupabase } from 'npm:@supabase/server'
-import Stripe from 'npm:stripe'
+import { withSupabase } from 'npm:@supabase/server';
+import Stripe from 'npm:stripe';
 
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!)
+const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!);
 
 export default {
   fetch: withSupabase({ auth: 'none' }, async (req, ctx) => {
-    const body = await req.text()
-    const sig = req.headers.get('stripe-signature')!
+    const body = await req.text();
+    const sig = req.headers.get('stripe-signature')!;
 
-    let event: Stripe.Event
+    let event: Stripe.Event;
     try {
       event = await stripe.webhooks.constructEventAsync(
         body,
         sig,
-        Deno.env.get('STRIPE_WEBHOOK_SECRET')!,
-      )
+        Deno.env.get('STRIPE_WEBHOOK_SECRET')!
+      );
     } catch {
-      return Response.json({ error: 'Invalid signature' }, { status: 401 })
+      return Response.json({ error: 'Invalid signature' }, { status: 401 });
     }
 
     switch (event.type) {
       case 'checkout.session.completed': {
-        const session = event.data.object as Stripe.Checkout.Session
+        const session = event.data.object as Stripe.Checkout.Session;
         await ctx.supabaseAdmin
           .from('orders')
           .update({ status: 'paid' })
-          .eq('stripe_session_id', session.id)
-        break
+          .eq('stripe_session_id', session.id);
+        break;
       }
     }
 
-    return Response.json({ received: true })
+    return Response.json({ received: true });
   }),
-}
+};
 ```
 
 ### Migrating legacy Edge Functions
@@ -372,7 +364,7 @@ If you encounter code using `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `D
 Legacy keys will be removed, making this code stop working. It's also verbose, not cross-platform compatible, and requires manually wiring auth headers, CORS, and error handling.
 
 ```ts
-import { createClient } from 'npm:@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
 Deno.serve(async (req: Request) => {
   const supabaseClient = createClient(
@@ -380,11 +372,11 @@ Deno.serve(async (req: Request) => {
     Deno.env.get('SUPABASE_ANON_KEY') ?? '',
     {
       global: { headers: { Authorization: req.headers.get('Authorization')! } },
-    },
-  )
-  const { data } = await supabaseClient.from('orders').select('*')
-  return Response.json(data)
-})
+    }
+  );
+  const { data } = await supabaseClient.from('orders').select('*');
+  return Response.json(data);
+});
 ```
 
 **After** (new — auth, clients, and CORS handled automatically):
@@ -392,14 +384,14 @@ Deno.serve(async (req: Request) => {
 Uses the latest API keys, works across runtimes (Deno, Node.js, Cloudflare), and handles auth verification, client creation, and CORS in a single line.
 
 ```ts
-import { withSupabase } from 'npm:@supabase/server'
+import { withSupabase } from 'npm:@supabase/server';
 
 export default {
   fetch: withSupabase({ auth: 'user' }, async (_req, ctx) => {
-    const { data } = await ctx.supabase.from('orders').select('*')
-    return Response.json(data)
+    const { data } = await ctx.supabase.from('orders').select('*');
+    return Response.json(data);
   }),
-}
+};
 ```
 
 The migration mapping: `SUPABASE_ANON_KEY` with manual auth header → `auth: 'user'`, `SUPABASE_ANON_KEY` without auth → `auth: 'publishable'`. For `SUPABASE_SERVICE_ROLE_KEY`, it depends on intent: if the legacy code validates the incoming key to protect the endpoint (e.g., `req.headers.get('apikey') === serviceRoleKey`), use `auth: 'secret'`. If it only uses the key to create an admin client for elevated DB access, no specific auth mode is needed — `ctx.supabaseAdmin` is always available regardless of auth mode.

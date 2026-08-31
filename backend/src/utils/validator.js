@@ -36,6 +36,11 @@ const loginPinSchema = z.object({
   pin: digits4,
 });
 
+const loginBiometricSchema = z.object({
+  userId: z.string().uuid('Invalid user identifier.').or(z.string().min(1)),
+  liveDescriptor: z.array(z.number()).min(1, 'A live face descriptor is required.'),
+});
+
 // Confirm account deletion by providing current PIN
 const confirmDeleteSchema = z.object({
   pin: digits4,
@@ -173,6 +178,7 @@ module.exports = {
   registerSchema,
   loginAadhaarSchema,
   loginPinSchema,
+  loginBiometricSchema,
   confirmDeleteSchema,
   biometricEnrollSchema,
   biometricVerifySchema,

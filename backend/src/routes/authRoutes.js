@@ -8,6 +8,7 @@ const {
   registerSchema,
   loginAadhaarSchema,
   loginPinSchema,
+  loginBiometricSchema,
   confirmDeleteSchema,
 } = require('../utils/validator');
 
@@ -19,6 +20,12 @@ router.post(
   AuthController.lookupAadhaar
 );
 router.post('/login-pin', authLimiter, validateRequest(loginPinSchema), AuthController.loginPin);
+router.post(
+  '/login-biometric',
+  authLimiter,
+  validateRequest(loginBiometricSchema),
+  AuthController.loginBiometric
+);
 router.post('/logout', authenticate, AuthController.logout);
 router.get('/me', authenticate, AuthController.getMe);
 router.post('/refresh', authenticate, AuthController.refresh);

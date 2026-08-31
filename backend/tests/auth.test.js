@@ -21,16 +21,20 @@ describe('Auth & Session APIs', () => {
   });
 
   test('POST /api/auth/register - Successfully registers user with masked Aadhaar and primary account', async () => {
-    const res = await request(app).post('/api/auth/register').send({
-      fullName: 'Test Verification User',
-      phone: testPhone,
-      email: 'test.verify@icash.bank',
-      aadhaarNumber: testAadhaar,
-      pin: '5566',
-      emergencyPin: '9988',
-      isSenior: false,
-      dob: '1995-01-01',
-    });
+    const mockDescriptor = Array(128).fill(0.1);
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({
+        fullName: 'Test Verification User',
+        phone: testPhone,
+        email: 'test.verify@icash.bank',
+        aadhaarNumber: testAadhaar,
+        pin: '5566',
+        emergencyPin: '9988',
+        isSenior: false,
+        dob: '1995-01-01',
+        descriptors: [mockDescriptor],
+      });
 
     expect(res.status).toBe(201);
     expect(res.body.ok).toBe(true);
@@ -63,6 +67,26 @@ describe('Auth & Session APIs', () => {
     expect(res.body.ok).toBe(true);
     expect(res.body.users.length).toBeGreaterThanOrEqual(1);
     expect(res.body.users[0].aadhaarLast4).toBe('9012');
+  });
+
+  test('POST /api/auth/login-biometric - Valid live face vector authenticates user directly', async () => {
+    const lookup = await request(app)
+      .post('/api/auth/login-aadhaar')
+      .send({ aadhaarLast4: '9012' });
+
+    const user = lookup.body.users.find((u) => u.phone === testPhone) || lookup.body.users[0];
+    const userId = user.id;
+    const mockDescriptor = Array(128).fill(0.1);
+
+    const res = await request(app)
+      .post('/api/auth/login-biometric')
+      .send({ userId, liveDescriptor: mockDescriptor });
+
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.user.id).toBe(userId);
+    expect(res.body.token).toBeDefined();
+    expect(res.headers['set-cookie']).toBeDefined();
   });
 
   test('POST /api/auth/login-pin - Valid PIN logs in and sets session cookie', async () => {

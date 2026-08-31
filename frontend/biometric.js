@@ -1042,13 +1042,33 @@ async function beginLoginScan() {
     }
 
     drawOverlay(overlayCanvas, video, detections, 'GOOD', undefined, blinkStatus);
-    statusEl.textContent = `✅ 2/2 Blinks — unlocking profile…`;
+    statusEl.textContent = `✅ 2/2 Blinks — authenticating session…`;
 
     if (consecutiveMatches >= REQUIRED_MATCHES && count >= 2) {
       _loginLoopActive = false;
       const confidence = Math.max(0, Math.min(1, 1 - dist / MATCH_THRESHOLD));
-      teardownLoginScan();
-      promptLoginPin(targetUser, confidence);
+      try {
+        const authRes = await window.iCashApi.loginBiometric({
+          userId: targetUser.id,
+          liveDescriptor: Array.from(live),
+        });
+        teardownLoginScan();
+        if (authRes.ok && authRes.user) {
+          currentUser = authRes.user;
+          showMatch(authRes.user, false);
+          setTimeout(() => {
+            if (typeof window.enterDashboard === 'function') {
+              window.enterDashboard();
+            }
+          }, 900);
+        } else {
+          promptLoginPin(targetUser, confidence);
+        }
+      } catch (authErr) {
+        teardownLoginScan();
+        // Fall back to PIN entry if biometric login had a server error or requires PIN
+        promptLoginPin(targetUser, confidence);
+      }
     } else {
       setTimeout(loginStep, 80);
     }
@@ -1059,23 +1079,37 @@ async function beginLoginScan() {
 
 async function _serverVerifyLogin(liveDescriptor, targetUser, overlayCanvas, video, detections) {
   const statusEl = document.getElementById('login-scan-status');
+  statusEl.textContent = `Authenticating identity of ${targetUser.name}…`;
   try {
-    const verifyRes = await window.iCashApi.verifyBiometric({
+    const authRes = await window.iCashApi.loginBiometric({
       liveDescriptor: Array.from(liveDescriptor),
       userId: targetUser.id,
     });
-    if (!verifyRes.matched) {
-      drawOverlay(overlayCanvas, video, detections, 'BAD');
-      statusEl.textContent =
-        '❌ Biometric mismatch — access denied. This does not match the registered face.';
-      statusEl.classList.add('bad');
+    if (authRes.ok && authRes.user) {
+      drawOverlay(overlayCanvas, video, detections, 'GOOD');
+      teardownLoginScan();
+      currentUser = authRes.user;
+      showMatch(authRes.user, false);
+      setTimeout(() => {
+        if (typeof window.enterDashboard === 'function') {
+          window.enterDashboard();
+        }
+      }, 900);
       return;
     }
-    teardownLoginScan();
-    promptLoginPin(targetUser, verifyRes.confidence || 0.8);
-  } catch (err) {
-    statusEl.textContent = err.message || 'Verification failed.';
+    drawOverlay(overlayCanvas, video, detections, 'BAD');
+    statusEl.textContent =
+      '❌ Biometric mismatch — access denied. This does not match the registered face.';
     statusEl.classList.add('bad');
+  } catch (err) {
+    if (err.message && err.message.toLowerCase().includes('mismatch')) {
+      drawOverlay(overlayCanvas, video, detections, 'BAD');
+      statusEl.textContent = '❌ ' + err.message;
+      statusEl.classList.add('bad');
+    } else {
+      teardownLoginScan();
+      promptLoginPin(targetUser, 0.85);
+    }
   }
 }
 

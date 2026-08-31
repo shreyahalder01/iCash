@@ -810,19 +810,24 @@ textarea:focus {
 }
 
 .brand-logo-img {
-  width: 36px;
-  height: 36px;
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  min-height: 36px !important;
+  max-width: 36px !important;
+  max-height: 36px !important;
   border-radius: 9px;
   object-fit: contain;
   background: rgba(45, 212, 191, 0.08);
   border: 1px solid rgba(45, 212, 191, 0.22);
-  padding: 4px;
+  padding: 3px;
   flex-shrink: 0;
+  display: block;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .brand-wrapper:hover .brand-logo-img {
-  transform: scale(1.08);
+  transform: scale(1.06);
   background: rgba(45, 212, 191, 0.14);
   border-color: rgba(45, 212, 191, 0.5);
   box-shadow: 0 0 16px rgba(45, 212, 191, 0.35);
@@ -958,10 +963,36 @@ textarea:focus {
 .nav-item .nav-icon {
   font-size: 15px;
   width: 18px;
+  height: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.nav-svg-icon {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  flex-shrink: 0;
+  transition:
+    transform 0.2s,
+    stroke 0.2s;
+}
+
+.nav-item:hover .nav-svg-icon,
+.nav-item.active .nav-svg-icon {
+  stroke: var(--primary);
+  transform: scale(1.08);
+}
+
+.btn-svg-icon {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  display: inline-block;
+  vertical-align: middle;
   flex-shrink: 0;
 }
 
