@@ -20,7 +20,7 @@
 const FACEAPI_MODEL_URL = '/models';
 const FACEAPI_MODEL_URL_CDN = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
 
-const MATCH_THRESHOLD = 0.52; // Euclidean < 0.52 = same person
+const MATCH_THRESHOLD = 0.55; // Euclidean < 0.55 = same person (standard threshold for 128-D face descriptors)
 const ENROLL_SAMPLES = 5; // Auto-collected enrollment samples
 const ENROLL_INTERVAL = 100; // ms between landmark & blink checks during enrollment (fast 10fps)
 const VERIFY_INTERVAL = 100; // ms between frames for lightning-fast real-time double blink detection
@@ -28,8 +28,8 @@ const REQUIRED_MATCHES = 2; // Consecutive matching frames to confirm identity
 const REQUIRED_BLINKS = 2; // Strict requirement: must blink 2 times
 
 function _getDetectOptions() {
-  // 320px input size is fast (~20ms per frame on mobile/web) to reliably catch 150ms natural eye blinks
-  return new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.45 });
+  // 320px input size with 0.30 score threshold ensures fast and reliable face detection
+  return new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.30 });
 }
 
 function sleep(ms) {
@@ -44,12 +44,24 @@ async function ensureBioModels() {
   if (window._bioModelsLoaded) return true;
   if (window._bioModelsLoading) {
     for (let i = 0; i < 120; i++) {
-      await sleep(500);
+      await sleep(200);
       if (window._bioModelsLoaded) return true;
     }
     return false;
   }
   window._bioModelsLoading = true;
+
+  // Wait for faceapi global object to be available
+  for (let i = 0; i < 60; i++) {
+    if (typeof faceapi !== 'undefined' && faceapi.nets) break;
+    await sleep(100);
+  }
+
+  if (typeof faceapi === 'undefined' || !faceapi.nets) {
+    console.error('[iCash Bio] faceapi library not found in window global scope.');
+    window._bioModelsLoading = false;
+    return false;
+  }
 
   // Try local /models first (served by Express), then fall back to CDN
   const sources = [FACEAPI_MODEL_URL, FACEAPI_MODEL_URL_CDN];
@@ -240,25 +252,24 @@ function calculateEAR(eyePoints) {
 
 /**
  * detectBlinkByCollapse — Eyelid distance collapse check
+ * Returns true when upper and lower eyelids are in physical contact (closed).
  */
 function detectBlinkByCollapse(eyePoints) {
   if (!eyePoints || eyePoints.length < 6) return false;
   const p0 = _getPointCoords(eyePoints[0]);
   const p3 = _getPointCoords(eyePoints[3]);
   const eyeWidth = (p0 && p3) ? Math.abs(p3.x - p0.x) : 25;
-  const collapseThreshold = Math.max(3.5, eyeWidth * 0.24);
+  const collapseThreshold = Math.max(2.0, eyeWidth * 0.12);
 
-  const verticalPairs = [[1, 5], [2, 4]];
-  for (const [i, j] of verticalPairs) {
-    const a = _getPointCoords(eyePoints[i]);
-    const b = _getPointCoords(eyePoints[j]);
-    if (!a || !b) continue;
-    const vertDist = Math.hypot(a.x - b.x, a.y - b.y);
-    if (vertDist < collapseThreshold) {
-      return true;
-    }
-  }
-  return false;
+  const a1 = _getPointCoords(eyePoints[1]);
+  const b1 = _getPointCoords(eyePoints[5]);
+  const a2 = _getPointCoords(eyePoints[2]);
+  const b2 = _getPointCoords(eyePoints[4]);
+  if (!a1 || !b1 || !a2 || !b2) return false;
+  const v1 = Math.hypot(a1.x - b1.x, a1.y - b1.y);
+  const v2 = Math.hypot(a2.x - b2.x, a2.y - b2.y);
+  const avgVert = (v1 + v2) / 2;
+  return avgVert < collapseThreshold;
 }
 
 class ClientBlinkDetector {
@@ -277,26 +288,10 @@ class ClientBlinkDetector {
     this.hasBlinked      = false;
     this.currentEar      = 0.28;
     this.lastBlinkTime   = 0;
-    this._mpPredicting   = false;
   }
 
   update(landmarks, video) {
     const now = Date.now();
-
-    // ── MediaPipe FaceMesh 478-pt EAR bonus signal (sync — uses last async result) ──
-    // _mpLastKeypoints is updated via sendFrameToMP() calls in the scan loops.
-    if (_mpLastKeypoints) {
-      const mpL = computeMP478EAR(_mpLastKeypoints, MP_LEFT_EYE_EAR_IDX);
-      const mpR = computeMP478EAR(_mpLastKeypoints, MP_RIGHT_EYE_EAR_IDX);
-      // normalised EAR < 0.18 reliably indicates eye closure in MediaPipe coords
-      const mpEAR = (mpL !== null && mpR !== null)
-        ? Math.min(mpL, mpR)
-        : (mpL ?? mpR);
-      if (mpEAR !== null && mpEAR < 0.18) {
-        this.closedFrames++;
-        this.isClosed = true;
-      }
-    }
 
     if (!landmarks) {
       return {
@@ -323,7 +318,7 @@ class ClientBlinkDetector {
       const leftEar  = calculateEAR(leftEye);
       const rightEar = calculateEAR(rightEye);
 
-      const ears = [leftEar, rightEar].filter((e) => e > 0.02 && e < 0.70);
+      const ears = [leftEar, rightEar].filter((e) => e > 0.01 && e < 0.70);
       if (ears.length === 0) {
         return {
           hasBlinked: this.hasBlinked,
@@ -333,34 +328,36 @@ class ClientBlinkDetector {
           isClosed: this.isClosed,
         };
       }
-      const ear = Math.min(...ears);
+      const ear = (leftEar + rightEar) / 2;
       this.currentEar = ear;
 
       const leftCollapse  = detectBlinkByCollapse(leftEye);
       const rightCollapse = detectBlinkByCollapse(rightEye);
-      const collapseDetected = leftCollapse || rightCollapse;
+      const collapseDetected = leftCollapse && rightCollapse;
 
       // ── Auto-Calibrate Baseline to User's Actual Resting EAR ─────────────
       if (this.openEyeBaseline === null) {
-        this.openEyeBaseline = ear;
-        this.baselineSamples = 1;
-      } else if (!this.isClosed && !collapseDetected && ear >= this.openEyeBaseline * 0.88) {
-        if (this.baselineSamples < 10) {
+        if (ear >= 0.18) {
+          this.openEyeBaseline = ear;
+          this.baselineSamples = 1;
+        }
+      } else if (!this.isClosed && ear >= this.openEyeBaseline * 0.85) {
+        if (this.baselineSamples < 15) {
           this.openEyeBaseline = (this.openEyeBaseline * this.baselineSamples + ear) / (this.baselineSamples + 1);
           this.baselineSamples++;
         } else {
           // Slow continuous exponential moving average
-          this.openEyeBaseline = this.openEyeBaseline * 0.94 + ear * 0.06;
+          this.openEyeBaseline = this.openEyeBaseline * 0.95 + ear * 0.05;
         }
       }
 
       const baseline = this.openEyeBaseline || 0.28;
 
       // Thresholds: proportional to individual baseline
-      // Eye is closed if EAR drops by >= 15% from baseline OR eyelids collapse
-      const closeThreshold = Math.max(0.18, baseline * 0.84);
-      // Eye is open if EAR is within 10% of resting baseline
-      const openThreshold  = Math.max(0.20, baseline * 0.90);
+      // When eyes close, EAR drops significantly (< baseline * 0.72 or <= 0.19)
+      const closeThreshold = Math.min(0.20, baseline * 0.72);
+      // Eye is considered open again when it returns to near baseline
+      const openThreshold  = Math.max(0.18, baseline * 0.82);
 
       const eyeIsClosedNow = (ear <= closeThreshold) || collapseDetected;
       const eyeIsOpenNow   = (ear >= openThreshold) && !collapseDetected;
@@ -370,7 +367,7 @@ class ClientBlinkDetector {
         this.isClosed = true;
       } else if (eyeIsOpenNow && this.isClosed) {
         // Transition: CLOSED -> OPEN = BLINK!
-        if (this.closedFrames >= 1 && (now - this.lastBlinkTime >= 100)) {
+        if (this.closedFrames >= 1 && (now - this.lastBlinkTime >= 150)) {
           this.blinkCount++;
           this.lastBlinkTime = now;
           if (this.blinkCount >= this.requiredBlinks) {
@@ -613,7 +610,10 @@ async function beginRegisterScan() {
     return;
   }
 
-  await new Promise((r) => { video.onloadedmetadata = r; setTimeout(r, 2000); });
+  for (let i = 0; i < 40; i++) {
+    if (video.videoWidth > 0 && video.videoHeight > 0) break;
+    await sleep(50);
+  }
   statusEl.textContent = '👁  Look at camera and blink twice to verify liveness…';
 
   const collected = [];
@@ -690,7 +690,7 @@ async function beginRegisterScan() {
       return;
     }
 
-    if (score < 0.45) {
+    if (score < 0.30) {
       drawOverlay(overlayCanvas, video, detections, 'BAD', progress, blinkStatus);
       statusEl.textContent = `😕 Low confidence — improve lighting or look directly at camera.`;
       setTimeout(regStep, 100);
@@ -867,10 +867,10 @@ async function beginLoginScan() {
     return;
   }
 
-  await new Promise((r) => {
-    video.onloadedmetadata = r;
-    setTimeout(r, 2000);
-  });
+  for (let i = 0; i < 40; i++) {
+    if (video.videoWidth > 0 && video.videoHeight > 0) break;
+    await sleep(50);
+  }
 
   const targetUser = window._loginTargetUser;
   statusEl.textContent = `👁  Verifying identity of ${targetUser ? targetUser.name : 'user'}…`;
@@ -1141,10 +1141,10 @@ async function launchBiometricGate(title, lead) {
     return;
   }
 
-  await new Promise((r) => {
-    video.onloadedmetadata = r;
-    setTimeout(r, 2000);
-  });
+  for (let i = 0; i < 40; i++) {
+    if (video.videoWidth > 0 && video.videoHeight > 0) break;
+    await sleep(50);
+  }
   statusEl.textContent = '👁  Look at camera to authorize transaction…';
 
   // Load current account holder's descriptors

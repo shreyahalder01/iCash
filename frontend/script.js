@@ -645,15 +645,15 @@ async function startCamera(videoEl, errEl) {
     videoEl.muted = true;
   }
 
-  if (!window.isSecureContext) {
-    const err = new Error('INSECURE_CONTEXT');
-    if (errEl) {
-      errEl.textContent = cameraErrorMessage(err);
-      errEl.classList.add('active');
-    }
-    throw err;
-  }
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    if (!window.isSecureContext && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+      const err = new Error('INSECURE_CONTEXT');
+      if (errEl) {
+        errEl.textContent = cameraErrorMessage(err);
+        errEl.classList.add('active');
+      }
+      throw err;
+    }
     const err = new Error('NO_MEDIA_API');
     if (errEl) {
       errEl.textContent = cameraErrorMessage(err);
