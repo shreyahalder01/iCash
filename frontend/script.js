@@ -1234,18 +1234,39 @@ function confirmSend() {
   );
 }
 
-async function depositFunds() {
-  try {
-    await window.iCashApi.createTransaction({
-      type: 'DEPOSIT',
-      amount: 5000,
-      description: 'Online Digital Deposit / Cash Top-up',
-    });
-    showAlertToast('✨ ₹5,000 deposited successfully to your primary account.');
-    loadDashboardData();
-  } catch (err) {
-    showAlertToast(err.message || 'Deposit failed.', true);
+function openDepositModal() {
+  // Reset form state
+  const amtEl = document.getElementById('deposit-amt');
+  const descEl = document.getElementById('deposit-desc');
+  const msgEl = document.getElementById('deposit-msg');
+  if (amtEl) amtEl.value = '';
+  if (descEl) descEl.value = '';
+  if (msgEl) { msgEl.textContent = ''; msgEl.className = 'modal-msg'; }
+  openModal('deposit');
+}
+
+function confirmDeposit() {
+  const amt = Number(document.getElementById('deposit-amt').value);
+  const desc = (document.getElementById('deposit-desc').value || '').trim();
+  const msg = document.getElementById('deposit-msg');
+
+  if (!amt || amt <= 0) {
+    msg.textContent = 'Enter a valid deposit amount.';
+    msg.className = 'modal-msg err';
+    return;
   }
+
+  closeModal('deposit');
+  pendingVerificationAction = {
+    type: 'DEPOSIT',
+    amount: amt,
+    description: desc || 'Cash Deposit / Bank Transfer In',
+  };
+
+  launchBiometricGate(
+    'Deposit Authorization',
+    `Authorize deposit of ${fmtMoney(amt)} into your primary account`
+  );
 }
 
 // ============================================================
