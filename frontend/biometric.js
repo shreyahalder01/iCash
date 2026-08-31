@@ -1035,18 +1035,6 @@ async function beginLoginScan() {
       return;
     }
 
-    // Liveness server is a bonus signal (available in local dev, not in production).
-    // If the session exists AND the server hasn't confirmed yet, wait briefly.
-    // If no session (server offline / deployed env), trust client-side EAR + MP478.
-    const serverLive = !!(currentLivenessState && currentLivenessState.live);
-    const livenessServerRunning = !!activeLivenessSessionId;
-    if (livenessServerRunning && !serverLive) {
-      drawOverlay(overlayCanvas, video, detections, 'SCAN', undefined, blinkStatus);
-      statusEl.textContent = `✔ Verifying blink with liveness server…`;
-      setTimeout(loginStep, 80);
-      return;
-    }
-
     drawOverlay(overlayCanvas, video, detections, 'GOOD', undefined, blinkStatus);
     statusEl.textContent = `✅ 2/2 Blinks — authenticating session…`;
 
@@ -1055,7 +1043,7 @@ async function beginLoginScan() {
       const confidence = Math.max(0, Math.min(1, 1 - dist / MATCH_THRESHOLD));
       try {
         const authRes = await window.iCashApi.loginBiometric({
-          userId: targetUser.id,
+          userId: targetUser ? targetUser.id : undefined,
           liveDescriptor: Array.from(live),
         });
         teardownLoginScan();
@@ -1074,12 +1062,20 @@ async function beginLoginScan() {
             }
           }, 800);
         } else {
-          promptLoginPin(targetUser, confidence);
+          if (typeof window.promptLoginPin === 'function') {
+            window.promptLoginPin(targetUser, confidence);
+          } else if (typeof promptLoginPin === 'function') {
+            promptLoginPin(targetUser, confidence);
+          }
         }
       } catch (authErr) {
         teardownLoginScan();
         // Fall back to PIN entry if biometric login had a server error or requires PIN
-        promptLoginPin(targetUser, confidence);
+        if (typeof window.promptLoginPin === 'function') {
+          window.promptLoginPin(targetUser, confidence);
+        } else if (typeof promptLoginPin === 'function') {
+          promptLoginPin(targetUser, confidence);
+        }
       }
     } else {
       setTimeout(loginStep, 80);
@@ -1091,7 +1087,18 @@ async function beginLoginScan() {
 
 async function _serverVerifyLogin(liveDescriptor, targetUser, overlayCanvas, video, detections) {
   const statusEl = document.getElementById('login-scan-status');
-  statusEl.textContent = `Authenticating identity of ${targetUser.name}…`;
+  const displayName = targetUser ? (targetUser.name || 'User') : 'User';
+  statusEl.textContent = `Authenticating identity of ${displayName}…`;
+  if (!targetUser || !targetUser.id) {
+    statusEl.textContent = '❌ Account reference missing. Please sign in with Aadhaar or PIN.';
+    statusEl.classList.add('bad');
+    if (typeof window.promptLoginPin === 'function') {
+      window.promptLoginPin(targetUser, 0.85);
+    } else if (typeof promptLoginPin === 'function') {
+      promptLoginPin(targetUser, 0.85);
+    }
+    return;
+  }
   try {
     const authRes = await window.iCashApi.loginBiometric({
       liveDescriptor: Array.from(liveDescriptor),
@@ -1126,7 +1133,11 @@ async function _serverVerifyLogin(liveDescriptor, targetUser, overlayCanvas, vid
       statusEl.classList.add('bad');
     } else {
       teardownLoginScan();
-      promptLoginPin(targetUser, 0.85);
+      if (typeof window.promptLoginPin === 'function') {
+        window.promptLoginPin(targetUser, 0.85);
+      } else if (typeof promptLoginPin === 'function') {
+        promptLoginPin(targetUser, 0.85);
+      }
     }
   }
 }
@@ -1360,17 +1371,6 @@ async function launchBiometricGate(title, lead) {
       } else {
         statusEl.textContent = `✔ 1st blink! Blink once more to authorize (1/2)…`;
       }
-      setTimeout(verifyStep, 80);
-      return;
-    }
-
-    // Liveness server is a bonus signal — not a hard gate in production.
-    // If no session (server offline / deployed), trust client-side EAR + MP478.
-    const serverLive = !!(currentLivenessState && currentLivenessState.live);
-    const livenessServerRunning = !!activeLivenessSessionId;
-    if (livenessServerRunning && !serverLive) {
-      drawOverlay(overlayCanvas, video, detections, 'SCAN', undefined, blinkStatus);
-      statusEl.textContent = `✔ Verifying blink with liveness server…`;
       setTimeout(verifyStep, 80);
       return;
     }

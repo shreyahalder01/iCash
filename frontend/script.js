@@ -113,6 +113,7 @@ function goTo(screenId) {
     window.scrollTo(0, 0);
   }
 }
+window.goTo = goTo;
 
 function switchView(viewName) {
   // Update sidebar active nav item
@@ -780,26 +781,34 @@ async function verifyAadhaarLogin() {
 // → Implemented in biometric.js (real face-api.js Euclidean matching engine)
 
 function promptLoginPin(user, confidence = 0.95) {
-  pendingLoginUser = user;
-  document.getElementById('login-pin-input').value = '';
-  document.getElementById('login-pin-msg').textContent = '';
+  const u = user || window._loginTargetUser || pendingLoginUser;
+  pendingLoginUser = u;
+  window.pendingLoginUser = u;
+  const pinInput = document.getElementById('login-pin-input');
+  if (pinInput) pinInput.value = '';
+  const pinMsg = document.getElementById('login-pin-msg');
+  if (pinMsg) pinMsg.textContent = '';
   const banner = document.getElementById('login-pin-banner');
-  banner.innerHTML = `
-    <div class="av">${initials(user.name)}</div>
-    <div>
-      <strong>Biometric Verified — ${user.name}</strong>
-      <span>Match confidence: ${Math.round(confidence * 100)}% · Enter 4-digit security PIN</span>
-    </div>
-  `;
+  const uName = u ? (u.name || 'Customer') : 'Customer';
+  if (banner) {
+    banner.innerHTML = `
+      <div class="av">${initials(uName)}</div>
+      <div>
+        <strong>Biometric Verified — ${uName}</strong>
+        <span>Match confidence: ${Math.round(confidence * 100)}% · Enter 4-digit security PIN</span>
+      </div>
+    `;
+  }
   goTo('screen-login-pin');
-  document.getElementById('login-pin-input').focus();
+  if (pinInput) pinInput.focus();
 }
+window.promptLoginPin = promptLoginPin;
 
 async function submitLoginPin() {
   const pin = document.getElementById('login-pin-input').value.trim();
   const msg = document.getElementById('login-pin-msg');
-  const u = pendingLoginUser;
-  if (!u) {
+  const u = pendingLoginUser || window._loginTargetUser;
+  if (!u || !u.id) {
     goTo('screen-welcome');
     return;
   }
@@ -816,6 +825,9 @@ async function submitLoginPin() {
       if (res.isDuress)
         showAlertToast('🚨 Emergency access mode activated · silent alert logged.', true);
       enterDashboard();
+    } else {
+      msg.textContent = res.message || res.error || 'Incorrect PIN.';
+      msg.className = 'modal-msg err';
     }
   } catch (err) {
     msg.textContent = err.message || 'Incorrect PIN.';
@@ -980,14 +992,22 @@ function renderBalanceHero(primaryAcc) {
   const balEl = document.getElementById('dash-primary-balance');
   const bankLabel = document.getElementById('dash-primary-bank-label');
   const accMask = document.getElementById('dash-primary-acc-mask');
+  if (!primaryAcc) {
+    if (balEl) balEl.textContent = '₹0.00';
+    if (bankLabel) bankLabel.textContent = 'iCash Federal Digital Bank';
+    if (accMask) accMask.textContent = '•••• ----';
+    return;
+  }
 
-  bankLabel.textContent = primaryAcc.bankName || 'iCash Federal Digital Bank';
-  accMask.textContent = primaryAcc.accountNumberMasked || '•••• 6926';
+  if (bankLabel) bankLabel.textContent = primaryAcc.bankName || 'iCash Federal Digital Bank';
+  if (accMask) accMask.textContent = primaryAcc.accountNumberMasked || '•••• 6926';
 
-  if (isBalanceHidden) {
-    balEl.textContent = '₹ ••••••';
-  } else {
-    balEl.textContent = fmtMoney(primaryAcc.balance);
+  if (balEl) {
+    if (isBalanceHidden) {
+      balEl.textContent = '₹ ••••••';
+    } else {
+      balEl.textContent = fmtMoney(primaryAcc.balance || 0);
+    }
   }
 }
 
