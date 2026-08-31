@@ -1,4 +1,3 @@
-const path = require('path');
 const prisma = require('../prisma');
 
 let pkgVersion = '2.0.0';

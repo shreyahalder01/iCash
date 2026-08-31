@@ -9,7 +9,10 @@
       content="Next-generation digital banking secured with 128-dimensional biometric facial vectors, 256-bit encryption, and real-time fraud monitoring."
     />
     <!-- CSP is set by backend Helmet middleware. Meta tag removed to avoid conflicts. -->
-    <meta http-equiv="Permissions-Policy" content="camera=(self), microphone=(), geolocation=(), payment=(self)" />
+    <meta
+      http-equiv="Permissions-Policy"
+      content="camera=(self), microphone=(), geolocation=(), payment=(self)"
+    />
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
     <link rel="icon" type="image/png" href="assets/favicon.png" />
     <link rel="apple-touch-icon" href="assets/logo-icon.png" />
@@ -28,8 +31,18 @@
         <!-- MAIN AUTH HERO & PORTAL SELECTION -->
         <div class="auth-container">
           <div class="auth-hero-info">
-            <div class="hero-logo-wrap" style="margin-bottom: 20px;">
-              <img src="assets/logo-full.png" alt="iCash Biometric Banking" class="hero-brand-logo" style="height: 48px; width: auto; max-width: 210px; filter: drop-shadow(0 4px 16px rgba(14, 165, 233, 0.28));" />
+            <div class="hero-logo-wrap" style="margin-bottom: 20px">
+              <img
+                src="assets/logo-full.png"
+                alt="iCash Biometric Banking"
+                class="hero-brand-logo"
+                style="
+                  height: 48px;
+                  width: auto;
+                  max-width: 210px;
+                  filter: drop-shadow(0 4px 16px rgba(14, 165, 233, 0.28));
+                "
+              />
             </div>
             <div class="auth-badge">
               <span class="dot-indicator"></span>
@@ -62,10 +75,17 @@
               </div>
             </div>
 
-            <div style="border-top: 1px solid var(--border); padding-top: 14px; margin-top: 14px;">
+            <div style="border-top: 1px solid var(--border); padding-top: 14px; margin-top: 14px">
               <button
                 class="mini-btn"
-                style="width: 100%; justify-content: center; font-weight: 600; background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.25); color: #f87171;"
+                style="
+                  width: 100%;
+                  justify-content: center;
+                  font-weight: 600;
+                  background: rgba(239, 68, 68, 0.08);
+                  border-color: rgba(239, 68, 68, 0.25);
+                  color: #f87171;
+                "
                 onclick="openEmergencyWithdrawalModal()"
               >
                 🚨 Emergency &amp; Authorized Representative Cash Withdrawal
@@ -85,7 +105,13 @@
             in plaintext.
           </p>
 
-          <form id="form-register" onsubmit="event.preventDefault(); proceedToBiometrics();">
+          <form
+            id="form-register"
+            onsubmit="
+              event.preventDefault();
+              proceedToBiometrics();
+            "
+          >
             <div class="field">
               <label>Full Name (as per Aadhaar)</label>
               <input
@@ -131,8 +157,21 @@
                   margin-top: 4px;
                 "
               ></p>
-              <div id="reg-senior-block" style="display: none; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 10px; margin-top: 8px; font-size: 11.5px; color: #fbbf24;">
-                👴 <strong>Senior Citizen Assisted Banking Active:</strong> Priority customer support, trusted contact authorization, and assisted banking mode enabled.
+              <div
+                id="reg-senior-block"
+                style="
+                  display: none;
+                  background: rgba(245, 158, 11, 0.08);
+                  border: 1px solid rgba(245, 158, 11, 0.3);
+                  border-radius: 8px;
+                  padding: 10px;
+                  margin-top: 8px;
+                  font-size: 11.5px;
+                  color: #fbbf24;
+                "
+              >
+                👴 <strong>Senior Citizen Assisted Banking Active:</strong> Priority customer
+                support, trusted contact authorization, and assisted banking mode enabled.
               </div>
             </div>
             <div class="field">
@@ -172,7 +211,8 @@
                   line-height: 1.4;
                 "
               >
-                Used to covertly trigger silent safety alarms if coerced to authenticate under duress.
+                Used to covertly trigger silent safety alarms if coerced to authenticate under
+                duress.
               </p>
             </div>
 
@@ -188,24 +228,59 @@
                 margin-top: 16px;
               "
             >
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <label style="color: var(--primary); font-size: 13px; font-weight: 600; margin: 0;">
+              <div
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  margin-bottom: 8px;
+                "
+              >
+                <label style="color: var(--primary); font-size: 13px; font-weight: 600; margin: 0">
                   🛡️ Trusted Emergency Contacts &amp; Authorized Representatives
                 </label>
-                <span style="font-size: 10px; color: var(--text-faint); font-family: var(--font-mono);">
+                <span
+                  style="font-size: 10px; color: var(--text-faint); font-family: var(--font-mono)"
+                >
                   Optional but Recommended
                 </span>
               </div>
-              <p style="color: var(--text-muted); font-size: 11px; margin-bottom: 12px; line-height: 1.4;">
-                Authorized persons can withdraw emergency funds on your behalf. Before release, the system will strictly require your <strong>real-time 5-minute OTP approval</strong>.
+              <p
+                style="
+                  color: var(--text-muted);
+                  font-size: 11px;
+                  margin-bottom: 12px;
+                  line-height: 1.4;
+                "
+              >
+                Authorized persons can withdraw emergency funds on your behalf. Before release, the
+                system will strictly require your <strong>real-time 5-minute OTP approval</strong>.
               </p>
 
-              <div id="reg-emergency-contacts-list" style="display: flex; flex-direction: column; gap: 10px;">
+              <div
+                id="reg-emergency-contacts-list"
+                style="display: flex; flex-direction: column; gap: 10px"
+              >
                 <!-- Contact Row 1 -->
-                <div class="emergency-contact-row" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px;">
-                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+                <div
+                  class="emergency-contact-row"
+                  style="
+                    background: var(--bg-surface);
+                    border: 1px solid var(--border);
+                    border-radius: 10px;
+                    padding: 12px;
+                  "
+                >
+                  <div
+                    style="
+                      display: grid;
+                      grid-template-columns: 1fr 1fr;
+                      gap: 8px;
+                      margin-bottom: 8px;
+                    "
+                  >
                     <div>
-                      <label style="font-size: 11px;">Full Name *</label>
+                      <label style="font-size: 11px">Full Name *</label>
                       <input
                         class="reg-ec-name"
                         type="text"
@@ -215,7 +290,7 @@
                       />
                     </div>
                     <div>
-                      <label style="font-size: 11px;">10-Digit Mobile *</label>
+                      <label style="font-size: 11px">10-Digit Mobile *</label>
                       <input
                         class="reg-ec-phone"
                         type="tel"
@@ -226,22 +301,24 @@
                       />
                     </div>
                   </div>
-                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px">
                     <div>
-                      <label style="font-size: 11px;">Relationship</label>
+                      <label style="font-size: 11px">Relationship</label>
                       <select class="reg-ec-relation">
                         <option value="Spouse">Spouse</option>
                         <option value="Parent">Parent</option>
                         <option value="Child">Child / Son / Daughter</option>
                         <option value="Sibling">Sibling / Brother / Sister</option>
                         <option value="Caregiver">Designated Caregiver</option>
-                        <option value="Legal Representative">Legal Representative / Attorney</option>
+                        <option value="Legal Representative">
+                          Legal Representative / Attorney
+                        </option>
                         <option value="Trusted Relative">Trusted Relative / Friend</option>
                         <option value="Other">Other Authorized Person</option>
                       </select>
                     </div>
                     <div>
-                      <label style="font-size: 11px;">Gov ID Proof (Optional)</label>
+                      <label style="font-size: 11px">Gov ID Proof (Optional)</label>
                       <input
                         class="reg-ec-idnum"
                         type="text"
@@ -257,7 +334,7 @@
               <button
                 type="button"
                 class="mini-btn"
-                style="margin-top: 10px; width: 100%; justify-content: center; font-size: 11.5px;"
+                style="margin-top: 10px; width: 100%; justify-content: center; font-size: 11.5px"
                 onclick="addRegistrationEmergencyContactRow()"
               >
                 + Add Another Authorized Contact
@@ -266,10 +343,10 @@
 
             <div class="modal-msg" id="reg-msg"></div>
             <div class="btn-row">
-              <button type="button" class="btn btn-ghost" onclick="goTo('screen-welcome')">Back</button>
-              <button type="submit" class="btn btn-primary">
-                Continue to Face Scan &rarr;
+              <button type="button" class="btn btn-ghost" onclick="goTo('screen-welcome')">
+                Back
               </button>
+              <button type="submit" class="btn btn-primary">Continue to Face Scan &rarr;</button>
             </div>
           </form>
         </div>
@@ -281,32 +358,170 @@
           <div class="eyebrow" id="otp-eyebrow">Step 2 of 3 · Mobile OTP</div>
           <h2>Verify Mobile Number</h2>
           <p class="lead">
-            A 6-digit security code was sent to <strong id="otp-mobile-display">+91 ••••••4821</strong>
+            A 6-digit security code was sent to
+            <strong id="otp-mobile-display">+91 ••••••4821</strong>
           </p>
 
-          <div id="otp-sms-banner" style="display: none; background: rgba(45, 212, 191, 0.1); border: 1px solid var(--primary); border-radius: 8px; padding: 10px; margin-bottom: 16px; font-size: 13px; text-align: center;">
-            📲 Simulated SMS: Your verification code is <strong id="otp-sms-code" style="color: var(--primary); font-size: 16px; letter-spacing: 2px;">123456</strong>
+          <div
+            id="otp-sms-banner"
+            style="
+              display: none;
+              background: rgba(45, 212, 191, 0.1);
+              border: 1px solid var(--primary);
+              border-radius: 8px;
+              padding: 10px;
+              margin-bottom: 16px;
+              font-size: 13px;
+              text-align: center;
+            "
+          >
+            📲 Simulated SMS: Your verification code is
+            <strong
+              id="otp-sms-code"
+              style="color: var(--primary); font-size: 16px; letter-spacing: 2px"
+              >123456</strong
+            >
           </div>
 
-          <div class="field" style="text-align: center;">
-            <label style="margin-bottom: 12px; display: block;">Enter 6-Digit OTP</label>
-            <div style="display: flex; justify-content: center; gap: 8px;">
-              <input id="od0" class="otp-digit" type="text" maxlength="1" inputmode="numeric" style="width: 44px; height: 48px; text-align: center; font-size: 20px; font-weight: 700; font-family: var(--font-mono); border-radius: 8px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-main);" />
-              <input id="od1" class="otp-digit" type="text" maxlength="1" inputmode="numeric" style="width: 44px; height: 48px; text-align: center; font-size: 20px; font-weight: 700; font-family: var(--font-mono); border-radius: 8px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-main);" />
-              <input id="od2" class="otp-digit" type="text" maxlength="1" inputmode="numeric" style="width: 44px; height: 48px; text-align: center; font-size: 20px; font-weight: 700; font-family: var(--font-mono); border-radius: 8px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-main);" />
-              <input id="od3" class="otp-digit" type="text" maxlength="1" inputmode="numeric" style="width: 44px; height: 48px; text-align: center; font-size: 20px; font-weight: 700; font-family: var(--font-mono); border-radius: 8px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-main);" />
-              <input id="od4" class="otp-digit" type="text" maxlength="1" inputmode="numeric" style="width: 44px; height: 48px; text-align: center; font-size: 20px; font-weight: 700; font-family: var(--font-mono); border-radius: 8px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-main);" />
-              <input id="od5" class="otp-digit" type="text" maxlength="1" inputmode="numeric" style="width: 44px; height: 48px; text-align: center; font-size: 20px; font-weight: 700; font-family: var(--font-mono); border-radius: 8px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-main);" />
+          <div class="field" style="text-align: center">
+            <label style="margin-bottom: 12px; display: block">Enter 6-Digit OTP</label>
+            <div style="display: flex; justify-content: center; gap: 8px">
+              <input
+                id="od0"
+                class="otp-digit"
+                type="text"
+                maxlength="1"
+                inputmode="numeric"
+                style="
+                  width: 44px;
+                  height: 48px;
+                  text-align: center;
+                  font-size: 20px;
+                  font-weight: 700;
+                  font-family: var(--font-mono);
+                  border-radius: 8px;
+                  border: 1px solid var(--border);
+                  background: var(--bg-surface);
+                  color: var(--text-main);
+                "
+              />
+              <input
+                id="od1"
+                class="otp-digit"
+                type="text"
+                maxlength="1"
+                inputmode="numeric"
+                style="
+                  width: 44px;
+                  height: 48px;
+                  text-align: center;
+                  font-size: 20px;
+                  font-weight: 700;
+                  font-family: var(--font-mono);
+                  border-radius: 8px;
+                  border: 1px solid var(--border);
+                  background: var(--bg-surface);
+                  color: var(--text-main);
+                "
+              />
+              <input
+                id="od2"
+                class="otp-digit"
+                type="text"
+                maxlength="1"
+                inputmode="numeric"
+                style="
+                  width: 44px;
+                  height: 48px;
+                  text-align: center;
+                  font-size: 20px;
+                  font-weight: 700;
+                  font-family: var(--font-mono);
+                  border-radius: 8px;
+                  border: 1px solid var(--border);
+                  background: var(--bg-surface);
+                  color: var(--text-main);
+                "
+              />
+              <input
+                id="od3"
+                class="otp-digit"
+                type="text"
+                maxlength="1"
+                inputmode="numeric"
+                style="
+                  width: 44px;
+                  height: 48px;
+                  text-align: center;
+                  font-size: 20px;
+                  font-weight: 700;
+                  font-family: var(--font-mono);
+                  border-radius: 8px;
+                  border: 1px solid var(--border);
+                  background: var(--bg-surface);
+                  color: var(--text-main);
+                "
+              />
+              <input
+                id="od4"
+                class="otp-digit"
+                type="text"
+                maxlength="1"
+                inputmode="numeric"
+                style="
+                  width: 44px;
+                  height: 48px;
+                  text-align: center;
+                  font-size: 20px;
+                  font-weight: 700;
+                  font-family: var(--font-mono);
+                  border-radius: 8px;
+                  border: 1px solid var(--border);
+                  background: var(--bg-surface);
+                  color: var(--text-main);
+                "
+              />
+              <input
+                id="od5"
+                class="otp-digit"
+                type="text"
+                maxlength="1"
+                inputmode="numeric"
+                style="
+                  width: 44px;
+                  height: 48px;
+                  text-align: center;
+                  font-size: 20px;
+                  font-weight: 700;
+                  font-family: var(--font-mono);
+                  border-radius: 8px;
+                  border: 1px solid var(--border);
+                  background: var(--bg-surface);
+                  color: var(--text-main);
+                "
+              />
             </div>
-            <div id="otp-countdown" style="margin-top: 12px; font-size: 12px; color: var(--text-faint); font-family: var(--font-mono);"></div>
+            <div
+              id="otp-countdown"
+              style="
+                margin-top: 12px;
+                font-size: 12px;
+                color: var(--text-faint);
+                font-family: var(--font-mono);
+              "
+            ></div>
           </div>
 
           <div class="modal-msg" id="otp-msg"></div>
 
-          <div class="btn-row" style="margin-top: 16px;">
+          <div class="btn-row" style="margin-top: 16px">
             <button type="button" class="btn btn-ghost" onclick="cancelOtp()">Cancel</button>
-            <button type="button" class="btn btn-ghost" id="resend-btn" onclick="resendOtp()">Resend Code</button>
-            <button type="button" class="btn btn-primary" onclick="verifyOtpCode()">Verify &rarr;</button>
+            <button type="button" class="btn btn-ghost" id="resend-btn" onclick="resendOtp()">
+              Resend Code
+            </button>
+            <button type="button" class="btn btn-primary" onclick="verifyOtpCode()">
+              Verify &rarr;
+            </button>
           </div>
         </div>
       </div>
@@ -449,7 +664,13 @@
             <p class="lead">
               Biometric identity verified. Enter your 4-digit PIN to access accounts.
             </p>
-            <form id="form-login-pin" onsubmit="event.preventDefault(); submitLoginPin();">
+            <form
+              id="form-login-pin"
+              onsubmit="
+                event.preventDefault();
+                submitLoginPin();
+              "
+            >
               <div class="field">
                 <label>4-Digit Security PIN</label>
                 <input
@@ -463,10 +684,10 @@
               </div>
               <div class="modal-msg" id="login-pin-msg"></div>
               <div class="btn-row">
-                <button type="button" class="btn btn-ghost" onclick="goTo('screen-welcome')">Cancel</button>
-                <button type="submit" class="btn btn-primary">
-                  Authorize &amp; Enter
+                <button type="button" class="btn btn-ghost" onclick="goTo('screen-welcome')">
+                  Cancel
                 </button>
+                <button type="submit" class="btn btn-primary">Authorize &amp; Enter</button>
               </div>
             </form>
           </div>
@@ -481,7 +702,13 @@
           <p class="lead">
             Direct authorization for customers using standard security credentials.
           </p>
-          <form id="form-pin-login" onsubmit="event.preventDefault(); attemptPinDirectLogin();">
+          <form
+            id="form-pin-login"
+            onsubmit="
+              event.preventDefault();
+              attemptPinDirectLogin();
+            "
+          >
             <div class="field">
               <label>Last 4 Digits of Aadhaar</label>
               <input
@@ -504,10 +731,12 @@
                 autocomplete="current-password"
               />
             </div>
-            
+
             <div class="modal-msg" id="pin-login-msg"></div>
             <div class="btn-row">
-              <button type="button" class="btn btn-ghost" onclick="goTo('screen-welcome')">Back</button>
+              <button type="button" class="btn btn-ghost" onclick="goTo('screen-welcome')">
+                Back
+              </button>
               <button type="submit" class="btn btn-primary">Sign In</button>
             </div>
           </form>
@@ -523,7 +752,13 @@
             Authorized trusted contacts can disburse approved withdrawals using the senior citizen's
             delegation OTP.
           </p>
-          <form id="form-delegate-collect" onsubmit="event.preventDefault(); attemptDelegateWithdraw();">
+          <form
+            id="form-delegate-collect"
+            onsubmit="
+              event.preventDefault();
+              attemptDelegateWithdraw();
+            "
+          >
             <div class="field">
               <label>Senior Citizen's Full Name</label>
               <input
@@ -547,12 +782,10 @@
             </div>
             <div class="modal-msg" id="delegate-collect-msg"></div>
             <div class="btn-row">
-              <button type="button" class="btn btn-ghost" onclick="goTo('screen-welcome')">Back</button>
-              <button
-                type="submit"
-                class="btn btn-primary"
-                id="delegate-claim-btn"
-              >
+              <button type="button" class="btn btn-ghost" onclick="goTo('screen-welcome')">
+                Back
+              </button>
+              <button type="submit" class="btn btn-primary" id="delegate-claim-btn">
                 Verify &amp; Disburse
               </button>
             </div>
@@ -1122,7 +1355,13 @@
                     Transfer money to verified beneficiaries with real-time biometric authorization.
                   </p>
 
-                  <form id="form-transfer" onsubmit="event.preventDefault(); initiateTransferWorkflow();">
+                  <form
+                    id="form-transfer"
+                    onsubmit="
+                      event.preventDefault();
+                      initiateTransferWorkflow();
+                    "
+                  >
                     <div class="field">
                       <label>Debiting Account</label>
                       <select id="transfer-source-select"></select>
@@ -1192,11 +1431,7 @@
 
                     <div class="modal-msg" id="transfer-msg"></div>
 
-                    <button
-                      type="submit"
-                      class="btn btn-indigo"
-                      style="margin-top: 10px"
-                    >
+                    <button type="submit" class="btn btn-indigo" style="margin-top: 10px">
                       Proceed to Biometric Authorization Gate &rarr;
                     </button>
                   </form>
@@ -1466,7 +1701,13 @@
                     This will permanently delete your account and all associated data. This action
                     is irreversible. To confirm, enter your 4-digit security PIN below.
                   </p>
-                  <form id="form-delete-account" onsubmit="event.preventDefault(); confirmDeleteAccount();">
+                  <form
+                    id="form-delete-account"
+                    onsubmit="
+                      event.preventDefault();
+                      confirmDeleteAccount();
+                    "
+                  >
                     <div class="field">
                       <label>Confirm 4-digit PIN</label>
                       <input
@@ -1479,15 +1720,17 @@
                       />
                     </div>
                     <div class="modal-msg" id="delete-account-msg"></div>
-                    <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px">
-                      <button type="button" class="btn btn-ghost" onclick="closeModal('delete-account')">
+                    <div
+                      style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px"
+                    >
+                      <button
+                        type="button"
+                        class="btn btn-ghost"
+                        onclick="closeModal('delete-account')"
+                      >
                         Cancel
                       </button>
-                      <button
-                        type="submit"
-                        class="btn btn-danger"
-                        id="delete-account-btn"
-                      >
+                      <button type="submit" class="btn btn-danger" id="delete-account-btn">
                         Delete Permanently
                       </button>
                     </div>
@@ -1765,10 +2008,14 @@
         <button class="close-x" onclick="closeModal('deposit')">&#10005;</button>
         <div class="eyebrow">Cash Credit</div>
         <h2>Deposit Funds</h2>
-        <p class="lead">
-          Select or enter the amount to deposit into your primary digital account.
-        </p>
-        <form id="form-deposit" onsubmit="event.preventDefault(); confirmDeposit();">
+        <p class="lead">Select or enter the amount to deposit into your primary digital account.</p>
+        <form
+          id="form-deposit"
+          onsubmit="
+            event.preventDefault();
+            confirmDeposit();
+          "
+        >
           <div class="chip-row">
             <div class="chip" onclick="setAmt('deposit', 500)">₹500</div>
             <div class="chip" onclick="setAmt('deposit', 1000)">₹1,000</div>
@@ -1815,7 +2062,13 @@
         <p class="lead">
           Select or enter the amount to withdraw from your primary digital account.
         </p>
-        <form id="form-withdraw" onsubmit="event.preventDefault(); confirmWithdraw();">
+        <form
+          id="form-withdraw"
+          onsubmit="
+            event.preventDefault();
+            confirmWithdraw();
+          "
+        >
           <div class="chip-row">
             <div class="chip" onclick="setAmt('withdraw', 500)">₹500</div>
             <div class="chip" onclick="setAmt('withdraw', 1000)">₹1,000</div>
@@ -1851,7 +2104,13 @@
         <p class="lead">
           Send funds securely to another verified account holder or external beneficiary.
         </p>
-        <form id="form-send" onsubmit="event.preventDefault(); confirmSend();">
+        <form
+          id="form-send"
+          onsubmit="
+            event.preventDefault();
+            confirmSend();
+          "
+        >
           <div class="field">
             <label>Beneficiary Full Name</label>
             <input
@@ -1939,7 +2198,13 @@
             Use 4-digit security PIN instead
           </button>
           <div id="verify-pin-block" style="display: none; width: 100%">
-            <form id="form-verify-pin" onsubmit="event.preventDefault(); submitVerifyPin();">
+            <form
+              id="form-verify-pin"
+              onsubmit="
+                event.preventDefault();
+                submitVerifyPin();
+              "
+            >
               <div class="field" style="margin-bottom: 8px">
                 <input
                   id="verify-pin-input"
@@ -1967,7 +2232,13 @@
         <p class="lead">
           Link an external savings, current, or digital card to your iCash profile.
         </p>
-        <form id="form-add-account" onsubmit="event.preventDefault(); submitAddAccount();">
+        <form
+          id="form-add-account"
+          onsubmit="
+            event.preventDefault();
+            submitAddAccount();
+          "
+        >
           <div class="field">
             <label>Bank Name / Financial Institution</label>
             <input
@@ -2010,7 +2281,13 @@
         <div class="eyebrow">Customer Protection</div>
         <h2>File a Grievance or Dispute</h2>
         <p class="lead">Submit an official complaint ticket for administrative review.</p>
-        <form id="form-complaint" onsubmit="event.preventDefault(); submitComplaint();">
+        <form
+          id="form-complaint"
+          onsubmit="
+            event.preventDefault();
+            submitComplaint();
+          "
+        >
           <div class="field">
             <label>Subject</label>
             <input
@@ -2043,7 +2320,13 @@
         <div class="eyebrow">Point of Sale</div>
         <h2>Create Payment Request</h2>
         <p class="lead">Generate a dynamic checkout reference for customer billing.</p>
-        <form id="form-payreq" onsubmit="event.preventDefault(); submitPaymentRequest();">
+        <form
+          id="form-payreq"
+          onsubmit="
+            event.preventDefault();
+            submitPaymentRequest();
+          "
+        >
           <div class="field">
             <label>Billing Amount (₹)</label>
             <input
@@ -2073,18 +2356,26 @@
 
     <!-- EMERGENCY & AUTHORIZED REPRESENTATIVE CASH WITHDRAWAL MODAL -->
     <div class="modal-backdrop" id="modal-emergency-withdrawal">
-      <div class="modal" style="max-width: 520px;">
+      <div class="modal" style="max-width: 520px">
         <button class="close-x" onclick="closeEmergencyWithdrawalModal()">&#10005;</button>
 
         <!-- STEP 1: IDENTITY & WITHDRAWAL DETAILS -->
         <div id="emg-step-1">
-          <div class="eyebrow" style="color: #ef4444;">🚨 Emergency Authorized Cash Withdrawal</div>
+          <div class="eyebrow" style="color: #ef4444">🚨 Emergency Authorized Cash Withdrawal</div>
           <h2>Authorized Representative Withdrawal</h2>
           <p class="lead">
-            Withdraw cash on behalf of an account holder during emergencies. The system will verify authorization and dispatch a real-time <strong>5-minute OTP</strong> to the account holder's registered mobile.
+            Withdraw cash on behalf of an account holder during emergencies. The system will verify
+            authorization and dispatch a real-time <strong>5-minute OTP</strong> to the account
+            holder's registered mobile.
           </p>
 
-          <form id="form-emergency-request" onsubmit="event.preventDefault(); submitEmergencyWithdrawalRequest();">
+          <form
+            id="form-emergency-request"
+            onsubmit="
+              event.preventDefault();
+              submitEmergencyWithdrawalRequest();
+            "
+          >
             <div class="field">
               <label>Account Holder Identifier *</label>
               <input
@@ -2096,7 +2387,7 @@
               />
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px">
               <div class="field">
                 <label>Your Full Name (Representative) *</label>
                 <input
@@ -2120,7 +2411,7 @@
               </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px">
               <div class="field">
                 <label>Your Gov ID Type</label>
                 <select id="emg-auth-idtype">
@@ -2154,11 +2445,19 @@
                 min="100"
                 max="1000000"
               />
-              <div class="chip-row" style="margin-top: 6px;">
-                <div class="chip" onclick="document.getElementById('emg-amount').value = 1000">₹1,000</div>
-                <div class="chip" onclick="document.getElementById('emg-amount').value = 2000">₹2,000</div>
-                <div class="chip" onclick="document.getElementById('emg-amount').value = 5000">₹5,000</div>
-                <div class="chip" onclick="document.getElementById('emg-amount').value = 10000">₹10,000</div>
+              <div class="chip-row" style="margin-top: 6px">
+                <div class="chip" onclick="document.getElementById('emg-amount').value = 1000">
+                  ₹1,000
+                </div>
+                <div class="chip" onclick="document.getElementById('emg-amount').value = 2000">
+                  ₹2,000
+                </div>
+                <div class="chip" onclick="document.getElementById('emg-amount').value = 5000">
+                  ₹5,000
+                </div>
+                <div class="chip" onclick="document.getElementById('emg-amount').value = 10000">
+                  ₹10,000
+                </div>
               </div>
             </div>
 
@@ -2175,8 +2474,10 @@
 
             <div class="modal-msg" id="emg-msg-1"></div>
 
-            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px;">
-              <button type="button" class="btn btn-ghost" onclick="closeEmergencyWithdrawalModal()">Cancel</button>
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px">
+              <button type="button" class="btn btn-ghost" onclick="closeEmergencyWithdrawalModal()">
+                Cancel
+              </button>
               <button type="submit" class="btn btn-danger" id="emg-submit-req-btn">
                 Verify &amp; Dispatch 5-Min OTP &rarr;
               </button>
@@ -2185,12 +2486,14 @@
         </div>
 
         <!-- STEP 2: LIVE 5-MINUTE OTP VERIFICATION -->
-        <div id="emg-step-2" style="display: none; text-align: center;">
-          <div class="eyebrow" style="color: #ef4444;">⏱ 5-Minute Live Authorization Window</div>
+        <div id="emg-step-2" style="display: none; text-align: center">
+          <div class="eyebrow" style="color: #ef4444">⏱ 5-Minute Live Authorization Window</div>
           <h2>Account Holder Approval</h2>
-          <p class="lead" style="font-size: 13px;">
+          <p class="lead" style="font-size: 13px">
             A 6-digit One-Time Password was dispatched to the account holder's registered mobile:
-            <br /><strong id="emg-holder-phone-badge" style="color: var(--primary); font-size: 15px;">+91 ••••••0000</strong>
+            <br /><strong id="emg-holder-phone-badge" style="color: var(--primary); font-size: 15px"
+              >+91 ••••••0000</strong
+            >
           </p>
 
           <!-- Animated Circular Countdown Timer -->
@@ -2198,7 +2501,13 @@
             <div class="emg-timer-circle">
               <svg class="emg-timer-svg" viewBox="0 0 100 100">
                 <circle class="emg-timer-bg" cx="50" cy="50" r="44"></circle>
-                <circle id="emg-timer-progress" class="emg-timer-bar" cx="50" cy="50" r="44"></circle>
+                <circle
+                  id="emg-timer-progress"
+                  class="emg-timer-bar"
+                  cx="50"
+                  cy="50"
+                  r="44"
+                ></circle>
               </svg>
               <div class="emg-timer-text">
                 <span id="emg-timer-digits">05:00</span>
@@ -2207,16 +2516,24 @@
             </div>
           </div>
 
-          <div id="emg-dev-otp-banner" class="dev-otp-pill" style="display: none;"></div>
+          <div id="emg-dev-otp-banner" class="dev-otp-pill" style="display: none"></div>
 
-          <p style="font-size: 11.5px; color: var(--text-muted); margin: 12px 0 16px;">
+          <p style="font-size: 11.5px; color: var(--text-muted); margin: 12px 0 16px">
             The account holder must receive the OTP on their mobile and provide it to you.
-            <br /><strong>Without correct OTP verification within 5 minutes, money cannot be released.</strong>
+            <br /><strong
+              >Without correct OTP verification within 5 minutes, money cannot be released.</strong
+            >
           </p>
 
-          <form id="form-emergency-verify" onsubmit="event.preventDefault(); submitEmergencyWithdrawalOtp();">
-            <div class="field" style="max-width: 260px; margin: 0 auto 12px;">
-              <label style="text-align: center;">Enter 6-Digit OTP</label>
+          <form
+            id="form-emergency-verify"
+            onsubmit="
+              event.preventDefault();
+              submitEmergencyWithdrawalOtp();
+            "
+          >
+            <div class="field" style="max-width: 260px; margin: 0 auto 12px">
+              <label style="text-align: center">Enter 6-Digit OTP</label>
               <input
                 id="emg-otp-input"
                 class="otp-large-input"
@@ -2230,8 +2547,10 @@
 
             <div class="modal-msg" id="emg-msg-2"></div>
 
-            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 16px;">
-              <button type="button" class="btn btn-ghost" onclick="resetEmergencyStep1()">Back / Edit Details</button>
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 16px">
+              <button type="button" class="btn btn-ghost" onclick="resetEmergencyStep1()">
+                Back / Edit Details
+              </button>
               <button type="submit" class="btn btn-primary" id="emg-verify-otp-btn">
                 Verify OTP &amp; Authorize Cash Release
               </button>
@@ -2240,14 +2559,27 @@
         </div>
 
         <!-- STEP 3: OFFICIAL CASH RELEASE VOUCHER -->
-        <div id="emg-step-3" style="display: none;">
-          <div style="text-align: center; margin-bottom: 16px;">
-            <div style="width: 54px; height: 54px; border-radius: 50%; background: rgba(34, 197, 94, 0.12); color: #22c55e; display: inline-flex; align-items: center; justify-content: center; font-size: 26px; margin-bottom: 8px;">
+        <div id="emg-step-3" style="display: none">
+          <div style="text-align: center; margin-bottom: 16px">
+            <div
+              style="
+                width: 54px;
+                height: 54px;
+                border-radius: 50%;
+                background: rgba(34, 197, 94, 0.12);
+                color: #22c55e;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 26px;
+                margin-bottom: 8px;
+              "
+            >
               ✓
             </div>
-            <div class="eyebrow" style="color: var(--success);">Authorization Complete</div>
+            <div class="eyebrow" style="color: var(--success)">Authorization Complete</div>
             <h2>Cash Disbursement Voucher</h2>
-            <p style="font-size: 12.5px; color: var(--text-muted);">
+            <p style="font-size: 12.5px; color: var(--text-muted)">
               Funds have been atomically debited and authorized for cash disbursement.
             </p>
           </div>
@@ -2284,12 +2616,12 @@
               </div>
               <div>
                 <span class="voucher-label">Authorization Protocol</span>
-                <strong style="color: var(--primary);">5-Min SMS OTP Verified ✓</strong>
+                <strong style="color: var(--primary)">5-Min SMS OTP Verified ✓</strong>
               </div>
             </div>
           </div>
 
-          <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px;">
+          <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px">
             <button class="btn btn-ghost" onclick="window.print()">🖨️ Print Voucher</button>
             <button class="btn btn-primary" onclick="closeEmergencyWithdrawalModal()">Done</button>
           </div>
@@ -2312,7 +2644,10 @@
       crossorigin="anonymous"
     ></script>
     <!-- MediaPipe FaceMesh (478-keypoint blink detection) -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js" crossorigin="anonymous"></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js"
+      crossorigin="anonymous"
+    ></script>
     <script
       src="https://cdn.jsdelivr.net/npm/appwrite@17.0.0/dist/iife/sdk.min.js"
       crossorigin="anonymous"

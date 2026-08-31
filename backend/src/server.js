@@ -163,7 +163,7 @@ async function handler(contextOrReq, res, next) {
       typeof contextOrReq.res.empty === 'function');
 
   if (isAppwriteContext) {
-    const { req: appwriteReq, res: appwriteRes, log, error } = contextOrReq;
+    const { req: appwriteReq, res: appwriteRes } = contextOrReq;
     const reqPath = appwriteReq.path || '/';
 
     const sendResponse = (body, status = 200, headers = {}) => {
@@ -174,7 +174,11 @@ async function handler(contextOrReq, res, next) {
         return appwriteRes.text(body, status, headers);
       }
       if (typeof appwriteRes.json === 'function') {
-        return appwriteRes.json(typeof body === 'string' ? { content: body } : body, status, headers);
+        return appwriteRes.json(
+          typeof body === 'string' ? { content: body } : body,
+          status,
+          headers
+        );
       }
     };
 
@@ -252,13 +256,22 @@ Object.setPrototypeOf(handler, app);
 function autoSyncDatabase() {
   const dbUrl = process.env.DATABASE_URL;
   if (!dbUrl || dbUrl.includes('localhost:5432')) {
-    console.log('ℹ️  Using default DATABASE_URL. For persistent cloud storage, provide your PostgreSQL URL (e.g. Supabase or Neon).');
+    console.log(
+      'ℹ️  Using default DATABASE_URL. For persistent cloud storage, provide your PostgreSQL URL (e.g. Supabase or Neon).'
+    );
     return;
   }
   try {
     const { execSync } = require('child_process');
     console.log('🔄 Checking database schema with Prisma db push...');
-    const prismaBin = path.join(__dirname, '..', '..', 'node_modules', '.bin', process.platform === 'win32' ? 'prisma.cmd' : 'prisma');
+    const prismaBin = path.join(
+      __dirname,
+      '..',
+      '..',
+      'node_modules',
+      '.bin',
+      process.platform === 'win32' ? 'prisma.cmd' : 'prisma'
+    );
     const cmd = require('fs').existsSync(prismaBin)
       ? `"${prismaBin}" db push --schema=backend/prisma/schema.prisma --skip-generate`
       : 'npx --no-install prisma db push --schema=backend/prisma/schema.prisma --skip-generate';
@@ -301,4 +314,3 @@ if (require.main === module) {
 module.exports = handler;
 module.exports.app = app;
 module.exports.default = handler;
-

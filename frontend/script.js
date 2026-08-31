@@ -35,8 +35,8 @@ function initAppwrite() {
       // Delegate to lib/appwrite.js which holds all config and auto-pings.
       const result = window.AppwriteLib.initAppwriteClient();
       if (result) {
-        appwriteClient    = result.client;
-        appwriteAccount   = result.account;
+        appwriteClient = result.client;
+        appwriteAccount = result.account;
         appwriteDatabases = result.databases;
       }
     }
@@ -333,7 +333,9 @@ async function proceedToBiometrics() {
 
   // Extract all trusted emergency contacts / authorized persons
   const emergencyContacts = [];
-  const contactRows = document.querySelectorAll('#reg-emergency-contacts-list .emergency-contact-row');
+  const contactRows = document.querySelectorAll(
+    '#reg-emergency-contacts-list .emergency-contact-row'
+  );
   contactRows.forEach((row) => {
     const cName = row.querySelector('.reg-ec-name')?.value.trim();
     const cPhone = row.querySelector('.reg-ec-phone')?.value.trim();
@@ -616,7 +618,12 @@ function cameraErrorMessage(err) {
     return "This browser doesn't support webcam access. Use PIN authorization to sign in.";
   }
   const name = err && err.name;
-  if (name === 'NotAllowedError' || name === 'PermissionDeniedError' || name === 'SecurityError' || name === 'AbortError') {
+  if (
+    name === 'NotAllowedError' ||
+    name === 'PermissionDeniedError' ||
+    name === 'SecurityError' ||
+    name === 'AbortError'
+  ) {
     return 'Camera access blocked. On Android: close any floating bubbles/overlays (such as Messenger Chat Heads or screen recorders) and tap Retry, or use PIN authorization below.';
   }
   if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
@@ -646,7 +653,11 @@ async function startCamera(videoEl, errEl) {
   }
 
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    if (!window.isSecureContext && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+    if (
+      !window.isSecureContext &&
+      location.hostname !== 'localhost' &&
+      location.hostname !== '127.0.0.1'
+    ) {
       const err = new Error('INSECURE_CONTEXT');
       if (errEl) {
         errEl.textContent = cameraErrorMessage(err);
@@ -859,56 +870,58 @@ async function loadDashboardData() {
   // Fetch real Accounts & Transactions
   try {
     const accRes = await window.iCashApi.getAccounts();
-    currentAccounts = (accRes && accRes.accounts && accRes.accounts.length > 0)
-      ? accRes.accounts
-      : [
-          {
-            id: 'acc_primary_savings',
-            bankName: 'iCash Federal Digital Bank',
-            accountNumberMasked: `•••• ${currentUser.aadhaarLast4 || '4821'}`,
-            accountType: 'SAVINGS',
-            balance: 25000,
-            isPrimary: true,
-            status: 'ACTIVE',
-          },
-          {
-            id: 'acc_virtual_wallet',
-            bankName: 'iCash Virtual Debit Wallet',
-            accountNumberMasked: '•••• 0912',
-            accountType: 'VIRTUAL',
-            balance: 5000,
-            isPrimary: false,
-            status: 'ACTIVE',
-          },
-        ];
+    currentAccounts =
+      accRes && accRes.accounts && accRes.accounts.length > 0
+        ? accRes.accounts
+        : [
+            {
+              id: 'acc_primary_savings',
+              bankName: 'iCash Federal Digital Bank',
+              accountNumberMasked: `•••• ${currentUser.aadhaarLast4 || '4821'}`,
+              accountType: 'SAVINGS',
+              balance: 25000,
+              isPrimary: true,
+              status: 'ACTIVE',
+            },
+            {
+              id: 'acc_virtual_wallet',
+              bankName: 'iCash Virtual Debit Wallet',
+              accountNumberMasked: '•••• 0912',
+              accountType: 'VIRTUAL',
+              balance: 5000,
+              isPrimary: false,
+              status: 'ACTIVE',
+            },
+          ];
 
     const primaryAcc = currentAccounts.find((a) => a.isPrimary) || currentAccounts[0];
     renderBalanceHero(primaryAcc);
     renderAccountsGrid(currentAccounts);
 
     const txRes = await window.iCashApi.getTransactions();
-    currentTransactions = (txRes && txRes.transactions && txRes.transactions.length > 0)
-      ? txRes.transactions
-      : [
-          {
-            id: 'TX_DEMO_01',
-            referenceNumber: 'TX_ICASH_1001',
-            description: 'Account opened · e-KYC demo funds credited',
-            amount: 25000,
-            type: 'DEPOSIT',
-            status: 'COMPLETED',
-            createdAt: new Date().toISOString(),
-          },
-          {
-            id: 'TX_DEMO_02',
-            referenceNumber: 'TX_ICASH_1002',
-            description: 'Metro Mart POS Grocery Store',
-            amount: 1450,
-            type: 'PAYMENT',
-            status: 'COMPLETED',
-            createdAt: new Date(Date.now() - 3600000).toISOString(),
-          },
-        ];
+    currentTransactions =
+      txRes && txRes.transactions && txRes.transactions.length > 0
+        ? txRes.transactions
+        : [
+            {
+              id: 'TX_DEMO_01',
+              referenceNumber: 'TX_ICASH_1001',
+              description: 'Account opened · e-KYC demo funds credited',
+              amount: 25000,
+              type: 'DEPOSIT',
+              status: 'COMPLETED',
+              createdAt: new Date().toISOString(),
+            },
+            {
+              id: 'TX_DEMO_02',
+              referenceNumber: 'TX_ICASH_1002',
+              description: 'Metro Mart POS Grocery Store',
+              amount: 1450,
+              type: 'PAYMENT',
+              status: 'COMPLETED',
+              createdAt: new Date(Date.now() - 3600000).toISOString(),
+            },
+          ];
     filteredTransactions = [...currentTransactions];
 
     renderInsightCards(primaryAcc.balance, currentTransactions, currentAccounts.length);
@@ -1241,7 +1254,10 @@ function openDepositModal() {
   const msgEl = document.getElementById('deposit-msg');
   if (amtEl) amtEl.value = '';
   if (descEl) descEl.value = '';
-  if (msgEl) { msgEl.textContent = ''; msgEl.className = 'modal-msg'; }
+  if (msgEl) {
+    msgEl.textContent = '';
+    msgEl.className = 'modal-msg';
+  }
   openModal('deposit');
 }
 
@@ -1552,7 +1568,8 @@ async function submitEmergencyWithdrawalRequest() {
   const btn = document.getElementById('emg-submit-req-btn');
 
   if (!ident || ident.length < 2) {
-    msg.textContent = "Please enter the account holder's identifier (mobile, Aadhaar last 4, or full name).";
+    msg.textContent =
+      "Please enter the account holder's identifier (mobile, Aadhaar last 4, or full name).";
     msg.className = 'modal-msg err';
     return;
   }
@@ -1655,7 +1672,8 @@ function startEmergencyCountdown(totalSeconds) {
       clearInterval(_emgCountdownInterval);
       _emgCountdownInterval = null;
       if (msgEl) {
-        msgEl.textContent = '⚠️ The 5-minute authorization window has expired. Please initiate a new request.';
+        msgEl.textContent =
+          '⚠️ The 5-minute authorization window has expired. Please initiate a new request.';
         msgEl.className = 'modal-msg err';
       }
       if (verifyBtn) verifyBtn.disabled = true;
@@ -1699,14 +1717,18 @@ async function submitEmergencyWithdrawalOtp() {
       }
 
       // Populate Step 3 Voucher
-      document.getElementById('emg-receipt-amt').textContent = `₹${Number(res.amount).toLocaleString('en-IN')}`;
-      document.getElementById('emg-receipt-ref').textContent = res.referenceNumber || res.transactionId || 'TX_EMERGENCY';
+      document.getElementById('emg-receipt-amt').textContent =
+        `₹${Number(res.amount).toLocaleString('en-IN')}`;
+      document.getElementById('emg-receipt-ref').textContent =
+        res.referenceNumber || res.transactionId || 'TX_EMERGENCY';
       document.getElementById('emg-receipt-date').textContent = new Date().toLocaleString('en-IN', {
         dateStyle: 'medium',
         timeStyle: 'short',
       });
-      document.getElementById('emg-receipt-holder').textContent = res.accountHolderName || 'Account Holder';
-      document.getElementById('emg-receipt-rep').textContent = `${res.authorizedPersonName} (${res.authorizedPersonPhone})`;
+      document.getElementById('emg-receipt-holder').textContent =
+        res.accountHolderName || 'Account Holder';
+      document.getElementById('emg-receipt-rep').textContent =
+        `${res.authorizedPersonName} (${res.authorizedPersonPhone})`;
       document.getElementById('emg-receipt-idproof').textContent = res.authorizedIdNumber
         ? `${res.authorizedIdType || 'Gov ID'}: ${res.authorizedIdNumber}`
         : 'Authorized Representative Verified ✓';
@@ -1715,14 +1737,18 @@ async function submitEmergencyWithdrawalOtp() {
       document.getElementById('emg-step-2').style.display = 'none';
       document.getElementById('emg-step-3').style.display = 'block';
 
-      showAlertToast(`🚨 Emergency Cash Release Authorized: ₹${Number(res.amount).toLocaleString('en-IN')} released to ${res.authorizedPersonName}.`);
+      showAlertToast(
+        `🚨 Emergency Cash Release Authorized: ₹${Number(res.amount).toLocaleString('en-IN')} released to ${res.authorizedPersonName}.`
+      );
 
       // Refresh dashboard if user is signed in
       if (typeof loadDashboardData === 'function') loadDashboardData();
     }
   } catch (err) {
     if (btn) btn.disabled = false;
-    msg.textContent = err.message || 'OTP verification failed. Please check the code received by the account holder.';
+    msg.textContent =
+      err.message ||
+      'OTP verification failed. Please check the code received by the account holder.';
     msg.className = 'modal-msg err';
   }
 }

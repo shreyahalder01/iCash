@@ -12,7 +12,7 @@
   },
   "rules": {
     "prettier/prettier": ["error", { "endOfLine": "auto" }],
-    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
     "no-console": "off"
   },
   "overrides": [

@@ -15,14 +15,22 @@ const API_BASE_CANDIDATES = [
 
 function getConfiguredBaseUrl() {
   if (typeof window !== 'undefined') {
-    if (window.ICASH_CONFIG && typeof window.ICASH_CONFIG.API_BASE_URL === 'string' && window.ICASH_CONFIG.API_BASE_URL.trim()) {
+    if (
+      window.ICASH_CONFIG &&
+      typeof window.ICASH_CONFIG.API_BASE_URL === 'string' &&
+      window.ICASH_CONFIG.API_BASE_URL.trim()
+    ) {
       return window.ICASH_CONFIG.API_BASE_URL.trim().replace(/\/+$/, '');
     }
     const stored = localStorage.getItem('icash_api_url');
     if (stored && stored.trim()) {
       return stored.trim().replace(/\/+$/, '');
     }
-    if (window.__API_BASE__ && typeof window.__API_BASE__ === 'string' && window.__API_BASE__.trim()) {
+    if (
+      window.__API_BASE__ &&
+      typeof window.__API_BASE__ === 'string' &&
+      window.__API_BASE__.trim()
+    ) {
       return window.__API_BASE__.trim().replace(/\/+$/, '');
     }
   }
@@ -46,7 +54,9 @@ async function detectApiBase() {
         return currentBase;
       }
     } catch (e) {
-      console.warn(`[iCash API] Configured remote server (${currentBase}) health check failed, checking alternatives...`);
+      console.warn(
+        `[iCash API] Configured remote server (${currentBase}) health check failed, checking alternatives...`
+      );
     }
   }
 
@@ -111,7 +121,11 @@ async function request(endpoint, options = {}) {
   try {
     response = await fetch(url, config);
   } catch (netErr) {
-    const attemptedTarget = base ? base : (typeof window !== 'undefined' ? window.location.origin : 'server');
+    const attemptedTarget = base
+      ? base
+      : typeof window !== 'undefined'
+        ? window.location.origin
+        : 'server';
     throw new Error(
       `Unable to connect to banking backend (${attemptedTarget}). Please ensure the backend server is running and accessible.`
     );
@@ -328,7 +342,11 @@ const api = {
     currentBase = getConfiguredBaseUrl();
   },
   getServerUrl: () => {
-    return currentBase || getConfiguredBaseUrl() || (typeof window !== 'undefined' ? window.location.origin : '');
+    return (
+      currentBase ||
+      getConfiguredBaseUrl() ||
+      (typeof window !== 'undefined' ? window.location.origin : '')
+    );
   },
 };
 

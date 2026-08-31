@@ -18,8 +18,6 @@ class AuthService {
       pin,
       emergencyPin,
       isSenior,
-      emergencyContactName,
-      emergencyContactPhone,
       descriptors,
       role = 'USER',
     } = data;
@@ -418,11 +416,16 @@ class AuthService {
       isSenior: user.is_senior,
       emergencyContact: (() => {
         if (!user.emergency_contact_name) return null;
-        if (user.emergency_contact_name.startsWith('[') || user.emergency_contact_name.startsWith('{')) {
+        if (
+          user.emergency_contact_name.startsWith('[') ||
+          user.emergency_contact_name.startsWith('{')
+        ) {
           try {
             const arr = JSON.parse(user.emergency_contact_name);
             return Array.isArray(arr) ? arr[0] : arr;
-          } catch (e) {}
+          } catch (_parseErr) {
+            // Fall through to plain object
+          }
         }
         return {
           name: user.emergency_contact_name,
@@ -432,11 +435,16 @@ class AuthService {
       })(),
       emergencyContacts: (() => {
         if (!user.emergency_contact_name) return [];
-        if (user.emergency_contact_name.startsWith('[') || user.emergency_contact_name.startsWith('{')) {
+        if (
+          user.emergency_contact_name.startsWith('[') ||
+          user.emergency_contact_name.startsWith('{')
+        ) {
           try {
             const arr = JSON.parse(user.emergency_contact_name);
             return Array.isArray(arr) ? arr : [arr];
-          } catch (e) {}
+          } catch (_parseErr) {
+            // Fall through to single contact array
+          }
         }
         return [
           {

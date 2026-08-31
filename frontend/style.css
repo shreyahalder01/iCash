@@ -205,8 +205,15 @@ img {
 }
 
 @keyframes pulseLive {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.6; transform: scale(1.15); }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.15);
+  }
 }
 
 .auth-container {
@@ -284,7 +291,9 @@ img {
   font-size: 13px;
   color: var(--text-main);
   width: fit-content;
-  transition: background 0.2s, border-color 0.2s;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
 }
 
 .hero-feature-pill:hover {
@@ -2234,7 +2243,9 @@ textarea:focus {
   stroke-linecap: round;
   stroke-dasharray: 276.46;
   stroke-dashoffset: 0;
-  transition: stroke-dashoffset 1s linear, stroke 0.3s ease;
+  transition:
+    stroke-dashoffset 1s linear,
+    stroke 0.3s ease;
 }
 
 .emg-timer-text {
@@ -2361,7 +2372,9 @@ textarea:focus {
 }
 
 .emergency-contact-row {
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .emergency-contact-row:hover {

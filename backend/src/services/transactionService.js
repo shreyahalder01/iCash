@@ -303,7 +303,9 @@ class TransactionService {
     } = data;
 
     if (!accountIdentifier || !authorizedName || !authorizedPhone || !amount) {
-      const err = new Error('Please provide account identifier, authorized person name, mobile number, and withdrawal amount.');
+      const err = new Error(
+        'Please provide account identifier, authorized person name, mobile number, and withdrawal amount.'
+      );
       err.status = 400;
       throw err;
     }
@@ -345,22 +347,39 @@ class TransactionService {
     // Parse registered emergency contacts list
     let regContacts = [];
     if (accountHolder.emergency_contact_name) {
-      if (accountHolder.emergency_contact_name.startsWith('[') || accountHolder.emergency_contact_name.startsWith('{')) {
+      if (
+        accountHolder.emergency_contact_name.startsWith('[') ||
+        accountHolder.emergency_contact_name.startsWith('{')
+      ) {
         try {
           const arr = JSON.parse(accountHolder.emergency_contact_name);
           regContacts = Array.isArray(arr) ? arr : [arr];
         } catch (e) {
-          regContacts = [{ name: accountHolder.emergency_contact_name, phone: accountHolder.emergency_contact_phone }];
+          regContacts = [
+            {
+              name: accountHolder.emergency_contact_name,
+              phone: accountHolder.emergency_contact_phone,
+            },
+          ];
         }
       } else {
-        regContacts = [{ name: accountHolder.emergency_contact_name, phone: accountHolder.emergency_contact_phone }];
+        regContacts = [
+          {
+            name: accountHolder.emergency_contact_name,
+            phone: accountHolder.emergency_contact_phone,
+          },
+        ];
       }
     }
 
     const isAuthorized = regContacts.some((contact) => {
       if (!contact) return false;
-      const cPhone = String(contact.phone || '').replace(/\D/g, '').slice(-10);
-      const cName = String(contact.name || '').toLowerCase().trim();
+      const cPhone = String(contact.phone || '')
+        .replace(/\D/g, '')
+        .slice(-10);
+      const cName = String(contact.name || '')
+        .toLowerCase()
+        .trim();
       const matchPhone = cPhone && cPhone === cleanAuthPhone;
       const matchName = cName && cName === cleanAuthName.toLowerCase();
       return matchPhone || matchName;
@@ -376,7 +395,9 @@ class TransactionService {
 
     const primaryAccount = accountHolder.accounts[0];
     if (!primaryAccount || Number(primaryAccount.balance) < numAmount) {
-      const err = new Error("Account holder's available balance is insufficient for this withdrawal.");
+      const err = new Error(
+        "Account holder's available balance is insufficient for this withdrawal."
+      );
       err.status = 400;
       throw err;
     }
@@ -445,7 +466,9 @@ class TransactionService {
     const { requestId, otp } = data;
 
     if (!requestId || !otp) {
-      const err = new Error('Please provide request ID and the 6-digit OTP received by the account holder.');
+      const err = new Error(
+        'Please provide request ID and the 6-digit OTP received by the account holder.'
+      );
       err.status = 400;
       throw err;
     }
@@ -478,7 +501,9 @@ class TransactionService {
         where: { id: delegation.id },
         data: { status: 'EXPIRED' },
       });
-      const err = new Error('The 5-minute OTP authorization window has expired. Please initiate a new request.');
+      const err = new Error(
+        'The 5-minute OTP authorization window has expired. Please initiate a new request.'
+      );
       err.status = 400;
       throw err;
     }
@@ -502,7 +527,9 @@ class TransactionService {
         ipAddress: req?.ip,
         deviceReference: req?.headers['user-agent'],
       });
-      const err = new Error('Incorrect One-Time Password. Please check the OTP sent to the account holder and try again.');
+      const err = new Error(
+        'Incorrect One-Time Password. Please check the OTP sent to the account holder and try again.'
+      );
       err.status = 400;
       throw err;
     }
@@ -519,7 +546,7 @@ class TransactionService {
 
     // Atomically release funds and generate audit transaction record
     return await prisma.$transaction(async (tx) => {
-      const updatedDelegation = await tx.delegatedWithdrawal.update({
+      await tx.delegatedWithdrawal.update({
         where: { id: delegation.id },
         data: {
           status: 'USED',
@@ -597,15 +624,30 @@ class TransactionService {
 
     let contacts = [];
     if (user.emergency_contact_name) {
-      if (user.emergency_contact_name.startsWith('[') || user.emergency_contact_name.startsWith('{')) {
+      if (
+        user.emergency_contact_name.startsWith('[') ||
+        user.emergency_contact_name.startsWith('{')
+      ) {
         try {
           const arr = JSON.parse(user.emergency_contact_name);
           contacts = Array.isArray(arr) ? arr : [arr];
         } catch (e) {
-          contacts = [{ name: user.emergency_contact_name, phone: user.emergency_contact_phone, relation: 'Trusted Representative' }];
+          contacts = [
+            {
+              name: user.emergency_contact_name,
+              phone: user.emergency_contact_phone,
+              relation: 'Trusted Representative',
+            },
+          ];
         }
       } else {
-        contacts = [{ name: user.emergency_contact_name, phone: user.emergency_contact_phone, relation: 'Trusted Representative' }];
+        contacts = [
+          {
+            name: user.emergency_contact_name,
+            phone: user.emergency_contact_phone,
+            relation: 'Trusted Representative',
+          },
+        ];
       }
     }
 
@@ -634,13 +676,9 @@ class TransactionService {
 
     const primary = normalized[0] || null;
     const contactsData =
-      normalized.length > 1
-        ? JSON.stringify(normalized)
-        : primary
-          ? primary.name
-          : null;
+      normalized.length > 1 ? JSON.stringify(normalized) : primary ? primary.name : null;
 
-    const updated = await prisma.user.update({
+    await prisma.user.update({
       where: { id: userId },
       data: {
         emergency_contact_name: contactsData,
@@ -673,13 +711,16 @@ class TransactionService {
       err.status = 404;
       throw err;
     }
-    return await TransactionService.requestEmergencyWithdrawal({
-      accountIdentifier: senior.phone,
-      authorizedName: senior.emergency_contact_name || 'Authorized Senior Contact',
-      authorizedPhone: senior.emergency_contact_phone || senior.phone,
-      amount,
-      reason: 'Senior Citizen Assisted Cash Withdrawal',
-    }, req);
+    return await TransactionService.requestEmergencyWithdrawal(
+      {
+        accountIdentifier: senior.phone,
+        authorizedName: senior.emergency_contact_name || 'Authorized Senior Contact',
+        authorizedPhone: senior.emergency_contact_phone || senior.phone,
+        amount,
+        reason: 'Senior Citizen Assisted Cash Withdrawal',
+      },
+      req
+    );
   }
 
   /**
@@ -701,10 +742,13 @@ class TransactionService {
       err.status = 404;
       throw err;
     }
-    return await TransactionService.verifyEmergencyWithdrawal({
-      requestId: senior.delegations[0].id,
-      otp,
-    }, req);
+    return await TransactionService.verifyEmergencyWithdrawal(
+      {
+        requestId: senior.delegations[0].id,
+        otp,
+      },
+      req
+    );
   }
 }
 

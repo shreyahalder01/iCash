@@ -63,7 +63,9 @@ class AdminController {
       }
 
       // Safe user view without hashes
-      const { password_hash, emergency_pin_hash, ...safeData } = user;
+      const safeData = { ...user };
+      delete safeData.password_hash;
+      delete safeData.emergency_pin_hash;
 
       res.json({
         ok: true,

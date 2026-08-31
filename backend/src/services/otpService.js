@@ -5,7 +5,6 @@
 const { sendOtpSms, isDevMode, PROVIDER } = require('./smsProvider');
 
 const OTP_TTL_MS = 5 * 60 * 1000; // 5 minutes
-const RESEND_COOLDOWN_MS = 30 * 1000; // 30 seconds
 const MAX_ATTEMPTS = 5;
 
 const store = new Map(); // key: `${purpose}:${mobile}` -> { code, expiresAt, attempts, lastSentAt }
@@ -20,9 +19,8 @@ function generateCode() {
 
 async function issueOtp(purpose, mobile) {
   const k = key(purpose, mobile);
-  const existing = store.get(k);
 
-  // If requested within cooldown, refresh the code and return without blocking
+  // Generate code and refresh record
   const code = generateCode();
   const expiresAt = Date.now() + OTP_TTL_MS;
   store.set(k, { code, expiresAt, attempts: 0, lastSentAt: Date.now() });

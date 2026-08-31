@@ -29,7 +29,7 @@ const REQUIRED_BLINKS = 2; // Strict requirement: must blink 2 times
 
 function _getDetectOptions() {
   // 320px input size with 0.30 score threshold ensures fast and reliable face detection
-  return new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.30 });
+  return new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.3 });
 }
 
 function sleep(ms) {
@@ -77,7 +77,12 @@ async function ensureBioModels() {
       console.log('[iCash Bio] FaceAPI models loaded OK from:', src);
       return true;
     } catch (e) {
-      console.warn('[iCash Bio] Model load failed from', src, '— trying next source…', e.message || e);
+      console.warn(
+        '[iCash Bio] Model load failed from',
+        src,
+        '— trying next source…',
+        e.message || e
+      );
     }
   }
 
@@ -92,10 +97,10 @@ async function ensureBioModels() {
 // 68-point EAR detector. No TF.js conflicts: MP runs in its own Wasm pipeline.
 
 // Standard 6-point EAR indices for MediaPipe 478-keypoint model:
-const MP_LEFT_EYE_EAR_IDX  = [362, 385, 387, 263, 373, 380];
-const MP_RIGHT_EYE_EAR_IDX = [33,  160, 158, 133, 153, 144];
+const MP_LEFT_EYE_EAR_IDX = [362, 385, 387, 263, 373, 380];
+const MP_RIGHT_EYE_EAR_IDX = [33, 160, 158, 133, 153, 144];
 
-let _mpFaceMesh      = null;
+let _mpFaceMesh = null;
 let _mpFaceMeshReady = false;
 let _mpFaceMeshLoading = false;
 let _mpLastKeypoints = null; // latest 478-point result, updated async
@@ -116,8 +121,7 @@ async function initMPFacemesh() {
   _mpFaceMeshLoading = true;
   try {
     const fm = new FaceMesh({
-      locateFile: (f) =>
-        `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${f}`,
+      locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${f}`,
     });
     fm.setOptions({
       maxNumFaces: 1,
@@ -132,7 +136,7 @@ async function initMPFacemesh() {
           : null;
     });
     await fm.initialize();
-    _mpFaceMesh      = fm;
+    _mpFaceMesh = fm;
     _mpFaceMeshReady = true;
     console.log('[iCash Bio] MediaPipe FaceMesh 478-keypoint engine initialized ✓');
   } catch (e) {
@@ -145,7 +149,11 @@ async function initMPFacemesh() {
 /** Send a video frame to the MP pipeline (fire-and-forget, non-blocking). */
 async function sendFrameToMP(video) {
   if (!_mpFaceMeshReady || !_mpFaceMesh || !video || !video.videoWidth) return;
-  try { await _mpFaceMesh.send({ image: video }); } catch { /* ignore */ }
+  try {
+    await _mpFaceMesh.send({ image: video });
+  } catch {
+    /* ignore */
+  }
 }
 
 /**
@@ -161,10 +169,12 @@ function computeMP478EAR(keypoints, indices) {
     const d = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
     const v1 = d(pts[1], pts[5]);
     const v2 = d(pts[2], pts[4]);
-    const h  = d(pts[0], pts[3]);
+    const h = d(pts[0], pts[3]);
     if (h <= 0.0001) return null;
     return (v1 + v2) / (2 * h);
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 // ── Math ──────────────────────────────────────────────────────────────────────
@@ -242,11 +252,11 @@ function _calcDist(p1, p2) {
  * EAR = (||p1 - p5|| + ||p2 - p4||) / (2 * ||p0 - p3||)
  */
 function calculateEAR(eyePoints) {
-  if (!eyePoints || eyePoints.length < 6) return 0.30;
+  if (!eyePoints || eyePoints.length < 6) return 0.3;
   const v1 = _calcDist(eyePoints[1], eyePoints[5]);
   const v2 = _calcDist(eyePoints[2], eyePoints[4]);
-  const h  = _calcDist(eyePoints[0], eyePoints[3]);
-  if (h <= 0.001) return 0.30;
+  const h = _calcDist(eyePoints[0], eyePoints[3]);
+  if (h <= 0.001) return 0.3;
   return (v1 + v2) / (2.0 * h);
 }
 
@@ -258,7 +268,7 @@ function detectBlinkByCollapse(eyePoints) {
   if (!eyePoints || eyePoints.length < 6) return false;
   const p0 = _getPointCoords(eyePoints[0]);
   const p3 = _getPointCoords(eyePoints[3]);
-  const eyeWidth = (p0 && p3) ? Math.abs(p3.x - p0.x) : 25;
+  const eyeWidth = p0 && p3 ? Math.abs(p3.x - p0.x) : 25;
   const collapseThreshold = Math.max(2.0, eyeWidth * 0.12);
 
   const a1 = _getPointCoords(eyePoints[1]);
@@ -281,13 +291,13 @@ class ClientBlinkDetector {
   reset() {
     this.openEyeBaseline = null; // Auto-calibrates to the user's actual resting open-eye EAR
     this.baselineSamples = 0;
-    this.prevEar         = null;
-    this.closedFrames    = 0;
-    this.blinkCount      = 0;
-    this.isClosed        = false;
-    this.hasBlinked      = false;
-    this.currentEar      = 0.28;
-    this.lastBlinkTime   = 0;
+    this.prevEar = null;
+    this.closedFrames = 0;
+    this.blinkCount = 0;
+    this.isClosed = false;
+    this.hasBlinked = false;
+    this.currentEar = 0.28;
+    this.lastBlinkTime = 0;
   }
 
   update(landmarks, video) {
@@ -315,10 +325,10 @@ class ClientBlinkDetector {
           ? landmarks.positions.slice(42, 48)
           : null;
 
-      const leftEar  = calculateEAR(leftEye);
+      const leftEar = calculateEAR(leftEye);
       const rightEar = calculateEAR(rightEye);
 
-      const ears = [leftEar, rightEar].filter((e) => e > 0.01 && e < 0.70);
+      const ears = [leftEar, rightEar].filter((e) => e > 0.01 && e < 0.7);
       if (ears.length === 0) {
         return {
           hasBlinked: this.hasBlinked,
@@ -331,7 +341,7 @@ class ClientBlinkDetector {
       const ear = (leftEar + rightEar) / 2;
       this.currentEar = ear;
 
-      const leftCollapse  = detectBlinkByCollapse(leftEye);
+      const leftCollapse = detectBlinkByCollapse(leftEye);
       const rightCollapse = detectBlinkByCollapse(rightEye);
       const collapseDetected = leftCollapse && rightCollapse;
 
@@ -343,7 +353,8 @@ class ClientBlinkDetector {
         }
       } else if (!this.isClosed && ear >= this.openEyeBaseline * 0.85) {
         if (this.baselineSamples < 15) {
-          this.openEyeBaseline = (this.openEyeBaseline * this.baselineSamples + ear) / (this.baselineSamples + 1);
+          this.openEyeBaseline =
+            (this.openEyeBaseline * this.baselineSamples + ear) / (this.baselineSamples + 1);
           this.baselineSamples++;
         } else {
           // Slow continuous exponential moving average
@@ -355,19 +366,19 @@ class ClientBlinkDetector {
 
       // Thresholds: proportional to individual baseline
       // When eyes close, EAR drops significantly (< baseline * 0.72 or <= 0.19)
-      const closeThreshold = Math.min(0.20, baseline * 0.72);
+      const closeThreshold = Math.min(0.2, baseline * 0.72);
       // Eye is considered open again when it returns to near baseline
-      const openThreshold  = Math.max(0.18, baseline * 0.82);
+      const openThreshold = Math.max(0.18, baseline * 0.82);
 
-      const eyeIsClosedNow = (ear <= closeThreshold) || collapseDetected;
-      const eyeIsOpenNow   = (ear >= openThreshold) && !collapseDetected;
+      const eyeIsClosedNow = ear <= closeThreshold || collapseDetected;
+      const eyeIsOpenNow = ear >= openThreshold && !collapseDetected;
 
       if (eyeIsClosedNow) {
         this.closedFrames++;
         this.isClosed = true;
       } else if (eyeIsOpenNow && this.isClosed) {
         // Transition: CLOSED -> OPEN = BLINK!
-        if (this.closedFrames >= 1 && (now - this.lastBlinkTime >= 150)) {
+        if (this.closedFrames >= 1 && now - this.lastBlinkTime >= 150) {
           this.blinkCount++;
           this.lastBlinkTime = now;
           if (this.blinkCount >= this.requiredBlinks) {
@@ -520,29 +531,31 @@ function drawOverlay(canvas, video, detections, state, progress, blinkInfo) {
 
     // Liveness & Blink indicator badge — drawn inside the face box so it never overflows
     const count = (blinkInfo && blinkInfo.blinkCount) || 0;
-    const hasBlinked = (blinkInfo && (blinkInfo.hasBlinked || count >= 2)) || (currentLivenessState && currentLivenessState.live);
+    const hasBlinked =
+      (blinkInfo && (blinkInfo.hasBlinked || count >= 2)) ||
+      (currentLivenessState && currentLivenessState.live);
 
     let badgeText, badgeColor;
     if (hasBlinked) {
-      badgeText  = '✓ Liveness OK  (2/2)';
+      badgeText = '✓ Liveness OK  (2/2)';
       badgeColor = '#22C55E';
     } else if (count === 1) {
-      badgeText  = '👁 Blink once more  1/2';
+      badgeText = '👁 Blink once more  1/2';
       badgeColor = '#38BDF8';
     } else {
-      badgeText  = '👁 Blink twice  0/2';
+      badgeText = '👁 Blink twice  0/2';
       badgeColor = '#F59E0B';
     }
 
     // Draw pill background so text never overflows the bounding box
     const badgeFontSize = Math.max(11, Math.min(14, box.width / 18));
     ctx.font = `bold ${badgeFontSize}px sans-serif`;
-    const textW   = ctx.measureText(badgeText).width;
-    const padX    = 8;
-    const padY    = 4;
-    const badgeH  = badgeFontSize + padY * 2;
-    const badgeX  = box.x + (box.width - textW - padX * 2) / 2;   // centred in box
-    const badgeY  = box.y + box.height - badgeH - 4;              // just inside bottom edge
+    const textW = ctx.measureText(badgeText).width;
+    const padX = 8;
+    const padY = 4;
+    const badgeH = badgeFontSize + padY * 2;
+    const badgeX = box.x + (box.width - textW - padX * 2) / 2; // centred in box
+    const badgeY = box.y + box.height - badgeH - 4; // just inside bottom edge
 
     ctx.save();
     ctx.fillStyle = 'rgba(0,0,0,0.65)';
@@ -581,9 +594,15 @@ async function beginRegisterScan() {
 
   // Stop any previous loop
   _regLoopActive = false;
-  if (btn) { btn.style.display = 'none'; btn.disabled = true; }
+  if (btn) {
+    btn.style.display = 'none';
+    btn.disabled = true;
+  }
   if (retryBtn) retryBtn.style.display = 'none';
-  if (errEl) { errEl.textContent = ''; errEl.classList.remove('active'); }
+  if (errEl) {
+    errEl.textContent = '';
+    errEl.classList.remove('active');
+  }
   regBlinkDetector.reset();
   statusEl.textContent = 'Loading face recognition models…';
   statusEl.classList.remove('bad');
@@ -592,9 +611,14 @@ async function beginRegisterScan() {
 
   const modelsOk = await ensureBioModels();
   if (!modelsOk) {
-    statusEl.textContent = '⚠ Models loading — click below to complete enrollment with cryptographic key.';
+    statusEl.textContent =
+      '⚠ Models loading — click below to complete enrollment with cryptographic key.';
     statusEl.classList.add('bad');
-    if (btn) { btn.style.display = ''; btn.disabled = false; btn.textContent = 'Enroll with Digital Key'; }
+    if (btn) {
+      btn.style.display = '';
+      btn.disabled = false;
+      btn.textContent = 'Enroll with Digital Key';
+    }
     return;
   }
 
@@ -606,7 +630,11 @@ async function beginRegisterScan() {
     statusEl.textContent = cameraErrorMessage(e);
     statusEl.classList.add('bad');
     if (retryBtn) retryBtn.style.display = '';
-    if (btn) { btn.style.display = ''; btn.disabled = false; btn.textContent = 'Enroll with Digital Key'; }
+    if (btn) {
+      btn.style.display = '';
+      btn.disabled = false;
+      btn.textContent = 'Enroll with Digital Key';
+    }
     return;
   }
 
@@ -632,7 +660,11 @@ async function beginRegisterScan() {
       statusEl.textContent = '⏱ Scan timeout — click Retry to try again.';
       statusEl.classList.add('bad');
       if (retryBtn) retryBtn.style.display = '';
-      if (btn) { btn.style.display = ''; btn.disabled = false; btn.textContent = 'Enroll with Digital Key'; }
+      if (btn) {
+        btn.style.display = '';
+        btn.disabled = false;
+        btn.textContent = 'Enroll with Digital Key';
+      }
       return;
     }
 
@@ -690,7 +722,7 @@ async function beginRegisterScan() {
       return;
     }
 
-    if (score < 0.30) {
+    if (score < 0.3) {
       drawOverlay(overlayCanvas, video, detections, 'BAD', progress, blinkStatus);
       statusEl.textContent = `😕 Low confidence — improve lighting or look directly at camera.`;
       setTimeout(regStep, 100);
@@ -717,7 +749,14 @@ async function beginRegisterScan() {
     const newProgress = collected.length / ENROLL_SAMPLES;
     const isFullyVerified = newProgress >= 1 && count >= 2;
 
-    drawOverlay(overlayCanvas, video, detections, isFullyVerified ? 'GOOD' : 'SCAN', newProgress, blinkStatus);
+    drawOverlay(
+      overlayCanvas,
+      video,
+      detections,
+      isFullyVerified ? 'GOOD' : 'SCAN',
+      newProgress,
+      blinkStatus
+    );
 
     if (count === 0) {
       statusEl.textContent = `👁 Samples ${collected.length}/${ENROLL_SAMPLES} — please BLINK twice (${count}/2 blinks)…`;
@@ -903,7 +942,12 @@ async function beginLoginScan() {
       statusEl.textContent = '⏱ Authentication timeout — use PIN or retry.';
       statusEl.classList.add('bad');
       if (retryBtn) retryBtn.style.display = '';
-      if (btn) { btn.style.display = ''; btn.disabled = false; btn.textContent = 'Sign In with PIN'; btn.onclick = () => goTo('screen-pin-login'); }
+      if (btn) {
+        btn.style.display = '';
+        btn.disabled = false;
+        btn.textContent = 'Sign In with PIN';
+        btn.onclick = () => goTo('screen-pin-login');
+      }
       return;
     }
 
@@ -934,7 +978,8 @@ async function beginLoginScan() {
     if (detections.length > 1) {
       consecutiveMatches = 0;
       drawOverlay(overlayCanvas, video, detections, 'MULTI', undefined, loginBlinkDetector);
-      statusEl.textContent = '⚠ Multiple people in frame — only the account holder should be present.';
+      statusEl.textContent =
+        '⚠ Multiple people in frame — only the account holder should be present.';
       setTimeout(loginStep, 100);
       return;
     }
@@ -1172,7 +1217,12 @@ async function launchBiometricGate(title, lead) {
       _verifyLoopActive = false;
       statusEl.textContent = '⏱ Authorization timeout — use PIN to continue.';
       statusEl.classList.add('bad');
-      if (btn) { btn.style.display = ''; btn.disabled = false; btn.textContent = 'Authorize with PIN'; btn.onclick = () => submitVerifyPin(); }
+      if (btn) {
+        btn.style.display = '';
+        btn.disabled = false;
+        btn.textContent = 'Authorize with PIN';
+        btn.onclick = () => submitVerifyPin();
+      }
       return;
     }
 
