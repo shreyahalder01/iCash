@@ -2354,7 +2354,9 @@
       integrity="sha384-M5nePoB6/w/a9JhtegEibSLGiJy/+QMZZMfvcxjWVCQW/HPwrQ7i21V/Px/8AyVA"
       crossorigin="anonymous"
     ></script>
-    <!-- Ankur Kedia blink-detection engine (bundled MediaPipe Facemesh + TF.js) -->
+    <!-- MediaPipe FaceMesh (478-keypoint blink detection — no TF.js conflict, own Wasm pipeline) -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js" crossorigin="anonymous"></script>
+    <!-- Legacy Ankur Kedia blink-detection bundle (kept for graceful fallback) -->
     <script src="lib/blink-detection.js"></script>
     <script
       src="https://cdn.jsdelivr.net/npm/appwrite@17.0.0/dist/iife/sdk.min.js"

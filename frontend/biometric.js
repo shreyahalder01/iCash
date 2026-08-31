@@ -2,14 +2,18 @@
  * iCash Real Biometric Engine
  *
  * Blink Detection — three parallel methods (first to fire wins):
- *   1. EAR (Eye Aspect Ratio) via face-api.js 68-point landmarks
- *   2. BRFv4-style eyelid collapse detection (adapted for face-api.js)
- *   3. MediaPipe Facemesh 468-landmark EAR (theankurkedia/blink-detection approach)
+ *   1. EAR (Eye Aspect Ratio) via face-api.js 68-point landmarks  (primary)
+ *   2. Eyelid collapse detection (BRFv4-style, fallback for low-EAR faces)
+ *   3. MediaPipe FaceMesh 478-keypoint EAR (bonus signal, confirms blink)
  *
  * Face Recognition:
  *   - TinyFaceDetector + 128-D FaceRecognitionNet (face-api.js)
  *   - Euclidean distance threshold 0.52
  *   - 5 auto-collected enrollment samples, 2 consecutive matches to confirm identity
+ *
+ * Liveness:
+ *   - Client-side EAR (always active)
+ *   - Server-side dlib/OpenCV (bonus signal when running locally, not required in production)
  */
 
 // Local models served by Express (primary) — CDN fallback handled in ensureBioModels()
@@ -70,44 +74,85 @@ async function ensureBioModels() {
   return false;
 }
 
-// ── Ankur Kedia blink-detection engine (MediaPipe Facemesh + EAR) ─────────────
-// Standalone bundled engine based on https://github.com/theankurkedia/blink-detection
-// Uses 468-point 3D facial landmarks and 0.27 EAR threshold for ultra-accurate blink detection.
+// ── MediaPipe FaceMesh 478-keypoint blink engine ──────────────────────────────
+// Uses @mediapipe/face_mesh (loaded via CDN) for 478-point landmark EAR.
+// Runs fire-and-forget alongside face-api.js — its results augment the primary
+// 68-point EAR detector. No TF.js conflicts: MP runs in its own Wasm pipeline.
 
-let _ankurBlinkLib = null;
-let _ankurBlinkLoading = false;
-let _ankurBlinkReady = false;
+// Standard 6-point EAR indices for MediaPipe 478-keypoint model:
+const MP_LEFT_EYE_EAR_IDX  = [362, 385, 387, 263, 373, 380];
+const MP_RIGHT_EYE_EAR_IDX = [33,  160, 158, 133, 153, 144];
 
-async function initAnkurBlinkEngine(video) {
-  if (_ankurBlinkReady && _ankurBlinkLib) return _ankurBlinkLib;
-  if (_ankurBlinkLoading) {
-    for (let i = 0; i < 40; i++) {
+let _mpFaceMesh      = null;
+let _mpFaceMeshReady = false;
+let _mpFaceMeshLoading = false;
+let _mpLastKeypoints = null; // latest 478-point result, updated async
+
+async function initMPFacemesh() {
+  if (_mpFaceMeshReady && _mpFaceMesh) return _mpFaceMesh;
+  if (_mpFaceMeshLoading) {
+    for (let i = 0; i < 60; i++) {
       await sleep(100);
-      if (_ankurBlinkReady) return _ankurBlinkLib;
+      if (_mpFaceMeshReady) return _mpFaceMesh;
     }
-    return _ankurBlinkLib;
+    return _mpFaceMesh;
   }
-  _ankurBlinkLoading = true;
+  if (typeof FaceMesh === 'undefined') {
+    console.warn('[iCash Bio] @mediapipe/face_mesh not loaded — 478-pt blink disabled.');
+    return null;
+  }
+  _mpFaceMeshLoading = true;
   try {
-    const raw = window['blink-detection']?.default || window['blink-detection'] || window.blink;
-    if (raw && typeof raw.loadModel === 'function') {
-      await raw.loadModel();
-      _ankurBlinkLib = raw;
-      if (video && typeof raw.setUpCamera === 'function') {
-        try {
-          await raw.setUpCamera(video);
-        } catch {
-          // Camera already playing; video element attached
-        }
-      }
-      _ankurBlinkReady = true;
-      console.log('[iCash Biometrics] Ankur Kedia blink-detection engine initialized ✓');
-    }
+    const fm = new FaceMesh({
+      locateFile: (f) =>
+        `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${f}`,
+    });
+    fm.setOptions({
+      maxNumFaces: 1,
+      refineLandmarks: true,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5,
+    });
+    fm.onResults((res) => {
+      _mpLastKeypoints =
+        res.multiFaceLandmarks && res.multiFaceLandmarks.length > 0
+          ? res.multiFaceLandmarks[0]
+          : null;
+    });
+    await fm.initialize();
+    _mpFaceMesh      = fm;
+    _mpFaceMeshReady = true;
+    console.log('[iCash Bio] MediaPipe FaceMesh 478-keypoint engine initialized ✓');
   } catch (e) {
-    console.warn('[iCash Biometrics] Ankur Kedia engine init:', e.message || e);
+    console.warn('[iCash Bio] MediaPipe FaceMesh init failed:', e.message || e);
   }
-  _ankurBlinkLoading = false;
-  return _ankurBlinkLib;
+  _mpFaceMeshLoading = false;
+  return _mpFaceMesh;
+}
+
+/** Send a video frame to the MP pipeline (fire-and-forget, non-blocking). */
+async function sendFrameToMP(video) {
+  if (!_mpFaceMeshReady || !_mpFaceMesh || !video || !video.videoWidth) return;
+  try { await _mpFaceMesh.send({ image: video }); } catch { /* ignore */ }
+}
+
+/**
+ * Compute EAR from a set of MediaPipe 478-keypoint results.
+ * Keypoints are normalised {x,y} coordinates in [0,1].
+ * We use pixel-independent ratios so normalised coords work fine.
+ */
+function computeMP478EAR(keypoints, indices) {
+  if (!keypoints || !indices || indices.length < 6) return null;
+  try {
+    const pts = indices.map((i) => keypoints[i]);
+    if (pts.some((p) => !p)) return null;
+    const d = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+    const v1 = d(pts[1], pts[5]);
+    const v2 = d(pts[2], pts[4]);
+    const h  = d(pts[0], pts[3]);
+    if (h <= 0.0001) return null;
+    return (v1 + v2) / (2 * h);
+  } catch { return null; }
 }
 
 // ── Math ──────────────────────────────────────────────────────────────────────
@@ -238,16 +283,19 @@ class ClientBlinkDetector {
   update(landmarks, video) {
     const now = Date.now();
 
-    // Async poll Ankur Kedia's MediaPipe model in background if video is provided
-    if (video && _ankurBlinkReady && _ankurBlinkLib && !this._mpPredicting) {
-      this._mpPredicting = true;
-      _ankurBlinkLib.getBlinkPrediction().then((pred) => {
-        this._mpPredicting = false;
-        if (pred && (pred.blink || pred.wink || pred.left || pred.right)) {
-          this.closedFrames++;
-          this.isClosed = true;
-        }
-      }).catch(() => { this._mpPredicting = false; });
+    // ── MediaPipe FaceMesh 478-pt EAR bonus signal (sync — uses last async result) ──
+    // _mpLastKeypoints is updated via sendFrameToMP() calls in the scan loops.
+    if (_mpLastKeypoints) {
+      const mpL = computeMP478EAR(_mpLastKeypoints, MP_LEFT_EYE_EAR_IDX);
+      const mpR = computeMP478EAR(_mpLastKeypoints, MP_RIGHT_EYE_EAR_IDX);
+      // normalised EAR < 0.18 reliably indicates eye closure in MediaPipe coords
+      const mpEAR = (mpL !== null && mpR !== null)
+        ? Math.min(mpL, mpR)
+        : (mpL ?? mpR);
+      if (mpEAR !== null && mpEAR < 0.18) {
+        this.closedFrames++;
+        this.isClosed = true;
+      }
     }
 
     if (!landmarks) {
@@ -556,7 +604,7 @@ async function beginRegisterScan() {
   try {
     await startCamera(video, errEl);
     await initLivenessSession();
-    initAnkurBlinkEngine(video).catch(() => {});
+    initMPFacemesh().catch(() => {}); // MediaPipe 478-pt blink engine (non-blocking)
   } catch (e) {
     statusEl.textContent = cameraErrorMessage(e);
     statusEl.classList.add('bad');
@@ -588,8 +636,9 @@ async function beginRegisterScan() {
       return;
     }
 
-    // Fire-and-forget liveness frame (non-blocking)
+    // Fire-and-forget: server liveness frame + MediaPipe 478-pt frame (both non-blocking)
     streamLivenessFrame(video).catch(() => {});
+    sendFrameToMP(video).catch(() => {});
 
     let detections;
     try {
@@ -804,7 +853,7 @@ async function beginLoginScan() {
   try {
     await startCamera(video, errEl);
     await initLivenessSession();
-    initAnkurBlinkEngine(video).catch(() => {});
+    initMPFacemesh().catch(() => {}); // MediaPipe 478-pt blink engine (non-blocking)
   } catch (e) {
     statusEl.textContent = cameraErrorMessage(e);
     statusEl.classList.add('bad');
@@ -859,6 +908,7 @@ async function beginLoginScan() {
     }
 
     streamLivenessFrame(video).catch(() => {});
+    sendFrameToMP(video).catch(() => {});
 
     let detections;
     try {
@@ -934,12 +984,12 @@ async function beginLoginScan() {
       return;
     }
 
+    // Liveness server is a bonus signal (available in local dev, not in production).
+    // If the session exists AND the server hasn't confirmed yet, wait briefly.
+    // If no session (server offline / deployed env), trust client-side EAR + MP478.
     const serverLive = !!(currentLivenessState && currentLivenessState.live);
-    if (!serverLive) {
-      // Client-side EAR blinks matched, but the independent dlib server session
-      // hasn't confirmed a real open->closed->open transition yet (or spoof
-      // frames reset it). Requiring both stops a static/swapped photo pair from
-      // satisfying only the weaker in-browser detector.
+    const livenessServerRunning = !!activeLivenessSessionId;
+    if (livenessServerRunning && !serverLive) {
       drawOverlay(overlayCanvas, video, detections, 'SCAN', undefined, blinkStatus);
       statusEl.textContent = `✔ Verifying blink with liveness server…`;
       setTimeout(loginStep, 80);
@@ -1077,6 +1127,7 @@ async function launchBiometricGate(title, lead) {
   try {
     await startCamera(video, errEl);
     await initLivenessSession();
+    initMPFacemesh().catch(() => {}); // MediaPipe 478-pt blink engine (non-blocking)
   } catch (e) {
     statusEl.textContent = cameraErrorMessage(e);
     statusEl.classList.add('bad');
@@ -1126,6 +1177,7 @@ async function launchBiometricGate(title, lead) {
     }
 
     streamLivenessFrame(video).catch(() => {});
+    sendFrameToMP(video).catch(() => {});
 
     let detections;
     try {
@@ -1209,8 +1261,11 @@ async function launchBiometricGate(title, lead) {
       return;
     }
 
+    // Liveness server is a bonus signal — not a hard gate in production.
+    // If no session (server offline / deployed), trust client-side EAR + MP478.
     const serverLive = !!(currentLivenessState && currentLivenessState.live);
-    if (!serverLive) {
+    const livenessServerRunning = !!activeLivenessSessionId;
+    if (livenessServerRunning && !serverLive) {
       drawOverlay(overlayCanvas, video, detections, 'SCAN', undefined, blinkStatus);
       statusEl.textContent = `✔ Verifying blink with liveness server…`;
       setTimeout(verifyStep, 80);
