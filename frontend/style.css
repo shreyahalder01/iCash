@@ -166,18 +166,18 @@ img {
   position: relative;
 }
 
-.welcome-topbar-brand {
+.hero-logo-wrap {
+  margin-bottom: 20px;
   display: flex;
   align-items: center;
-  gap: 12px;
 }
 
-.brand-logo-full {
-  height: 38px;
+.hero-brand-logo {
+  height: 48px;
   width: auto;
-  max-width: 170px;
+  max-width: 210px;
   object-fit: contain;
-  filter: drop-shadow(0 2px 10px rgba(14, 165, 233, 0.25));
+  filter: drop-shadow(0 4px 16px rgba(14, 165, 233, 0.28));
 }
 
 .security-chip {
