@@ -11,7 +11,8 @@
     <!-- CSP is set by backend Helmet middleware. Meta tag removed to avoid conflicts. -->
     <meta http-equiv="Permissions-Policy" content="camera=(self), microphone=(), geolocation=(), payment=(self)" />
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
-    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <link rel="icon" type="image/png" href="assets/logo.png" />
+    <link rel="apple-touch-icon" href="assets/logo.png" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
@@ -26,6 +27,13 @@
       <div class="screen active" id="screen-welcome">
         <div class="auth-container">
           <div class="auth-hero-info">
+            <div class="auth-brand-badge">
+              <img src="assets/logo.png" alt="iCash Logo" class="auth-brand-logo" />
+              <div class="auth-brand-text">
+                <span class="auth-brand-title">iCash</span>
+                <span class="auth-brand-sub">Biometric Banking</span>
+              </div>
+            </div>
             <div class="auth-badge">
               <span class="dot-indicator"></span>
               <span>BioGate 256-Bit Cryptographic Core</span>
@@ -642,7 +650,7 @@
           <aside class="app-sidebar" id="app-sidebar">
             <div class="sidebar-header">
               <a href="#" class="brand-wrapper" onclick="switchView('dashboard')">
-                <div class="brand-icon">iC</div>
+                <img src="assets/logo.png" alt="iCash" class="brand-logo-img" />
                 <div class="brand-text">
                   <span class="brand-title">iCash</span>
                   <span class="brand-subtitle">BIOMETRIC BANKING</span>
