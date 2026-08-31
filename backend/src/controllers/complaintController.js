@@ -18,9 +18,21 @@ class ComplaintController {
         orderBy: { created_at: 'desc' },
       });
 
+      const mappedComplaints = complaints.map((c) => ({
+        id: c.id,
+        subject: c.subject,
+        description: c.description,
+        status: c.status,
+        adminResponse: c.admin_response,
+        admin_response: c.admin_response,
+        createdAt: c.created_at,
+        created_at: c.created_at,
+        transaction: c.transaction,
+      }));
+
       res.json({
         ok: true,
-        complaints,
+        complaints: mappedComplaints,
       });
     } catch (err) {
       next(err);
@@ -29,13 +41,19 @@ class ComplaintController {
 
   static async createComplaint(req, res, next) {
     try {
-      const { transactionId, subject, description } = req.body;
+      const { transactionId, subject, description, category } = req.body;
+      const sanitizedTxId =
+        transactionId && String(transactionId).trim().length > 0
+          ? String(transactionId).trim()
+          : null;
+
+      const fullSubject = category ? `[${category}] ${subject}` : subject;
 
       const complaint = await prisma.complaint.create({
         data: {
           user_id: req.user.id,
-          transaction_id: transactionId || null,
-          subject,
+          transaction_id: sanitizedTxId,
+          subject: fullSubject,
           description,
           status: 'OPEN',
         },
@@ -45,7 +63,7 @@ class ComplaintController {
         userId: req.user.id,
         eventType: 'COMPLAINT_FILED',
         severity: 'LOW',
-        description: `Dispute/Complaint submitted: ${subject}`,
+        description: `Dispute/Complaint submitted: ${fullSubject}`,
         ipAddress: req.ip,
         deviceReference: req.headers['user-agent'],
       });
@@ -53,7 +71,16 @@ class ComplaintController {
       res.status(201).json({
         ok: true,
         message: 'Complaint submitted successfully. An administrator will review your case.',
-        complaint,
+        complaint: {
+          id: complaint.id,
+          subject: complaint.subject,
+          description: complaint.description,
+          status: complaint.status,
+          adminResponse: complaint.admin_response,
+          admin_response: complaint.admin_response,
+          createdAt: complaint.created_at,
+          created_at: complaint.created_at,
+        },
       });
     } catch (err) {
       next(err);

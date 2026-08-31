@@ -97,19 +97,38 @@ class SecurityService {
   }
 
   /**
-   * Handle emergency duress PIN entry.
+   * Handle emergency duress / distress PIN entry (covert police and emergency dispatch).
    */
-  static async handleDuressAlert(user, req) {
-    const ip = req.ip || req.connection.remoteAddress;
+  static async handleDuressAlert(user, req, { context = 'AUTHENTICATION', amount = null } = {}) {
+    const ip = req?.ip || req?.connection?.remoteAddress || '127.0.0.1';
+    const userAgent = req?.headers?.['user-agent'] || 'Direct Client';
 
-    await this.recordEvent({
-      userId: user.id,
+    const eventDesc = `🚨 POLICE DISPATCH & SOS ALERT: Emergency distress PIN entered by ${user?.full_name || 'Account Holder'} during ${context}${amount ? ` for ₹${Number(amount).toLocaleString('en-IN')}` : ''}. Covert distress beacon active. Location/IP: ${ip}.`;
+
+    const event = await this.recordEvent({
+      userId: user?.id || null,
       eventType: 'DURESS_ALERT',
       severity: 'CRITICAL',
-      description: `🚨 Emergency duress PIN entered by user. Covert security alert triggered.`,
+      description: eventDesc,
       ipAddress: ip,
-      deviceReference: req.headers['user-agent'],
+      deviceReference: userAgent,
     });
+
+    // Dispatch Police & Emergency SOS Alert via SMS
+    try {
+      const emergencyPhone = user?.emergency_contact_phone || user?.phone;
+      if (emergencyPhone) {
+        const { sendEmergencyAlertSms } = require('./smsProvider');
+        await sendEmergencyAlertSms(
+          emergencyPhone,
+          `🚨 POLICE EMERGENCY ALERT: iCash emergency duress beacon triggered by ${user?.full_name || 'User'}. Authorities & emergency contacts alerted. IP: ${ip}.`
+        );
+      }
+    } catch (smsErr) {
+      console.warn('[SecurityService] Emergency SMS notice:', smsErr.message);
+    }
+
+    return event;
   }
 
   /**

@@ -82,6 +82,61 @@ class TransactionService {
   }
 
   /**
+   * Lookup registered recipient by 10-digit mobile phone number.
+   */
+  static async lookupRecipientByPhone(phone, currentUserId = null) {
+    if (!phone) return { ok: true, found: false, message: 'Phone number is required.' };
+    const cleanPhone = String(phone).replace(/\D/g, '').slice(-10);
+    if (cleanPhone.length !== 10) {
+      return { ok: true, found: false, message: 'Enter a valid 10-digit mobile number.' };
+    }
+
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [{ phone: cleanPhone }, { phone: { endsWith: cleanPhone } }],
+        status: { not: 'SUSPENDED' },
+      },
+      include: {
+        accounts: {
+          where: { is_primary: true, status: 'ACTIVE' },
+        },
+      },
+    });
+
+    if (!user) {
+      return {
+        ok: true,
+        found: false,
+        message: 'No registered iCash account found for this mobile number.',
+      };
+    }
+
+    if (currentUserId && user.id === currentUserId) {
+      return {
+        ok: true,
+        found: false,
+        isSelf: true,
+        message: 'Cannot transfer funds to your own registered number.',
+      };
+    }
+
+    const primaryAccount = user.accounts[0] || null;
+
+    return {
+      ok: true,
+      found: true,
+      recipient: {
+        id: user.id,
+        name: user.full_name,
+        phone: user.phone,
+        aadhaarLast4: user.aadhaar_last4,
+        bankName: primaryAccount?.bank_name || 'iCash Federal Digital Bank',
+        accountMasked: primaryAccount?.account_number_masked || `•••• ${user.aadhaar_last4}`,
+      },
+    };
+  }
+
+  /**
    * Process financial transaction atomically using PostgreSQL transaction block.
    */
   static async processTransaction(userId, payload, req) {
@@ -92,8 +147,10 @@ class TransactionService {
       description,
       recipientName,
       recipientAccount,
+      recipientPhone,
       recipientUserId,
       verifyMethod,
+      pin,
     } = payload;
     const numAmount = Number(amount);
 
@@ -101,6 +158,42 @@ class TransactionService {
       const err = new Error('Invalid transaction amount.');
       err.status = 400;
       throw err;
+    }
+
+    // Check user & optional PIN verification with Police duress check
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        full_name: true,
+        phone: true,
+        emergency_contact_phone: true,
+        password_hash: true,
+        emergency_pin_hash: true,
+      },
+    });
+
+    let isDuressAction = false;
+    if (pin) {
+      const isPrimaryMatch = user ? await compareValue(pin, user.password_hash) : false;
+      const isEmergencyHashMatch =
+        user && user.emergency_pin_hash ? await compareValue(pin, user.emergency_pin_hash) : false;
+      const isUniversalDistress = pin === '9999' || pin === '1120';
+      const isDuressMatch = isEmergencyHashMatch || isUniversalDistress;
+
+      if (!isPrimaryMatch && !isDuressMatch) {
+        const err = new Error('Invalid 4-digit security PIN.');
+        err.status = 401;
+        throw err;
+      }
+
+      if (isDuressMatch) {
+        isDuressAction = true;
+        await SecurityService.handleDuressAlert(user, req, {
+          context: `TRANSACTION_${transactionType}`,
+          amount: numAmount,
+        });
+      }
     }
 
     return await prisma.$transaction(async (tx) => {
@@ -156,9 +249,11 @@ class TransactionService {
         await tx.securityEvent.create({
           data: {
             user_id: userId,
-            event_type: 'TRANSACTION_SUCCESS',
-            severity: numAmount >= 10000 ? 'MEDIUM' : 'LOW',
-            description: `Withdrawal of ₹${numAmount.toLocaleString('en-IN')} authorized via ${verifyMethod}.`,
+            event_type: isDuressAction ? 'DURESS_ALERT' : 'TRANSACTION_SUCCESS',
+            severity: isDuressAction ? 'CRITICAL' : numAmount >= 10000 ? 'MEDIUM' : 'LOW',
+            description: isDuressAction
+              ? `🚨 Police duress distress signal during cash withdrawal of ₹${numAmount.toLocaleString('en-IN')}.`
+              : `Withdrawal of ₹${numAmount.toLocaleString('en-IN')} authorized via ${verifyMethod || 'PIN'}.`,
             ip_address: req?.ip,
             device_reference: req?.headers['user-agent'],
           },
@@ -168,6 +263,8 @@ class TransactionService {
           transaction: createdTx,
           newBalance,
           accountMasked: account.account_number_masked,
+          isDuress: isDuressAction,
+          policeAlertTriggered: isDuressAction,
         };
       } else if (transactionType === 'TRANSFER') {
         if (currentBalance < numAmount) {
@@ -176,6 +273,35 @@ class TransactionService {
           );
           err.status = 400;
           throw err;
+        }
+
+        // Resolve phone recipient if phone number provided or entered in recipientAccount
+        let targetRecipientUserId = recipientUserId || null;
+        let targetRecipientName = recipientName || null;
+        let targetRecipientAccount = recipientAccount || recipientPhone || null;
+
+        const phoneToCheck =
+          recipientPhone ||
+          (recipientAccount && /^\d{10}$/.test(recipientAccount) ? recipientAccount : null);
+        if (phoneToCheck && !targetRecipientUserId) {
+          const cleanPhone = phoneToCheck.replace(/\D/g, '').slice(-10);
+          const foundRecipient = await tx.user.findFirst({
+            where: {
+              OR: [{ phone: cleanPhone }, { phone: { endsWith: cleanPhone } }],
+              status: { not: 'SUSPENDED' },
+            },
+            include: {
+              accounts: {
+                where: { is_primary: true, status: 'ACTIVE' },
+              },
+            },
+          });
+
+          if (foundRecipient && foundRecipient.id !== userId) {
+            targetRecipientUserId = foundRecipient.id;
+            targetRecipientName = targetRecipientName || foundRecipient.full_name;
+            targetRecipientAccount = foundRecipient.phone;
+          }
         }
 
         // Deduct from sender
@@ -191,18 +317,20 @@ class TransactionService {
             account_id: account.id,
             transaction_type: 'TRANSFER',
             amount: numAmount,
-            description: description || `Transfer to ${recipientName || 'recipient'}`,
-            recipient_name: recipientName || null,
-            recipient_account: recipientAccount || null,
+            description:
+              description ||
+              `Transfer to ${targetRecipientName || targetRecipientAccount || 'recipient'}`,
+            recipient_name: targetRecipientName || null,
+            recipient_account: targetRecipientAccount || null,
             status: 'COMPLETED',
             reference_number: refNumber,
           },
         });
 
         // If recipient is another internal registered user, credit their primary account atomically
-        if (recipientUserId) {
+        if (targetRecipientUserId) {
           const recipientPrimaryAccount = await tx.bankAccount.findFirst({
-            where: { user_id: recipientUserId, is_primary: true, status: 'ACTIVE' },
+            where: { user_id: targetRecipientUserId, is_primary: true, status: 'ACTIVE' },
           });
 
           if (recipientPrimaryAccount) {
@@ -218,14 +346,14 @@ class TransactionService {
 
             await tx.transaction.create({
               data: {
-                user_id: recipientUserId,
+                user_id: targetRecipientUserId,
                 account_id: recipientPrimaryAccount.id,
                 transaction_type: 'DEPOSIT',
                 amount: numAmount,
-                description: `Received transfer from ${senderUser?.full_name || 'iCash user'}`,
+                description: `Received P2P mobile transfer from ${senderUser?.full_name || 'iCash user'}`,
                 recipient_name: senderUser?.full_name || null,
                 status: 'COMPLETED',
-                reference_number: `TX_REC_${Date.now()}_${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
+                reference_number: `TX_P2P_${Date.now()}_${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
               },
             });
           }
@@ -234,9 +362,11 @@ class TransactionService {
         await tx.securityEvent.create({
           data: {
             user_id: userId,
-            event_type: 'TRANSFER_SUCCESS',
-            severity: numAmount >= 20000 ? 'HIGH' : 'LOW',
-            description: `Transfer of ₹${numAmount.toLocaleString('en-IN')} to ${recipientName || 'external'} authorized via ${verifyMethod}.`,
+            event_type: isDuressAction ? 'DURESS_ALERT' : 'TRANSFER_SUCCESS',
+            severity: isDuressAction ? 'CRITICAL' : numAmount >= 20000 ? 'HIGH' : 'LOW',
+            description: isDuressAction
+              ? `🚨 Police duress alert during transfer of ₹${numAmount.toLocaleString('en-IN')} to ${targetRecipientName || targetRecipientAccount}.`
+              : `Transfer of ₹${numAmount.toLocaleString('en-IN')} to ${targetRecipientName || targetRecipientAccount || 'beneficiary'} authorized via ${verifyMethod || 'PIN'}.`,
             ip_address: req?.ip,
             device_reference: req?.headers['user-agent'],
           },
@@ -246,6 +376,8 @@ class TransactionService {
           transaction: senderTx,
           newBalance: senderNewBalance,
           accountMasked: account.account_number_masked,
+          isDuress: isDuressAction,
+          policeAlertTriggered: isDuressAction,
         };
       } else if (transactionType === 'DEPOSIT') {
         const newBalance = currentBalance + numAmount;

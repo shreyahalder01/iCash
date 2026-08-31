@@ -1348,12 +1348,43 @@
                VIEW 3: TRANSFER MONEY WORKFLOW
                ============================================================ -->
               <div class="portal-view" id="view-transfers">
-                <div class="card" style="max-width: 600px; margin: 0 auto">
-                  <div class="eyebrow">Instant Fund Settlement</div>
+                <div class="card" style="max-width: 620px; margin: 0 auto">
+                  <div class="eyebrow">Instant P2P &amp; Account Settlement</div>
                   <h2>Transfer Funds</h2>
                   <p class="lead">
-                    Transfer money to verified beneficiaries with real-time biometric authorization.
+                    Send money instantly to any 10-digit mobile number or linked bank account.
                   </p>
+
+                  <div
+                    style="
+                      display: flex;
+                      gap: 8px;
+                      margin-bottom: 16px;
+                      background: var(--bg-inset);
+                      padding: 4px;
+                      border-radius: 10px;
+                      border: 1px solid var(--border);
+                    "
+                  >
+                    <button
+                      type="button"
+                      class="tab-btn active"
+                      id="tab-transfer-phone"
+                      style="flex: 1; padding: 8px 12px; font-size: 12.5px; border-radius: 7px"
+                      onclick="switchTransferMode('PHONE')"
+                    >
+                      📱 Mobile Phone Number
+                    </button>
+                    <button
+                      type="button"
+                      class="tab-btn"
+                      id="tab-transfer-acct"
+                      style="flex: 1; padding: 8px 12px; font-size: 12.5px; border-radius: 7px"
+                      onclick="switchTransferMode('ACCOUNT')"
+                    >
+                      🏦 Beneficiary / Account
+                    </button>
+                  </div>
 
                   <form
                     id="form-transfer"
@@ -1367,8 +1398,44 @@
                       <select id="transfer-source-select"></select>
                     </div>
 
-                    <div class="field">
-                      <label>Beneficiary Name</label>
+                    <div id="transfer-phone-group">
+                      <div class="field">
+                        <label>Recipient Mobile Phone Number</label>
+                        <div style="display: flex; gap: 8px">
+                          <span
+                            style="
+                              display: flex;
+                              align-items: center;
+                              padding: 0 12px;
+                              background: var(--bg-inset);
+                              border: 1px solid var(--border);
+                              border-radius: 8px;
+                              font-size: 13px;
+                              color: var(--text-muted);
+                              font-weight: 600;
+                            "
+                            >+91</span
+                          >
+                          <input
+                            id="transfer-dest-phone"
+                            type="tel"
+                            inputmode="numeric"
+                            maxlength="10"
+                            placeholder="Enter 10-digit mobile number"
+                            autocomplete="tel"
+                            oninput="handleTransferPhoneInput(this.value)"
+                            style="flex: 1"
+                          />
+                        </div>
+                        <div
+                          id="transfer-phone-lookup-badge"
+                          style="margin-top: 6px; font-size: 12px; min-height: 18px"
+                        ></div>
+                      </div>
+                    </div>
+
+                    <div class="field" id="transfer-name-group">
+                      <label>Beneficiary Full Name</label>
                       <input
                         id="transfer-dest-name"
                         type="text"
@@ -1419,12 +1486,12 @@
                     </div>
 
                     <div class="field">
-                      <label>Payment Purpose / Memo</label>
+                      <label>Payment Purpose / Memo (Optional)</label>
                       <input
                         id="transfer-memo"
                         type="text"
                         maxlength="150"
-                        placeholder="e.g. Rent, invoice payment"
+                        placeholder="e.g. Rent, grocery, invoice payment"
                         autocomplete="off"
                       />
                     </div>
@@ -1609,16 +1676,98 @@
                   <div>
                     <h2>Help, Grievances &amp; Dispute Resolution</h2>
                     <p style="color: var(--text-muted); font-size: 13px">
-                      Official banking support and dispute tickets.
+                      Official banking dispute management and administrative resolution portal.
                     </p>
                   </div>
-                  <button
-                    class="btn btn-primary"
-                    style="width: auto"
-                    onclick="openModal('complaint')"
+                  <div style="display: flex; gap: 8px">
+                    <button class="mini-btn" onclick="loadComplaintsList()">
+                      ↻ Refresh Tickets
+                    </button>
+                    <button
+                      class="btn btn-primary"
+                      style="width: auto"
+                      onclick="openModal('complaint')"
+                    >
+                      + File a Grievance
+                    </button>
+                  </div>
+                </div>
+
+                <!-- QUICK DISPUTE / GRIEVANCE SUBMISSION CARD -->
+                <div
+                  class="card"
+                  style="
+                    margin-bottom: 24px;
+                    background: var(--bg-card);
+                    border: 1px solid var(--border);
+                  "
+                >
+                  <div class="eyebrow">Direct Ticket Desk</div>
+                  <h3 style="margin-bottom: 6px">Submit a New Dispute or Grievance</h3>
+                  <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px">
+                    Report incorrect deductions, failed transfers, ATM cash delivery issues, or
+                    security discrepancies.
+                  </p>
+
+                  <form
+                    id="form-support-direct"
+                    onsubmit="
+                      event.preventDefault();
+                      submitInlineComplaint();
+                    "
                   >
-                    File a Grievance
-                  </button>
+                    <div
+                      style="
+                        display: grid;
+                        grid-template-columns: 1fr 2fr;
+                        gap: 12px;
+                        margin-bottom: 12px;
+                      "
+                    >
+                      <div class="field" style="margin-bottom: 0">
+                        <label>Issue Category</label>
+                        <select id="support-inline-category">
+                          <option value="Transaction Discrepancy">Transaction Discrepancy</option>
+                          <option value="ATM Cash Issue">ATM Cash Issue</option>
+                          <option value="Mobile Transfer Failed">Mobile Transfer Failed</option>
+                          <option value="Unauthorized Debit">Unauthorized Debit</option>
+                          <option value="Biometric Failure">Biometric / Security Issue</option>
+                          <option value="General Grievance">General Banking Inquiry</option>
+                        </select>
+                      </div>
+                      <div class="field" style="margin-bottom: 0">
+                        <label>Grievance Subject</label>
+                        <input
+                          id="support-inline-subject"
+                          type="text"
+                          maxlength="150"
+                          placeholder="Brief summary of the issue (e.g. ₹2,000 debited but cash not disbursed)"
+                          autocomplete="off"
+                        />
+                      </div>
+                    </div>
+
+                    <div class="field">
+                      <label>Detailed Incident Summary</label>
+                      <textarea
+                        id="support-inline-desc"
+                        rows="3"
+                        maxlength="1000"
+                        placeholder="Provide details including date, approx time, beneficiary or transaction reference if applicable..."
+                      ></textarea>
+                    </div>
+
+                    <div class="modal-msg" id="support-inline-msg"></div>
+
+                    <button
+                      type="submit"
+                      class="btn btn-primary"
+                      id="support-inline-btn"
+                      style="width: auto; padding: 10px 24px"
+                    >
+                      Submit Grievance Ticket &rarr;
+                    </button>
+                  </form>
                 </div>
 
                 <div class="table-panel">
@@ -2102,8 +2251,40 @@
         <div class="eyebrow">Instant Transfer</div>
         <h2>Transfer Funds</h2>
         <p class="lead">
-          Send funds securely to another verified account holder or external beneficiary.
+          Send funds instantly to any registered mobile number or external beneficiary.
         </p>
+
+        <div
+          style="
+            display: flex;
+            gap: 8px;
+            margin-bottom: 14px;
+            background: var(--bg-inset);
+            padding: 4px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+          "
+        >
+          <button
+            type="button"
+            class="tab-btn active"
+            id="tab-send-phone"
+            style="flex: 1; padding: 7px 10px; font-size: 12px; border-radius: 7px"
+            onclick="switchModalSendMode('PHONE')"
+          >
+            📱 Mobile Number
+          </button>
+          <button
+            type="button"
+            class="tab-btn"
+            id="tab-send-acct"
+            style="flex: 1; padding: 7px 10px; font-size: 12px; border-radius: 7px"
+            onclick="switchModalSendMode('ACCOUNT')"
+          >
+            🏦 Beneficiary
+          </button>
+        </div>
+
         <form
           id="form-send"
           onsubmit="
@@ -2111,7 +2292,43 @@
             confirmSend();
           "
         >
-          <div class="field">
+          <div id="send-phone-group">
+            <div class="field">
+              <label>Recipient Mobile Phone Number</label>
+              <div style="display: flex; gap: 8px">
+                <span
+                  style="
+                    display: flex;
+                    align-items: center;
+                    padding: 0 10px;
+                    background: var(--bg-inset);
+                    border: 1px solid var(--border);
+                    border-radius: 8px;
+                    font-size: 12px;
+                    color: var(--text-muted);
+                    font-weight: 600;
+                  "
+                  >+91</span
+                >
+                <input
+                  id="send-phone"
+                  type="tel"
+                  inputmode="numeric"
+                  maxlength="10"
+                  placeholder="Enter 10-digit phone number"
+                  autocomplete="tel"
+                  oninput="handleSendPhoneInput(this.value)"
+                  style="flex: 1"
+                />
+              </div>
+              <div
+                id="send-phone-lookup-badge"
+                style="margin-top: 5px; font-size: 11.5px; min-height: 16px"
+              ></div>
+            </div>
+          </div>
+
+          <div class="field" id="send-name-group">
             <label>Beneficiary Full Name</label>
             <input
               id="send-external-name"
@@ -2141,7 +2358,7 @@
           </div>
           <div class="modal-msg" id="send-msg"></div>
           <button type="submit" class="btn btn-indigo" style="margin-top: 10px">
-            Proceed to Authorization
+            Proceed to Authorization Gate &rarr;
           </button>
         </form>
       </div>
@@ -2280,7 +2497,7 @@
         <button class="close-x" onclick="closeModal('complaint')">&#10005;</button>
         <div class="eyebrow">Customer Protection</div>
         <h2>File a Grievance or Dispute</h2>
-        <p class="lead">Submit an official complaint ticket for administrative review.</p>
+        <p class="lead">Submit an official dispute ticket for priority administrative review.</p>
         <form
           id="form-complaint"
           onsubmit="
@@ -2288,6 +2505,17 @@
             submitComplaint();
           "
         >
+          <div class="field">
+            <label>Category</label>
+            <select id="complaint-category">
+              <option value="Transaction Discrepancy">Transaction Discrepancy</option>
+              <option value="ATM Cash Issue">ATM Cash Issue</option>
+              <option value="Mobile Transfer Failed">Mobile Transfer Issue</option>
+              <option value="Unauthorized Debit">Unauthorized Debit</option>
+              <option value="Security Anomaly">Security / Biometric Anomaly</option>
+              <option value="General Support">General Support</option>
+            </select>
+          </div>
           <div class="field">
             <label>Subject</label>
             <input
@@ -2304,11 +2532,13 @@
               id="complaint-desc"
               rows="3"
               maxlength="1000"
-              placeholder="Describe the discrepancy in detail..."
+              placeholder="Describe the discrepancy with transaction IDs or date..."
             ></textarea>
           </div>
           <div class="modal-msg" id="complaint-msg"></div>
-          <button type="submit" class="btn btn-primary">Submit Grievance Ticket</button>
+          <button type="submit" class="btn btn-primary" id="complaint-submit-btn">
+            Submit Grievance Ticket
+          </button>
         </form>
       </div>
     </div>

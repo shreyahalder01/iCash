@@ -39,6 +39,8 @@ router.post(
 // ── Protected User Routes ───────────────────────────────────────────────────
 router.use(authenticate);
 
+router.get('/lookup-recipient', TransactionController.lookupRecipient);
+router.post('/lookup-recipient', TransactionController.lookupRecipient);
 router.get('/', TransactionController.getTransactions);
 router.get('/:id', TransactionController.getTransactionById);
 router.post(

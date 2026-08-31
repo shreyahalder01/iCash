@@ -5,7 +5,7 @@ const { signToken } = require('../src/utils/token');
 
 describe('User Account Isolation Tests', () => {
   let userA, userB;
-  let tokenA, tokenB;
+  let tokenA, _tokenB;
   let accountA, accountB;
 
   beforeAll(async () => {
@@ -22,7 +22,7 @@ describe('User Account Isolation Tests', () => {
     });
 
     tokenA = signToken({ userId: userA.id, role: userA.role });
-    tokenB = signToken({ userId: userB.id, role: userB.role });
+    _tokenB = signToken({ userId: userB.id, role: userB.role });
   });
 
   afterAll(async () => {

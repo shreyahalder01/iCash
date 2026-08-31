@@ -1153,6 +1153,131 @@ function exportStatement() {
 // ============================================================
 // TRANSFER / WITHDRAW / DEPOSIT WORKFLOWS
 // ============================================================
+let currentTransferMode = 'PHONE';
+let currentModalSendMode = 'PHONE';
+let _transferPhoneTimeout = null;
+let _sendPhoneTimeout = null;
+
+function switchTransferMode(mode) {
+  currentTransferMode = mode;
+  const tabPhone = document.getElementById('tab-transfer-phone');
+  const tabAcct = document.getElementById('tab-transfer-acct');
+  const phoneGroup = document.getElementById('transfer-phone-group');
+
+  if (mode === 'PHONE') {
+    tabPhone?.classList.add('active');
+    tabAcct?.classList.remove('active');
+    if (phoneGroup) phoneGroup.style.display = 'block';
+  } else {
+    tabAcct?.classList.add('active');
+    tabPhone?.classList.remove('active');
+    if (phoneGroup) phoneGroup.style.display = 'none';
+  }
+}
+
+function switchModalSendMode(mode) {
+  currentModalSendMode = mode;
+  const tabPhone = document.getElementById('tab-send-phone');
+  const tabAcct = document.getElementById('tab-send-acct');
+  const phoneGroup = document.getElementById('send-phone-group');
+
+  if (mode === 'PHONE') {
+    tabPhone?.classList.add('active');
+    tabAcct?.classList.remove('active');
+    if (phoneGroup) phoneGroup.style.display = 'block';
+  } else {
+    tabAcct?.classList.add('active');
+    tabPhone?.classList.remove('active');
+    if (phoneGroup) phoneGroup.style.display = 'none';
+  }
+}
+
+function handleTransferPhoneInput(val) {
+  clearTimeout(_transferPhoneTimeout);
+  const badge = document.getElementById('transfer-phone-lookup-badge');
+  const nameInput = document.getElementById('transfer-dest-name');
+  const clean = val.replace(/\D/g, '').slice(-10);
+
+  if (clean.length < 10) {
+    if (badge) badge.innerHTML = '';
+    window._transferRecipient = null;
+    return;
+  }
+
+  if (badge) {
+    badge.innerHTML = '<span style="color:var(--text-muted);">🔍 Verifying iCash user…</span>';
+  }
+
+  _transferPhoneTimeout = setTimeout(async () => {
+    try {
+      const res = await window.iCashApi.lookupRecipient(clean);
+      if (res.found && res.recipient) {
+        window._transferRecipient = res.recipient;
+        if (nameInput) nameInput.value = res.recipient.name;
+        if (badge) {
+          badge.innerHTML = `<span style="color:var(--primary);font-weight:600;">✓ ${res.recipient.name}</span> <span style="color:var(--text-faint);font-size:11px;">(${res.recipient.bankName} · ${res.recipient.accountMasked})</span>`;
+        }
+      } else if (res.isSelf) {
+        window._transferRecipient = null;
+        if (badge) {
+          badge.innerHTML = `<span style="color:var(--alert);">${res.message || 'Cannot transfer to own number.'}</span>`;
+        }
+      } else {
+        window._transferRecipient = null;
+        if (badge) {
+          badge.innerHTML =
+            '<span style="color:var(--text-muted);">ℹ️ External recipient · Standard mobile settlement</span>';
+        }
+      }
+    } catch (e) {
+      if (badge) badge.innerHTML = '';
+    }
+  }, 350);
+}
+
+function handleSendPhoneInput(val) {
+  clearTimeout(_sendPhoneTimeout);
+  const badge = document.getElementById('send-phone-lookup-badge');
+  const nameInput = document.getElementById('send-external-name');
+  const clean = val.replace(/\D/g, '').slice(-10);
+
+  if (clean.length < 10) {
+    if (badge) badge.innerHTML = '';
+    window._sendRecipient = null;
+    return;
+  }
+
+  if (badge) {
+    badge.innerHTML = '<span style="color:var(--text-muted);">🔍 Verifying recipient…</span>';
+  }
+
+  _sendPhoneTimeout = setTimeout(async () => {
+    try {
+      const res = await window.iCashApi.lookupRecipient(clean);
+      if (res.found && res.recipient) {
+        window._sendRecipient = res.recipient;
+        if (nameInput) nameInput.value = res.recipient.name;
+        if (badge) {
+          badge.innerHTML = `<span style="color:var(--primary);font-weight:600;">✓ ${res.recipient.name}</span> <span style="color:var(--text-faint);font-size:11px;">(${res.recipient.bankName})</span>`;
+        }
+      } else if (res.isSelf) {
+        window._sendRecipient = null;
+        if (badge) {
+          badge.innerHTML = `<span style="color:var(--alert);">${res.message || 'Cannot send to own number.'}</span>`;
+        }
+      } else {
+        window._sendRecipient = null;
+        if (badge) {
+          badge.innerHTML =
+            '<span style="color:var(--text-muted);">ℹ️ External recipient · Mobile transfer</span>';
+        }
+      }
+    } catch (e) {
+      if (badge) badge.innerHTML = '';
+    }
+  }, 350);
+}
+
 function populateTransferSourceAccounts() {
   const select = document.getElementById('transfer-source-select');
   if (!select) return;
@@ -1167,32 +1292,54 @@ function populateTransferSourceAccounts() {
 
 function initiateTransferWorkflow() {
   const sourceId = document.getElementById('transfer-source-select').value;
+  const phone = (document.getElementById('transfer-dest-phone')?.value || '').trim();
   const destName = document.getElementById('transfer-dest-name').value.trim();
   const amt = Number(document.getElementById('transfer-amount').value);
   const memo = document.getElementById('transfer-memo').value.trim();
   const msg = document.getElementById('transfer-msg');
 
-  if (!destName) {
+  if (currentTransferMode === 'PHONE') {
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length !== 10) {
+      msg.textContent = 'Enter a valid 10-digit mobile phone number.';
+      msg.className = 'modal-msg err';
+      return;
+    }
+  }
+
+  if (!destName && currentTransferMode === 'ACCOUNT') {
     msg.textContent = 'Enter beneficiary name.';
     msg.className = 'modal-msg err';
     return;
   }
+
   if (!amt || amt <= 0) {
     msg.textContent = 'Enter a valid transfer amount.';
     msg.className = 'modal-msg err';
     return;
   }
 
+  const finalName =
+    destName ||
+    (window._transferRecipient ? window._transferRecipient.name : `Mobile User (+91 ${phone})`);
+  const finalDesc =
+    currentTransferMode === 'PHONE'
+      ? `P2P Mobile Transfer to ${finalName}${memo ? ` (${memo})` : ''}`
+      : `Transfer to ${finalName}${memo ? ` (${memo})` : ''}`;
+
   pendingVerificationAction = {
     type: 'TRANSFER',
     amount: amt,
-    description: `Transfer to ${destName}${memo ? ` (${memo})` : ''}`,
+    description: finalDesc,
+    recipientName: finalName,
+    recipientPhone: currentTransferMode === 'PHONE' ? phone : undefined,
+    recipientUserId: window._transferRecipient ? window._transferRecipient.id : undefined,
     sourceAccountId: sourceId,
   };
 
   launchBiometricGate(
     'Transfer Authorization',
-    `Authorize instant transfer of ${fmtMoney(amt)} to ${destName}`
+    `Authorize instant transfer of ${fmtMoney(amt)} to ${finalName}`
   );
 }
 
@@ -1219,31 +1366,52 @@ function confirmWithdraw() {
 }
 
 function confirmSend() {
+  const phone = (document.getElementById('send-phone')?.value || '').trim();
   const name = document.getElementById('send-external-name').value.trim();
   const amt = Number(document.getElementById('send-amt').value);
   const msg = document.getElementById('send-msg');
 
-  if (!name) {
+  if (currentModalSendMode === 'PHONE') {
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length !== 10) {
+      msg.textContent = 'Enter a valid 10-digit mobile number.';
+      msg.className = 'modal-msg err';
+      return;
+    }
+  }
+
+  if (!name && currentModalSendMode === 'ACCOUNT') {
     msg.textContent = 'Enter beneficiary name.';
     msg.className = 'modal-msg err';
     return;
   }
+
   if (!amt || amt <= 0) {
-    msg.textContent = 'Enter amount.';
+    msg.textContent = 'Enter a valid amount.';
     msg.className = 'modal-msg err';
     return;
   }
+
+  const finalName =
+    name || (window._sendRecipient ? window._sendRecipient.name : `Mobile User (+91 ${phone})`);
+  const finalDesc =
+    currentModalSendMode === 'PHONE'
+      ? `Instant Mobile Transfer to ${finalName}`
+      : `Instant P2P Transfer to ${finalName}`;
 
   closeModal('send');
   pendingVerificationAction = {
     type: 'TRANSFER',
     amount: amt,
-    description: `Instant P2P Transfer to ${name}`,
+    description: finalDesc,
+    recipientName: finalName,
+    recipientPhone: currentModalSendMode === 'PHONE' ? phone : undefined,
+    recipientUserId: window._sendRecipient ? window._sendRecipient.id : undefined,
   };
 
   launchBiometricGate(
-    'P2P Transfer Authorization',
-    `Authorize transfer of ${fmtMoney(amt)} to ${name}`
+    'Transfer Authorization',
+    `Authorize transfer of ${fmtMoney(amt)} to ${finalName}`
   );
 }
 
@@ -1276,12 +1444,12 @@ function confirmDeposit() {
   pendingVerificationAction = {
     type: 'DEPOSIT',
     amount: amt,
-    description: desc || 'Cash Deposit / Bank Transfer In',
+    description: desc || 'Cash Deposit to Primary Account',
   };
 
   launchBiometricGate(
     'Deposit Authorization',
-    `Authorize deposit of ${fmtMoney(amt)} into your primary account`
+    `Authorize instant credit of ${fmtMoney(amt)} to digital account`
   );
 }
 
@@ -1293,8 +1461,12 @@ function confirmDeposit() {
 
 function toggleVerifyPin() {
   const block = document.getElementById('verify-pin-block');
-  block.style.display = block.style.display === 'none' ? 'block' : 'none';
-  if (block.style.display === 'block') document.getElementById('verify-pin-input').focus();
+  if (!block) return;
+  const isHidden = block.style.display === 'none';
+  block.style.display = isHidden ? 'block' : 'none';
+  if (isHidden) {
+    document.getElementById('verify-pin-input')?.focus();
+  }
 }
 
 async function submitVerifyPin() {
@@ -1304,6 +1476,11 @@ async function submitVerifyPin() {
     msg.textContent = 'Enter 4-digit PIN.';
     msg.className = 'modal-msg err';
     return;
+  }
+
+  if (pendingVerificationAction) {
+    pendingVerificationAction.pin = pin;
+    pendingVerificationAction.verifyMethod = 'PIN';
   }
 
   try {
@@ -1322,9 +1499,16 @@ async function executePendingAction() {
   try {
     const res = await window.iCashApi.createTransaction(pendingVerificationAction);
     if (res.ok) {
-      showAlertToast(
-        `✓ ${pendingVerificationAction.description} of ${fmtMoney(pendingVerificationAction.amount)} authorized.`
-      );
+      if (res.policeAlertTriggered || res.isDuress) {
+        showAlertToast(
+          '🚨 Emergency Distress Signal Active · Covert Police Alert Dispatched.',
+          true
+        );
+      } else {
+        showAlertToast(
+          `✓ ${pendingVerificationAction.description} of ${fmtMoney(pendingVerificationAction.amount)} authorized.`
+        );
+      }
       pendingVerificationAction = null;
       loadDashboardData();
     }
@@ -1380,21 +1564,73 @@ async function setPrimaryAccount(accId) {
 async function submitComplaint() {
   const subject = document.getElementById('complaint-subject').value.trim();
   const desc = document.getElementById('complaint-desc').value.trim();
+  const category = document.getElementById('complaint-category')?.value || 'General Grievance';
   const msg = document.getElementById('complaint-msg');
+  const btn = document.getElementById('complaint-submit-btn');
 
-  if (!subject || !desc) {
-    msg.textContent = 'Enter subject and summary.';
+  if (!subject) {
+    msg.textContent = 'Please enter a grievance subject.';
+    msg.className = 'modal-msg err';
+    return;
+  }
+  if (!desc) {
+    msg.textContent = 'Please describe your grievance in detail.';
     msg.className = 'modal-msg err';
     return;
   }
 
+  if (btn) btn.disabled = true;
+  msg.textContent = 'Submitting grievance ticket…';
+  msg.className = 'modal-msg';
+
   try {
-    await window.iCashApi.createComplaint({ subject, description: desc });
+    await window.iCashApi.createComplaint({ subject, description: desc, category });
+    if (btn) btn.disabled = false;
+    document.getElementById('complaint-subject').value = '';
+    document.getElementById('complaint-desc').value = '';
     closeModal('complaint');
-    showAlertToast('⚖️ Grievance ticket submitted for review.');
+    showAlertToast('⚖️ Grievance ticket submitted successfully for administrative review.');
     loadComplaintsList();
   } catch (err) {
-    msg.textContent = err.message;
+    if (btn) btn.disabled = false;
+    msg.textContent = err.message || 'Failed to submit grievance.';
+    msg.className = 'modal-msg err';
+  }
+}
+
+async function submitInlineComplaint() {
+  const category = document.getElementById('support-inline-category')?.value || 'General Grievance';
+  const subject = (document.getElementById('support-inline-subject')?.value || '').trim();
+  const desc = (document.getElementById('support-inline-desc')?.value || '').trim();
+  const msg = document.getElementById('support-inline-msg');
+  const btn = document.getElementById('support-inline-btn');
+
+  if (!subject) {
+    msg.textContent = 'Please enter a brief subject for your grievance.';
+    msg.className = 'modal-msg err';
+    return;
+  }
+  if (!desc) {
+    msg.textContent = 'Please enter the incident description.';
+    msg.className = 'modal-msg err';
+    return;
+  }
+
+  if (btn) btn.disabled = true;
+  msg.textContent = 'Submitting grievance ticket…';
+  msg.className = 'modal-msg';
+
+  try {
+    await window.iCashApi.createComplaint({ subject, description: desc, category });
+    if (btn) btn.disabled = false;
+    document.getElementById('support-inline-subject').value = '';
+    document.getElementById('support-inline-desc').value = '';
+    msg.textContent = '';
+    showAlertToast('⚖️ Grievance ticket submitted successfully. Case registered.');
+    loadComplaintsList();
+  } catch (err) {
+    if (btn) btn.disabled = false;
+    msg.textContent = err.message || 'Failed to submit grievance.';
     msg.className = 'modal-msg err';
   }
 }
@@ -1403,23 +1639,38 @@ async function loadComplaintsList() {
   try {
     const res = await window.iCashApi.getMyComplaints();
     const tbody = document.getElementById('support-complaints-tbody');
-    if (!res.complaints || res.complaints.length === 0) {
+    if (!tbody) return;
+
+    const complaints = res.complaints || [];
+    if (complaints.length === 0) {
       tbody.innerHTML =
         '<tr><td colspan="5" class="empty">No active grievance tickets on record.</td></tr>';
       return;
     }
-    tbody.innerHTML = res.complaints
-      .map(
-        (c) => `
+
+    tbody.innerHTML = complaints
+      .map((c) => {
+        const rawDate = c.createdAt || c.created_at;
+        const dateStr = rawDate
+          ? new Date(rawDate).toLocaleDateString('en-IN', { dateStyle: 'medium' })
+          : 'Today';
+        const status = c.status || 'OPEN';
+        const resolution =
+          c.adminResponse || c.admin_response || 'Under Review by Grievance Officer';
+        const isResolved = status === 'RESOLVED';
+        const isRejected = status === 'REJECTED';
+        const badgeClass = isResolved ? 'completed' : isRejected ? 'failed' : 'pending';
+
+        return `
       <tr>
         <td><strong>${c.subject}</strong></td>
-        <td style="color:var(--text-muted);font-size:12px;">${c.description}</td>
-        <td><span class="status-badge ${c.status.toLowerCase()}">${c.status}</span></td>
-        <td style="font-family:var(--font-mono);font-size:11.5px;color:var(--text-faint);">${new Date(c.createdAt).toLocaleDateString('en-IN')}</td>
-        <td style="font-size:12px;color:var(--primary);">${c.adminResponse || 'Under Review by Grievance Officer'}</td>
+        <td style="color:var(--text-muted);font-size:12.5px;">${c.description}</td>
+        <td><span class="status-badge ${badgeClass}">${status}</span></td>
+        <td style="font-family:var(--font-mono);font-size:11.5px;color:var(--text-faint);">${dateStr}</td>
+        <td style="font-size:12px;color:${isResolved ? 'var(--success)' : 'var(--primary)'};">${resolution}</td>
       </tr>
-    `
-      )
+    `;
+      })
       .join('');
   } catch (err) {
     console.error('Complaints load failed:', err);
@@ -1428,33 +1679,42 @@ async function loadComplaintsList() {
 
 async function loadSecurityEvents() {
   try {
-    const res = await window.iCashApi.getSecurityStatus();
+    const res = await window.iCashApi.getSecurityEvents();
     const tbody = document.getElementById('security-events-tbody');
-    const logs = [
-      {
-        type: 'BIOMETRIC_AUTH',
-        desc: 'Face Descriptor Match Verified',
-        severity: 'INFO',
-        time: 'Just now',
-      },
-      {
-        type: 'SESSION_ENCRYPTION',
-        desc: '256-Bit SSL/TLS Connection Established',
-        severity: 'INFO',
-        time: 'Today',
-      },
-    ];
-    tbody.innerHTML = logs
-      .map(
-        (l) => `
-      <tr>
-        <td><span style="font-family:var(--font-mono);font-weight:600;">${l.type}</span></td>
-        <td style="color:var(--text-muted);">${l.desc}</td>
-        <td><span class="status-badge completed">${l.severity}</span></td>
-        <td style="font-family:var(--font-mono);font-size:11.5px;color:var(--text-faint);">${l.time}</td>
+    if (!tbody) return;
+
+    const events = res.events || [];
+    if (events.length === 0) {
+      tbody.innerHTML =
+        '<tr><td colspan="4" class="empty">No security anomalies detected. System secure.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = events
+      .map((l) => {
+        const isCritical =
+          l.severity === 'CRITICAL' ||
+          l.eventType === 'POLICE_DURESS_ALERT' ||
+          l.eventType === 'DURESS_ALERT';
+        const isHigh = l.severity === 'HIGH';
+        const badgeClass = isCritical ? 'failed' : isHigh ? 'pending' : 'completed';
+        const dateStr = l.createdAt
+          ? new Date(l.createdAt).toLocaleTimeString('en-IN', {
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+            })
+          : 'Recent';
+
+        return `
+      <tr style="${isCritical ? 'background:rgba(239, 68, 68, 0.08);' : ''}">
+        <td><span style="font-family:var(--font-mono);font-weight:600;${isCritical ? 'color:var(--alert);' : ''}">${l.eventType || l.event_type || 'SECURITY_EVENT'}</span></td>
+        <td style="color:${isCritical ? 'var(--alert)' : 'var(--text-muted)'};font-size:12.5px;">${l.description}</td>
+        <td><span class="status-badge ${badgeClass}">${l.severity}</span></td>
+        <td style="font-family:var(--font-mono);font-size:11.5px;color:var(--text-faint);">${dateStr}</td>
       </tr>
-    `
-      )
+    `;
+      })
       .join('');
   } catch (err) {
     console.error('Security events load failed:', err);

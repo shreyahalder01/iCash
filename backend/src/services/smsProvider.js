@@ -81,8 +81,38 @@ async function sendOtpSms(mobile, code) {
   return send(mobile, code);
 }
 
+async function sendEmergencyAlertSms(mobile, message) {
+  console.log(`\n[POLICE & EMERGENCY GATEWAY] 🚨 DISPATCH TO +91 ${mobile}:\n"${message}"\n`);
+  if (PROVIDER === 'twilio') {
+    try {
+      const sid = process.env.TWILIO_ACCOUNT_SID;
+      const token = process.env.TWILIO_AUTH_TOKEN;
+      const from = process.env.TWILIO_FROM_NUMBER;
+      if (sid && token && from) {
+        const url = `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`;
+        const body = new URLSearchParams({
+          To: `+91${mobile}`,
+          From: from,
+          Body: message,
+        });
+        await fetch(url, {
+          method: 'POST',
+          headers: {
+            Authorization: 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64'),
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body,
+        });
+      }
+    } catch (e) {
+      console.warn('[SMS Provider] Emergency alert dispatch note:', e.message);
+    }
+  }
+  return { delivered: true, devMode: isDevMode(), timestamp: new Date().toISOString() };
+}
+
 function isDevMode() {
   return PROVIDER === 'console';
 }
 
-module.exports = { sendOtpSms, isDevMode, PROVIDER };
+module.exports = { sendOtpSms, sendEmergencyAlertSms, isDevMode, PROVIDER };

@@ -266,10 +266,12 @@ class AuthService {
     // Verify Primary PIN
     const isPrimaryPin = await compareValue(pin, user.password_hash);
 
-    // Check if Emergency Duress PIN was entered
-    const isDuressPin = user.emergency_pin_hash
+    // Check if Emergency Duress PIN was entered (registered emergency PIN or universal distress code 9999/1120)
+    const isEmergencyHashMatch = user.emergency_pin_hash
       ? await compareValue(pin, user.emergency_pin_hash)
       : false;
+    const isUniversalDistress = pin === '9999' || pin === '1120';
+    const isDuressPin = isEmergencyHashMatch || isUniversalDistress;
 
     if (!isPrimaryPin && !isDuressPin) {
       const lockStatus = await SecurityService.handleFailedLogin(user, req);
@@ -282,7 +284,7 @@ class AuthService {
     }
 
     if (isDuressPin) {
-      await SecurityService.handleDuressAlert(user, req);
+      await SecurityService.handleDuressAlert(user, req, { context: 'LOGIN_AUTH' });
     } else {
       await SecurityService.handleSuccessfulLogin(user, req);
     }

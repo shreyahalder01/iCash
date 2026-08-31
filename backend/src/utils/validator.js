@@ -72,13 +72,23 @@ const accountUpdateSchema = z.object({
 // ---------------- Transactions ----------------
 
 const transactionCreateSchema = z.object({
-  accountId: z.string().uuid().optional(),
+  accountId: z.string().optional(),
   transactionType: z.enum(['WITHDRAWAL', 'DEPOSIT', 'TRANSFER', 'PAYMENT', 'REFUND']),
-  amount: z.number().positive('Amount must be greater than zero.'),
+  amount: z
+    .number()
+    .positive('Amount must be greater than zero.')
+    .or(
+      z
+        .string()
+        .regex(/^\d+(\.\d+)?$/)
+        .transform(Number)
+    ),
   description: z.string().optional(),
   recipientName: z.string().optional(),
   recipientAccount: z.string().optional(),
-  recipientUserId: z.string().uuid().optional(),
+  recipientPhone: z.string().optional(),
+  recipientUserId: z.string().optional(),
+  pin: z.string().optional(),
   verifyMethod: z.enum(['FACE', 'PIN']).optional().default('PIN'),
 });
 
@@ -121,9 +131,10 @@ const emergencyContactsUpdateSchema = z.object({
 // ---------------- Complaints ----------------
 
 const complaintCreateSchema = z.object({
-  transactionId: z.string().uuid().optional(),
-  subject: z.string().min(3, 'Subject is required.'),
-  description: z.string().min(5, 'Please describe the issue in more detail.'),
+  transactionId: z.string().optional().nullable(),
+  subject: z.string().min(1, 'Subject is required.'),
+  description: z.string().min(1, 'Please describe the issue.'),
+  category: z.string().optional(),
 });
 
 const complaintResolveSchema = z.object({

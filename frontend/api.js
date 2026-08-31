@@ -232,6 +232,10 @@ const api = {
     };
     return request('/api/transactions', { method: 'POST', body: payload });
   },
+  lookupRecipient: (phone) =>
+    request(`/api/transactions/lookup-recipient?phone=${encodeURIComponent(phone)}`, {
+      method: 'GET',
+    }),
   topUpDemoFunds: (amount = 5000) =>
     request('/api/transactions/topup', { method: 'POST', body: { amount } }),
 
