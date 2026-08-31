@@ -3,7 +3,9 @@
  * Integrates with Beautiful UI component primitives, FaceAPI, and real backend REST API.
  */
 
-// Global State
+// Global State (exposed on window for cross-module integration)
+window.currentUser = null;
+window.pendingLoginUser = null;
 let currentUser = null;
 let currentAccounts = [];
 let currentTransactions = [];
@@ -13,6 +15,37 @@ let currentSearchQuery = '';
 let currentPage = 1;
 const ITEMS_PER_PAGE = 6;
 let isBalanceHidden = false;
+
+function setCurrentUser(user) {
+  currentUser = user;
+  window.currentUser = user;
+  if (user && typeof localStorage !== 'undefined') {
+    try {
+      localStorage.setItem('icash_current_user', JSON.stringify(user));
+    } catch (e) {}
+  }
+}
+window.setCurrentUser = setCurrentUser;
+
+function getCurrentUser() {
+  if (currentUser) return currentUser;
+  if (window.currentUser) {
+    currentUser = window.currentUser;
+    return currentUser;
+  }
+  if (typeof localStorage !== 'undefined') {
+    try {
+      const cached = localStorage.getItem('icash_current_user');
+      if (cached) {
+        currentUser = JSON.parse(cached);
+        window.currentUser = currentUser;
+        return currentUser;
+      }
+    } catch (e) {}
+  }
+  return null;
+}
+window.getCurrentUser = getCurrentUser;
 
 // (Biometric state managed by biometric.js)
 
@@ -54,11 +87,14 @@ window.addEventListener('DOMContentLoaded', async () => {
   initThreeBackground();
   initAppwrite();
 
-  // Check if session exists
+  // Restore stored user if available
+  getCurrentUser();
+
+  // Check if server session exists
   try {
-    const session = await window.iCashApi.getSecurityStatus();
+    const session = await window.iCashApi.getMe();
     if (session.ok && session.user) {
-      currentUser = session.user;
+      setCurrentUser(session.user);
       enterDashboard();
     }
   } catch (e) {
@@ -774,8 +810,9 @@ async function submitLoginPin() {
   try {
     const res = await window.iCashApi.loginPin({ userId: u.id, pin });
     if (res.ok && res.user) {
-      currentUser = res.user;
+      setCurrentUser(res.user);
       pendingLoginUser = null;
+      window.pendingLoginUser = null;
       if (res.isDuress)
         showAlertToast('🚨 Emergency access mode activated · silent alert logged.', true);
       enterDashboard();
@@ -810,7 +847,7 @@ async function attemptPinDirectLogin() {
     const targetUser = lookup.users[0];
     const res = await window.iCashApi.loginPin({ userId: targetUser.id, pin });
     if (res.ok && res.user) {
-      currentUser = res.user;
+      setCurrentUser(res.user);
       if (res.isDuress) showAlertToast('🚨 Emergency access mode activated.', true);
       enterDashboard();
     }
@@ -821,30 +858,38 @@ async function attemptPinDirectLogin() {
 }
 
 function showMatch(user, isNew) {
+  if (!user) return;
+  setCurrentUser(user);
   const banner = document.getElementById('match-banner');
-  banner.innerHTML = `
-    <div class="av">${initials(user.name)}</div>
-    <div>
-      <strong>${isNew ? 'Welcome to iCash, ' : 'Identity Confirmed — '}${user.name}</strong>
-      <span>${isNew ? 'Account created successfully with primary digital savings wallet.' : 'Session established with bank-grade encryption.'}</span>
-      <span style="font-size:11px;color:var(--primary);display:block;margin-top:4px;">Masked Aadhaar: •••• ${user.aadhaarLast4} ✓</span>
-    </div>
-  `;
+  if (banner) {
+    banner.innerHTML = `
+      <div class="av">${initials(user.name || 'CU')}</div>
+      <div>
+        <strong>${isNew ? 'Welcome to iCash, ' : 'Identity Confirmed — '}${user.name || 'Customer'}</strong>
+        <span>${isNew ? 'Account created successfully with primary digital savings wallet.' : 'Session established with bank-grade encryption.'}</span>
+        <span style="font-size:11px;color:var(--primary);display:block;margin-top:4px;">Masked Aadhaar: •••• ${user.aadhaarLast4 || '----'} ✓</span>
+      </div>
+    `;
+  }
   goTo('screen-match');
 }
+window.showMatch = showMatch;
 
 // ============================================================
 // DASHBOARD & FINANCIAL DATA ENGINE
 // ============================================================
 function enterDashboard() {
-  if (!currentUser) {
+  const user = getCurrentUser();
+  if (!user) {
     // No authenticated user — send back to login
     goTo('screen-welcome');
     return;
   }
+  setCurrentUser(user);
   goTo('screen-dashboard');
   switchView('dashboard');
 }
+window.enterDashboard = enterDashboard;
 
 async function loadDashboardData() {
   if (!currentUser) return;
@@ -1755,17 +1800,32 @@ async function confirmDeleteAccount() {
     // Success — clear local state and navigate to welcome
     showAlertToast('Your account has been deleted. Redirecting…');
     // Logout client-side state
-    currentUser = null;
-    currentAccounts = [];
-    // Close modal and go to welcome
+    logout();
+    // Close modal
     document.getElementById('modal-delete-account').classList.remove('active');
-    setTimeout(() => goTo('screen-welcome'), 800);
   } catch (err) {
     msg.textContent = err.message || 'Failed to delete account.';
     msg.className = 'modal-msg err';
     if (btn) btn.disabled = false;
   }
 }
+
+async function logout() {
+  try {
+    if (window.iCashApi && typeof window.iCashApi.logout === 'function') {
+      await window.iCashApi.logout();
+    }
+  } catch (e) {}
+  setCurrentUser(null);
+  currentAccounts = [];
+  currentTransactions = [];
+  if (typeof localStorage !== 'undefined') {
+    localStorage.removeItem('icash_token');
+    localStorage.removeItem('icash_current_user');
+  }
+  goTo('screen-welcome');
+}
+window.logout = logout;
 
 function renderAccountsView() {
   renderAccountsGrid(currentAccounts);
@@ -2066,15 +2126,6 @@ async function loadMerchantPOSList() {
   } catch (e) {
     container.innerHTML = '<div class="empty">POS gateway ready.</div>';
   }
-}
-
-async function logout() {
-  try {
-    await window.iCashApi.logout();
-  } catch (e) {}
-  currentUser = null;
-  goTo('screen-welcome');
-  showAlertToast('Signed out of secure banking session.');
 }
 
 // ============================================================

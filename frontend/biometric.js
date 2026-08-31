@@ -799,8 +799,14 @@ async function _finalizeRegistration(descriptorArrays) {
     const res = await window.iCashApi.register(payload);
     teardownRegisterScan();
     if (res.ok && res.user) {
-      currentUser = res.user;
-      showMatch(res.user, true);
+      if (typeof window.setCurrentUser === 'function') {
+        window.setCurrentUser(res.user);
+      } else {
+        window.currentUser = res.user;
+      }
+      if (typeof window.showMatch === 'function') {
+        window.showMatch(res.user, true);
+      }
     } else {
       statusEl.textContent = res.message || 'Registration failed — please retry.';
       statusEl.classList.add('bad');
@@ -1053,14 +1059,20 @@ async function beginLoginScan() {
           liveDescriptor: Array.from(live),
         });
         teardownLoginScan();
-        if (authRes.ok && authRes.user) {
-          currentUser = authRes.user;
-          showMatch(authRes.user, false);
+        if (authRes && authRes.ok && authRes.user) {
+          if (typeof window.setCurrentUser === 'function') {
+            window.setCurrentUser(authRes.user);
+          } else {
+            window.currentUser = authRes.user;
+          }
+          if (typeof window.showMatch === 'function') {
+            window.showMatch(authRes.user, false);
+          }
           setTimeout(() => {
             if (typeof window.enterDashboard === 'function') {
               window.enterDashboard();
             }
-          }, 900);
+          }, 800);
         } else {
           promptLoginPin(targetUser, confidence);
         }
@@ -1085,16 +1097,22 @@ async function _serverVerifyLogin(liveDescriptor, targetUser, overlayCanvas, vid
       liveDescriptor: Array.from(liveDescriptor),
       userId: targetUser.id,
     });
-    if (authRes.ok && authRes.user) {
+    if (authRes && authRes.ok && authRes.user) {
       drawOverlay(overlayCanvas, video, detections, 'GOOD');
       teardownLoginScan();
-      currentUser = authRes.user;
-      showMatch(authRes.user, false);
+      if (typeof window.setCurrentUser === 'function') {
+        window.setCurrentUser(authRes.user);
+      } else {
+        window.currentUser = authRes.user;
+      }
+      if (typeof window.showMatch === 'function') {
+        window.showMatch(authRes.user, false);
+      }
       setTimeout(() => {
         if (typeof window.enterDashboard === 'function') {
           window.enterDashboard();
         }
-      }, 900);
+      }, 800);
       return;
     }
     drawOverlay(overlayCanvas, video, detections, 'BAD');
@@ -1228,9 +1246,10 @@ async function launchBiometricGate(title, lead) {
 
   // Load current account holder's descriptors
   let storedDescriptors = [];
-  if (currentUser) {
+  const u = window.currentUser || (typeof currentUser !== 'undefined' ? currentUser : null);
+  if (u) {
     try {
-      const bioRes = await window.iCashApi.getBiometricProfile(currentUser.id);
+      const bioRes = await window.iCashApi.getBiometricProfile(u.id);
       storedDescriptors = (bioRes.descriptors || []).map((d) => Float32Array.from(d));
     } catch {
       storedDescriptors = [];
@@ -1374,14 +1393,15 @@ async function launchBiometricGate(title, lead) {
 async function _serverVerifyTransaction(liveDescriptor, overlayCanvas, video, detections) {
   const statusEl = document.getElementById('verify-scan-status');
   const msg = document.getElementById('verify-msg');
-  if (!currentUser) {
+  const u = window.currentUser || (typeof currentUser !== 'undefined' ? currentUser : null);
+  if (!u) {
     msg.textContent = 'Session expired.';
     return;
   }
   try {
     const verifyRes = await window.iCashApi.verifyBiometric({
       liveDescriptor: Array.from(liveDescriptor),
-      userId: currentUser.id,
+      userId: u.id,
     });
     if (!verifyRes.matched || verifyRes.confidence < 0.35) {
       drawOverlay(overlayCanvas, video, detections, 'BAD');
@@ -1453,6 +1473,21 @@ function teardownVerifyGate() {
   const oc = document.getElementById('verify-overlay-canvas');
   if (oc) oc.getContext('2d').clearRect(0, 0, oc.width, oc.height);
 }
+
+// Expose biometric functions on window
+window.beginLoginScan = beginLoginScan;
+window.captureLoginFace = captureLoginFace;
+window.cancelLoginScan = cancelLoginScan;
+window.teardownLoginScan = teardownLoginScan;
+window.beginRegisterScan = beginRegisterScan;
+window.captureRegisterFace = captureRegisterFace;
+window.cancelRegisterScan = cancelRegisterScan;
+window.teardownRegisterScan = teardownRegisterScan;
+window.launchBiometricGate = launchBiometricGate;
+window.captureVerifyFace = captureVerifyFace;
+window.cancelVerify = cancelVerify;
+window.teardownVerifyGate = teardownVerifyGate;
+window.ensureBioModels = ensureBioModels;
 
 // ── Pre-load models on page load (background) ─────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
