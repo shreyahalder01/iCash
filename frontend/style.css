@@ -662,82 +662,51 @@ textarea:focus {
 }
 
 .brand-logo-img {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
   object-fit: contain;
-  background: #ffffff;
-  padding: 2px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.12);
+  background: rgba(45, 212, 191, 0.08);
+  border: 1px solid rgba(45, 212, 191, 0.22);
+  padding: 4px;
   flex-shrink: 0;
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .brand-wrapper:hover .brand-logo-img {
-  transform: scale(1.06);
-  box-shadow: 0 4px 16px rgba(45, 212, 191, 0.25), 0 0 0 1px rgba(45, 212, 191, 0.4);
+  transform: scale(1.08);
+  background: rgba(45, 212, 191, 0.14);
+  border-color: rgba(45, 212, 191, 0.5);
+  box-shadow: 0 0 16px rgba(45, 212, 191, 0.35);
 }
 
-.brand-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #2dd4bf, #0ea5e9);
-  color: #07090e;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 800;
-  font-size: 14px;
-  font-family: var(--font-display);
-  flex-shrink: 0;
-}
-
-.auth-brand-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 22px;
-  background: rgba(16, 23, 40, 0.85);
-  border: 1px solid var(--border-strong);
-  padding: 8px 18px 8px 10px;
-  border-radius: var(--radius-pill);
-  backdrop-filter: blur(16px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-}
-
-.auth-brand-logo {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  object-fit: contain;
-  background: #ffffff;
-  padding: 3px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
-}
-
-.auth-brand-text {
+.auth-hero-brand {
+  margin-bottom: 24px;
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
 }
 
-.auth-brand-title {
-  font-family: var(--font-display);
-  font-size: 18px;
-  font-weight: 800;
-  color: var(--text-main);
-  letter-spacing: -0.4px;
-  line-height: 1.1;
+.welcome-hero-logo {
+  height: 52px;
+  width: auto;
+  max-width: 220px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 18px rgba(14, 165, 233, 0.3));
 }
 
-.auth-brand-sub {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--primary);
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  font-weight: 600;
-  margin-top: 2px;
+.card-brand-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.card-brand-logo {
+  height: 32px;
+  width: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
 }
 
 .brand-text {
