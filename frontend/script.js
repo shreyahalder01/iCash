@@ -822,51 +822,14 @@ function showMatch(user, isNew) {
   goTo('screen-match');
 }
 
-// Quick 1-click Demo & Guest Portal Login
-async function quickDemoLogin(aadhaarLast4 = '4821', pin = '4821') {
-  try {
-    showAlertToast('Authenticating demo banking portal session…', false);
-    const lookup = await window.iCashApi.loginAadhaar({ aadhaarLast4 });
-    if (lookup.ok && lookup.users && lookup.users.length > 0) {
-      const targetUser = lookup.users[0];
-      const authRes = await window.iCashApi.loginPin({ userId: targetUser.id, pin });
-      if (authRes.ok && authRes.user) {
-        currentUser = authRes.user;
-        showAlertToast(`✓ Authenticated as ${currentUser.name}`, false);
-        enterDashboard();
-        return;
-      }
-    }
-  } catch (e) {
-    console.warn('[Quick Demo Auth] API login note:', e.message);
-  }
-
-  // Fallback demo user if API is initializing
-  currentUser = {
-    id: 'demo-sidd-paul',
-    name: 'Sidd Paul',
-    phone: '9876543210',
-    aadhaarLast4: aadhaarLast4 || '4821',
-    role: 'USER',
-    isSenior: false,
-  };
-  showAlertToast('✓ Demo portal session active', false);
-  enterDashboard();
-}
-
 // ============================================================
 // DASHBOARD & FINANCIAL DATA ENGINE
 // ============================================================
 function enterDashboard() {
   if (!currentUser) {
-    currentUser = {
-      id: 'demo-sidd-paul',
-      name: 'Sidd Paul',
-      phone: '9876543210',
-      aadhaarLast4: '4821',
-      role: 'USER',
-      isSenior: false,
-    };
+    // No authenticated user — send back to login
+    goTo('screen-welcome');
+    return;
   }
   goTo('screen-dashboard');
   switchView('dashboard');
@@ -1271,7 +1234,7 @@ function confirmSend() {
   );
 }
 
-async function addDemoFunds() {
+async function depositFunds() {
   try {
     await window.iCashApi.createTransaction({
       type: 'DEPOSIT',
