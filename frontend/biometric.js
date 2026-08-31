@@ -747,7 +747,7 @@ async function beginRegisterScan() {
     }
 
     const newProgress = collected.length / ENROLL_SAMPLES;
-    const isFullyVerified = newProgress >= 1 && count >= 2;
+    const isFullyVerified = newProgress >= 1;
 
     drawOverlay(
       overlayCanvas,
@@ -758,15 +758,9 @@ async function beginRegisterScan() {
       blinkStatus
     );
 
-    if (count === 0) {
-      statusEl.textContent = `👁 Samples ${collected.length}/${ENROLL_SAMPLES} — please BLINK twice (${count}/2 blinks)…`;
-    } else if (count === 1) {
-      statusEl.textContent = `✔ 1st blink captured! Blink once more (1/2)…`;
-    } else {
-      statusEl.textContent = `✅ 2/2 blinks! Finalizing enrollment…`;
-    }
+    statusEl.textContent = `📸 Samples ${collected.length}/${ENROLL_SAMPLES} — hold steady…`;
 
-    if (collected.length >= ENROLL_SAMPLES && count >= 2) {
+    if (collected.length >= ENROLL_SAMPLES) {
       // Anti-static photo check: verify biological micro-variance across samples
       const diversity = calculateSampleDiversity(collected);
       if (diversity < 0.003) {
@@ -1022,23 +1016,11 @@ async function beginLoginScan() {
     }
 
     consecutiveMatches++;
-    const count = blinkStatus.blinkCount || 0;
-
-    if (count < 2) {
-      drawOverlay(overlayCanvas, video, detections, 'SCAN', undefined, blinkStatus);
-      if (count === 0) {
-        statusEl.textContent = `✔ Face matched — please BLINK twice to sign in (${count}/2)…`;
-      } else {
-        statusEl.textContent = `✔ 1st blink! Blink once more (1/2)…`;
-      }
-      setTimeout(loginStep, 80);
-      return;
-    }
 
     drawOverlay(overlayCanvas, video, detections, 'GOOD', undefined, blinkStatus);
-    statusEl.textContent = `✅ 2/2 Blinks — authenticating session…`;
+    statusEl.textContent = `✅ Face matched — authenticating session…`;
 
-    if (consecutiveMatches >= REQUIRED_MATCHES && count >= 2) {
+    if (consecutiveMatches >= REQUIRED_MATCHES) {
       _loginLoopActive = false;
       const confidence = Math.max(0, Math.min(1, 1 - dist / MATCH_THRESHOLD));
       try {
@@ -1362,25 +1344,13 @@ async function launchBiometricGate(title, lead) {
 
     consecutiveMatches++;
     msg.textContent = '';
-    const count = blinkStatus.blinkCount || 0;
-
-    if (count < 2) {
-      drawOverlay(overlayCanvas, video, detections, 'SCAN', undefined, blinkStatus);
-      if (count === 0) {
-        statusEl.textContent = `✔ Recognized — please BLINK twice to authorize (${count}/2)…`;
-      } else {
-        statusEl.textContent = `✔ 1st blink! Blink once more to authorize (1/2)…`;
-      }
-      setTimeout(verifyStep, 80);
-      return;
-    }
 
     drawOverlay(overlayCanvas, video, detections, 'GOOD', undefined, blinkStatus);
-    statusEl.textContent = `✅ 2/2 Blinks — executing transaction…`;
+    statusEl.textContent = `✅ Recognized — executing transaction…`;
 
-    if (consecutiveMatches >= REQUIRED_MATCHES && count >= 2) {
+    if (consecutiveMatches >= REQUIRED_MATCHES) {
       _verifyLoopActive = false;
-      statusEl.textContent = '✅ Liveness Verified (2/2 blinks) — executing transaction…';
+      statusEl.textContent = '✅ Face verified — executing transaction…';
       await _finalizeVerify();
     } else {
       setTimeout(verifyStep, 80);
