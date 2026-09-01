@@ -206,6 +206,13 @@ const api = {
     request('/api/otp/email/send', { method: 'POST', body: { email } }),
   verifyEmailOtp: (email, code) =>
     request('/api/otp/email/verify', { method: 'POST', body: { email, code } }),
+  // Unified contact OTP (registration): `contact` is whatever the user typed
+  // into the email-or-phone field, captured fresh at submit-time. It is
+  // passed straight through — never substituted with a stored value.
+  sendContactOtp: (contact) =>
+    request('/api/otp/contact/send', { method: 'POST', body: { contact } }),
+  verifyContactOtp: (contact, code) =>
+    request('/api/otp/contact/verify', { method: 'POST', body: { contact, code } }),
   // Legacy aliases (kept for backwards compatibility)
   sendOtp: (mobile, purpose) =>
     request('/api/otp/email/send', { method: 'POST', body: { email: mobile, purpose } }),
