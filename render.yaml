@@ -12,7 +12,20 @@ services:
         value: 10000
       - key: CORS_ORIGIN
         value: "*"
+      - key: EMAIL_PROVIDER
+        value: smtp
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
       - key: SMS_PROVIDER
         value: console
       - key: BIOMETRIC_PROVIDER
         value: demo
+
