@@ -201,11 +201,16 @@ const api = {
   // Delete own account (requires PIN confirmation)
   deleteMe: (data) => request('/api/auth/me', { method: 'DELETE', body: data }),
 
-  // OTP
+  // Email OTP (registration verification)
+  sendEmailOtp: (email) =>
+    request('/api/otp/email/send', { method: 'POST', body: { email } }),
+  verifyEmailOtp: (email, code) =>
+    request('/api/otp/email/verify', { method: 'POST', body: { email, code } }),
+  // Legacy aliases (kept for backwards compatibility)
   sendOtp: (mobile, purpose) =>
-    request('/api/otp/send', { method: 'POST', body: { mobile, purpose } }),
+    request('/api/otp/email/send', { method: 'POST', body: { email: mobile, purpose } }),
   verifyOtp: (mobile, purpose, code) =>
-    request('/api/otp/verify', { method: 'POST', body: { mobile, purpose, code } }),
+    request('/api/otp/email/verify', { method: 'POST', body: { email: mobile, code } }),
 
   // Biometric
   enrollBiometric: (data) => request('/api/biometric/enroll', { method: 'POST', body: data }),

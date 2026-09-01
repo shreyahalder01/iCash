@@ -77,6 +77,7 @@ class HealthController {
       },
       services: {
         smsProvider: process.env.SMS_PROVIDER || 'console',
+        emailProvider: process.env.EMAIL_PROVIDER || 'console',
         biometricProvider: process.env.BIOMETRIC_PROVIDER || 'demo',
       },
       responseTimeMs: Date.now() - startTime,

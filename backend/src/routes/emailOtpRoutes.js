@@ -1,0 +1,73 @@
+const express = require('express');
+const router = express.Router();
+const { issueEmailOtp, verifyEmailOtp, isDevMode, PROVIDER } = require('../services/emailOtpService');
+const { authLimiter } = require('../middleware/rateLimitMiddleware');
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function isValidEmail(email) {
+  return typeof email === 'string' && EMAIL_REGEX.test(email) && email.length <= 254;
+}
+
+/**
+ * POST /api/otp/email/send
+ * Body: { email }
+ * Sends a 6-digit OTP to the provided email address.
+ */
+router.post('/send', authLimiter, async (req, res) => {
+  const { email } = req.body || {};
+
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ ok: false, error: 'A valid email address is required.' });
+  }
+
+  try {
+    const result = await issueEmailOtp(email);
+    const response = {
+      ok: true,
+      expiresAt: result.expiresAt,
+      devMode: isDevMode(),
+    };
+    // Only expose the code in dev/console mode (it's already logged to stdout)
+    if (result.devCode) {
+      response.devCode = result.devCode;
+    }
+    return res.json(response);
+  } catch (err) {
+    console.error('[Email OTP] Send failed:', err.message);
+    return res.status(502).json({ ok: false, error: 'Could not send verification email. Please try again shortly.' });
+  }
+});
+
+/**
+ * POST /api/otp/email/verify
+ * Body: { email, code }
+ * Returns { ok: true, ticket } on success — the ticket must be passed to /api/auth/register.
+ */
+router.post('/verify', authLimiter, (req, res) => {
+  const { email, code } = req.body || {};
+
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ ok: false, error: 'A valid email address is required.' });
+  }
+  if (!code || String(code).trim().length !== 6) {
+    return res.status(400).json({ ok: false, error: 'A 6-digit verification code is required.' });
+  }
+
+  const result = verifyEmailOtp(email, code);
+  if (!result.ok) {
+    return res.status(400).json({ ok: false, error: result.reason });
+  }
+
+  // Return the opaque ticket — the client must pass this to /api/auth/register
+  return res.json({ ok: true, ticket: result.ticket });
+});
+
+/**
+ * GET /api/otp/email/health
+ */
+router.get('/health', (req, res) => {
+  res.json({ ok: true, provider: PROVIDER, devMode: isDevMode() });
+});
+
+module.exports = router;

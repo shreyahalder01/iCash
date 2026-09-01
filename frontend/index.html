@@ -98,7 +98,7 @@
       <!-- SCREEN: REGISTER FORM -->
       <div class="screen" id="screen-register-form">
         <div class="card card-narrow">
-          <div class="eyebrow">Step 1 of 2 · Customer Identity</div>
+          <div class="eyebrow">Step 1 of 3 · Customer Identity</div>
           <h2>Open Digital Account</h2>
           <p class="lead">
             Your identity is secured with 256-bit encryption. Raw Aadhaar numbers are never stored
@@ -109,7 +109,7 @@
             id="form-register"
             onsubmit="
               event.preventDefault();
-              proceedToBiometrics();
+              proceedToEmailOtp();
             "
           >
             <div class="field">
@@ -143,6 +143,16 @@
                 inputmode="numeric"
                 maxlength="10"
                 autocomplete="tel"
+              />
+            </div>
+            <div class="field">
+              <label>Email Address <span style="color:var(--primary);font-size:11px">(required for verification)</span></label>
+              <input
+                id="reg-email"
+                type="email"
+                placeholder="e.g. you@example.com"
+                maxlength="254"
+                autocomplete="email"
               />
             </div>
             <div class="field">
@@ -353,13 +363,13 @@
       </div>
 
       <!-- SCREEN: MOBILE OTP VERIFICATION -->
-      <div class="screen" id="screen-aadhaar-otp">
+      <div class="screen" id="screen-email-otp">
         <div class="card card-narrow">
-          <div class="eyebrow" id="otp-eyebrow">Step 2 of 3 · Mobile OTP</div>
-          <h2>Verify Mobile Number</h2>
+          <div class="eyebrow" id="otp-eyebrow">Step 2 of 3 · Email Verification</div>
+          <h2>Verify Email Address</h2>
           <p class="lead">
             A 6-digit security code was sent to
-            <strong id="otp-mobile-display">+91 ••••••4821</strong>
+            <strong id="otp-email-display">your email</strong>
           </p>
 
           <div
@@ -375,11 +385,11 @@
               text-align: center;
             "
           >
-            📲 Simulated SMS: Your verification code is
+            📧 Dev mode — email code:
             <strong
               id="otp-sms-code"
               style="color: var(--primary); font-size: 16px; letter-spacing: 2px"
-              >123456</strong
+              >------</strong
             >
           </div>
 
@@ -515,11 +525,11 @@
           <div class="modal-msg" id="otp-msg"></div>
 
           <div class="btn-row" style="margin-top: 16px">
-            <button type="button" class="btn btn-ghost" onclick="cancelOtp()">Cancel</button>
-            <button type="button" class="btn btn-ghost" id="resend-btn" onclick="resendOtp()">
+            <button type="button" class="btn btn-ghost" onclick="cancelEmailOtp()">Cancel</button>
+            <button type="button" class="btn btn-ghost" id="resend-btn" onclick="resendEmailOtp()">
               Resend Code
             </button>
-            <button type="button" class="btn btn-primary" onclick="verifyOtpCode()">
+            <button type="button" class="btn btn-primary" onclick="verifyEmailOtpCode()">
               Verify &rarr;
             </button>
           </div>
@@ -530,7 +540,7 @@
       <div class="screen" id="screen-register-scan">
         <div class="scan-wrap">
           <div class="card card-narrow" style="padding: 24px; text-align: center">
-            <div class="eyebrow">Step 2 of 2 · Biometric Enrollment</div>
+            <div class="eyebrow">Step 3 of 3 · Biometric Enrollment</div>
             <h2>Look Directly at Camera</h2>
             <p class="lead" style="margin-bottom: 16px">
               Position your face in the center of the scan ring. Single person in view.

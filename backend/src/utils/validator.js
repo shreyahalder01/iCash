@@ -13,7 +13,8 @@ const aadhaarLast4 = z.string().regex(/^\d{4}$/, 'Aadhaar last 4 digits must be 
 const registerSchema = z.object({
   fullName: z.string().min(2, 'Full name is required.'),
   phone: mobile10,
-  email: z.string().email().optional().or(z.literal('')).optional(),
+  email: z.string().email('A valid email address is required.').max(254, 'Email address is too long.'),
+  emailVerificationTicket: z.string().min(1, 'Email verification is required. Please verify your email before registering.'),
   aadhaarNumber: z.string().regex(/^\d{12}$/, 'Aadhaar number must be 12 digits.'),
   dob: z.string().optional(),
   role: z.enum(['USER', 'MERCHANT', 'ADMIN']).optional(),

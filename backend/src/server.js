@@ -17,7 +17,7 @@ const { generalApiLimiter } = require('./middleware/rateLimitMiddleware');
 
 const healthRoutes = require('./routes/healthRoutes');
 const authRoutes = require('./routes/authRoutes');
-const otpRoutes = require('./routes/otpRoutes');
+const emailOtpRoutes = require('./routes/emailOtpRoutes');
 const biometricRoutes = require('./routes/biometricRoutes');
 const accountRoutes = require('./routes/accountRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
@@ -128,7 +128,7 @@ app.get('/api/live', HealthController.getLiveness);
 app.get('/api/ready', HealthController.getReadiness);
 
 app.use('/api/auth', authRoutes);
-app.use('/api/otp', otpRoutes);
+app.use('/api/otp/email', emailOtpRoutes);
 app.use('/api/biometric', biometricRoutes);
 app.use('/api/accounts', accountRoutes);
 app.use('/api/transactions', transactionRoutes);

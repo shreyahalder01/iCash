@@ -3,6 +3,7 @@ const { hashValue, compareValue } = require('../utils/hash');
 const { signToken } = require('../utils/token');
 const SecurityService = require('./securityService');
 const { biometricService } = require('./biometricService');
+const { consumeVerificationTicket } = require('./emailOtpService');
 
 class AuthService {
   /**
@@ -13,6 +14,7 @@ class AuthService {
       fullName,
       phone,
       email,
+      emailVerificationTicket,
       aadhaarNumber,
       dob,
       pin,
@@ -28,6 +30,40 @@ class AuthService {
     });
     if (existingPhone) {
       const err = new Error('A user with this mobile number is already registered.');
+      err.status = 409;
+      throw err;
+    }
+
+    // Validate email verification ticket (required)
+    if (!email) {
+      const err = new Error('An email address is required to create an account.');
+      err.status = 400;
+      throw err;
+    }
+    const normalizedEmail = email.toLowerCase().trim();
+    if (!emailVerificationTicket) {
+      const err = new Error('Email verification is required. Please verify your email address before registering.');
+      err.status = 400;
+      throw err;
+    }
+    const ticketResult = consumeVerificationTicket(emailVerificationTicket);
+    if (!ticketResult.ok) {
+      const err = new Error(ticketResult.reason || 'Invalid or expired email verification. Please re-verify your email.');
+      err.status = 400;
+      throw err;
+    }
+    if (ticketResult.email !== normalizedEmail) {
+      const err = new Error('Email verification ticket does not match the provided email address.');
+      err.status = 400;
+      throw err;
+    }
+
+    // Check for duplicate email
+    const existingEmail = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
+    if (existingEmail) {
+      const err = new Error('An account with this email address already exists.');
       err.status = 409;
       throw err;
     }
@@ -98,10 +134,11 @@ class AuthService {
         data: {
           full_name: fullName,
           phone,
-          email: email || null,
+          email: normalizedEmail,
           aadhaar_reference: aadhaarReference,
           aadhaar_last4: aadhaarLast4,
           aadhaar_verified: true,
+          email_verified: true,
           password_hash: passwordHash,
           emergency_pin_hash: emergencyPinHash,
           dob: dob ? new Date(dob) : null,

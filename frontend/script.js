@@ -325,9 +325,17 @@ function computeAge(dobStr) {
 }
 
 async function proceedToBiometrics() {
+  // This now just validates the form and stores the pending payload,
+  // then triggers the email OTP step. The actual biometric scan is launched
+  // after email verification succeeds.
+  return proceedToEmailOtp();
+}
+
+async function proceedToEmailOtp() {
   const name = document.getElementById('reg-name').value.trim();
   const aadhaar = document.getElementById('reg-aadhaar').value.replace(/\s/g, '');
   const mobile = document.getElementById('reg-mobile').value.trim();
+  const email = (document.getElementById('reg-email')?.value || '').trim();
   const role = document.getElementById('reg-role').value;
   const pin = document.getElementById('reg-pin').value.trim();
   const emergencyPin = document.getElementById('reg-emergency-pin').value.trim();
@@ -347,6 +355,12 @@ async function proceedToBiometrics() {
   if (!/^\d{10}$/.test(mobile)) {
     msg.textContent = 'Enter a valid 10-digit mobile number.';
     msg.className = 'modal-msg err';
+    return;
+  }
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    msg.textContent = 'Please enter a valid email address.';
+    msg.className = 'modal-msg err';
+    document.getElementById('reg-email')?.focus();
     return;
   }
   if (!/^\d{4}$/.test(pin)) {
@@ -390,9 +404,11 @@ async function proceedToBiometrics() {
 
   const primaryContact = emergencyContacts[0] || null;
 
+  // Store pending payload — email and ticket will be added after OTP verify
   window._pendingRegPayload = {
     fullName: name,
     phone: mobile,
+    email,
     aadhaarNumber: aadhaar,
     dob: dobVal || undefined,
     role,
@@ -405,8 +421,11 @@ async function proceedToBiometrics() {
     emergencyContacts: emergencyContacts.length > 0 ? emergencyContacts : undefined,
   };
 
-  goTo('screen-register-scan');
-  beginRegisterScan();
+  msg.textContent = '';
+  msg.className = 'modal-msg';
+
+  // Proceed to email OTP verification step
+  await startEmailOtpFlow(email);
 }
 
 function addRegistrationEmergencyContactRow() {
@@ -457,38 +476,43 @@ function addRegistrationEmergencyContactRow() {
 
 // Alias for backwards compatibility
 async function proceedToOtp() {
-  return proceedToBiometrics();
+  return proceedToEmailOtp();
 }
 
 // ============================================================
-// SHARED OTP LOGIC
+// EMAIL OTP VERIFICATION FLOW
 // ============================================================
-function maskMobile(mobile) {
-  if (!mobile || !/^\d{10}$/.test(mobile)) return '+91 ••••••••••';
-  return '+91 ••••••' + mobile.slice(-4);
+function maskEmail(email) {
+  if (!email || !email.includes('@')) return 'your email';
+  const [local, domain] = email.split('@');
+  const masked = local.length > 3
+    ? local.slice(0, 2) + '•'.repeat(local.length - 2)
+    : local[0] + '•'.repeat(local.length - 1);
+  return masked + '@' + domain;
 }
 
-async function startOtpFlow(purpose, mobile) {
-  document.getElementById('otp-eyebrow').textContent =
-    purpose === 'register' ? 'Step 2 of 3 · Mobile OTP' : 'Step 2 of 4 · Mobile OTP';
-  document.getElementById('otp-mobile-display').textContent = maskMobile(mobile);
+async function startEmailOtpFlow(email) {
+  document.getElementById('otp-eyebrow').textContent = 'Step 2 of 3 · Email Verification';
+  const emailDisplay = document.getElementById('otp-email-display');
+  if (emailDisplay) emailDisplay.textContent = maskEmail(email);
   OTP_DIGIT_IDS.forEach((id) => {
-    document.getElementById(id).value = '';
+    const el = document.getElementById(id);
+    if (el) el.value = '';
   });
 
   const smsBanner = document.getElementById('otp-sms-banner');
   if (smsBanner) smsBanner.style.display = 'none';
 
   const msg = document.getElementById('otp-msg');
-  msg.textContent = 'Requesting verification code…';
+  msg.textContent = 'Sending verification code to your email…';
   msg.className = 'modal-msg';
-  goTo('screen-aadhaar-otp');
+  goTo('screen-email-otp');
 
   try {
-    const data = await window.iCashApi.sendOtp(mobile, purpose);
-    pendingOtp = { purpose, mobile, expiresAt: data.expiresAt };
+    const data = await window.iCashApi.sendEmailOtp(email);
+    pendingOtp = { purpose: 'register', email, expiresAt: data.expiresAt };
     msg.textContent = '';
-    document.getElementById('od0').focus();
+    document.getElementById('od0')?.focus();
 
     const displayCode = data.devCode || data.code;
     if (displayCode) {
@@ -497,13 +521,13 @@ async function startOtpFlow(purpose, mobile) {
         smsCodeEl.textContent = displayCode;
         smsBanner.style.display = 'block';
       }
-      showAlertToast(`📲 Verification Code: [ ${displayCode} ]`);
+      showAlertToast(`📧 Email Verification Code: [ ${displayCode} ]`);
     }
 
     startOtpCountdown();
     startResendCooldown();
   } catch (err) {
-    msg.textContent = err.message;
+    msg.textContent = err.message || 'Failed to send email. Please check your address and try again.';
     msg.className = 'modal-msg err';
   }
 }
@@ -516,6 +540,7 @@ function startOtpCountdown() {
 
 function updateOtpCountdown() {
   const el = document.getElementById('otp-countdown');
+  if (!el) return;
   if (!pendingOtp) {
     clearInterval(otpCountdownTimer);
     return;
@@ -533,6 +558,7 @@ function updateOtpCountdown() {
 
 function startResendCooldown() {
   const btn = document.getElementById('resend-btn');
+  if (!btn) return;
   let remaining = 30;
   btn.disabled = true;
   btn.textContent = `Resend Code (${remaining}s)`;
@@ -547,12 +573,12 @@ function startResendCooldown() {
   }, 1000);
 }
 
-async function resendOtp() {
+async function resendEmailOtp() {
   if (!pendingOtp) return;
-  await startOtpFlow(pendingOtp.purpose, pendingOtp.mobile);
+  await startEmailOtpFlow(pendingOtp.email);
 }
 
-async function verifyOtpCode() {
+async function verifyEmailOtpCode() {
   const msg = document.getElementById('otp-msg');
   if (!pendingOtp) return;
   const entered = OTP_DIGIT_IDS.map((id) => document.getElementById(id).value).join('');
@@ -562,32 +588,32 @@ async function verifyOtpCode() {
     return;
   }
 
-  msg.textContent = 'Verifying security code…';
+  msg.textContent = 'Verifying code…';
   msg.className = 'modal-msg';
 
   try {
-    const res = await window.iCashApi.verifyOtp(pendingOtp.mobile, pendingOtp.purpose, entered);
+    const res = await window.iCashApi.verifyEmailOtp(pendingOtp.email, entered);
     if (!res.ok) {
-      msg.textContent = res.reason || res.error || 'Incorrect code.';
+      msg.textContent = res.error || res.reason || 'Incorrect code.';
       msg.className = 'modal-msg err';
       return;
     }
 
-    msg.textContent = 'Mobile verified ✓';
+    // Store the verification ticket — required for registration
+    window._emailVerificationTicket = res.ticket;
+    if (window._pendingRegPayload) {
+      window._pendingRegPayload.emailVerificationTicket = res.ticket;
+    }
+
+    msg.textContent = 'Email verified ✓';
     msg.className = 'modal-msg ok';
-    const purpose = pendingOtp.purpose;
     clearInterval(otpCountdownTimer);
     clearInterval(otpResendTimer);
     pendingOtp = null;
 
     setTimeout(() => {
-      if (purpose === 'register') {
-        goTo('screen-register-scan');
-        beginRegisterScan();
-      } else {
-        goTo('screen-login-scan');
-        beginLoginScan();
-      }
+      goTo('screen-register-scan');
+      beginRegisterScan();
     }, 400);
   } catch (err) {
     msg.textContent = err.message || 'Verification error.';
@@ -595,13 +621,19 @@ async function verifyOtpCode() {
   }
 }
 
-function cancelOtp() {
+function cancelEmailOtp() {
   clearInterval(otpCountdownTimer);
   clearInterval(otpResendTimer);
-  const purpose = pendingOtp ? pendingOtp.purpose : null;
   pendingOtp = null;
-  goTo(purpose === 'register' ? 'screen-register-form' : 'screen-login-aadhaar');
+  window._emailVerificationTicket = null;
+  goTo('screen-register-form');
 }
+
+// Keep old names as no-op stubs so any residual HTML onclick references
+// (e.g. in dist/ if not yet rebuilt) don't throw
+function cancelOtp() { cancelEmailOtp(); }
+function resendOtp() { resendEmailOtp(); }
+function verifyOtpCode() { verifyEmailOtpCode(); }
 
 function autoFillOtp(code) {
   if (!code) return;
@@ -610,7 +642,7 @@ function autoFillOtp(code) {
     if (OTP_DIGIT_IDS[i]) document.getElementById(OTP_DIGIT_IDS[i]).value = ch;
   });
   if (digits.length === 6) {
-    verifyOtpCode();
+    verifyEmailOtpCode();
   }
 }
 
