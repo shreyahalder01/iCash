@@ -149,6 +149,7 @@ const providers = {
 };
 
 function getProvider() {
+  if (process.env.NODE_ENV === 'test') return 'console';
   return (process.env.EMAIL_PROVIDER || 'console').toLowerCase().trim();
 }
 
