@@ -1,3 +1,4 @@
+const fs = require('fs');
 const path = require('path');
 try {
   const dotenv = require('dotenv');
@@ -28,7 +29,21 @@ const merchantRoutes = require('./routes/merchantRoutes');
 
 const app = express();
 const PORT = Number(process.env.PORT) || 4000;
-const FRONTEND_DIR = path.join(__dirname, '..', '..', 'frontend');
+
+// Multi-path candidate resolution for deployed frontend assets
+const candidateFrontendDirs = [
+  path.join(__dirname, '..', '..', 'frontend'),
+  path.join(process.cwd(), 'frontend'),
+  path.join(process.cwd(), 'dist'),
+  path.join(process.cwd(), 'build'),
+  path.join(__dirname, '..', '..', 'dist'),
+  path.join(__dirname, '..', 'frontend'),
+  path.join(__dirname, 'frontend'),
+];
+
+const FRONTEND_DIR =
+  candidateFrontendDirs.find((dir) => fs.existsSync(path.join(dir, 'index.html'))) ||
+  path.join(__dirname, '..', '..', 'frontend');
 
 // Disable server fingerprinting
 app.disable('x-powered-by');
@@ -140,11 +155,34 @@ app.use('/api/merchant', merchantRoutes);
 // Any unmatched /api/* route is a genuine 404, not the SPA fallback.
 app.use('/api', notFoundHandler);
 
-// Serve the static frontend (index.html, script.js, style.css, api.js).
-app.use(express.static(FRONTEND_DIR));
+// Serve the static frontend (index.html, script.js, style.css, api.js, assets/).
+app.use(
+  express.static(FRONTEND_DIR, {
+    maxAge: process.env.NODE_ENV === 'production' ? '1h' : 0,
+    setHeaders(res, filePath) {
+      if (filePath.endsWith('.css')) {
+        res.setHeader('Content-Type', 'text/css');
+      } else if (filePath.endsWith('.js')) {
+        res.setHeader('Content-Type', 'application/javascript');
+      } else if (filePath.endsWith('.png')) {
+        res.setHeader('Content-Type', 'image/png');
+      } else if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg')) {
+        res.setHeader('Content-Type', 'image/jpeg');
+      } else if (filePath.endsWith('.svg')) {
+        res.setHeader('Content-Type', 'image/svg+xml');
+      } else if (filePath.endsWith('.wasm')) {
+        res.setHeader('Content-Type', 'application/wasm');
+      }
+    },
+  })
+);
 
 // SPA fallback for any other non-API route.
 app.get('*', (req, res) => {
+  // If a static file asset was requested but not found, return 404 rather than index.html (which breaks MIME checks)
+  if (path.extname(req.path)) {
+    return res.status(404).send('Asset not found');
+  }
   res.sendFile(path.join(FRONTEND_DIR, 'index.html'));
 });
 
