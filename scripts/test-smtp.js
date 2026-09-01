@@ -3,10 +3,22 @@
  * Run: node scripts/test-smtp.js <recipient-email>
  */
 require('dotenv').config();
+const dns = require('dns');
 const nodemailer = require('nodemailer');
 
+// Force IPv4 before outbound SMTP connections are created so hosts/containers
+// without IPv6 support do not fail with ENETUNREACH during DNS resolution.
+try {
+  if (typeof dns.setDefaultResultOrder === 'function') {
+    dns.setDefaultResultOrder('ipv4first');
+  }
+} catch (e) {
+  // Ignore unsupported runtime behavior; the per-connection family option below still applies.
+}
+
 const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-const port = Number(process.env.SMTP_PORT) || 587;
+const isGmail = host.includes('gmail') || (process.env.SMTP_USER || '').endsWith('@gmail.com');
+const port = isGmail ? 465 : (Number(process.env.SMTP_PORT) || 587);
 const user = process.env.SMTP_USER;
 const pass = process.env.SMTP_PASS;
 const recipient = process.argv[2] || user || 'shreyahalder013@gmail.com';
@@ -26,7 +38,14 @@ const transporter = nodemailer.createTransport({
   host,
   port,
   secure: port === 465,
+  family: 4, // Force IPv4 to prevent ENETUNREACH in environments without IPv6
   auth: { user, pass },
+  connectionTimeout: 15000,
+  greetingTimeout: 15000,
+  socketTimeout: 20000,
+  tls: {
+    rejectUnauthorized: false,
+  },
 });
 
 async function run() {
