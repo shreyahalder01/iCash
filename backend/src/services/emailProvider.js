@@ -29,13 +29,15 @@ async function sendViaSmtp(to, code) {
     throw new Error('nodemailer is not installed. Run: npm install nodemailer');
   }
 
-  const host = process.env.SMTP_HOST;
+  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
   const port = Number(process.env.SMTP_PORT) || 587;
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
-  if (!host || !user || !pass) {
-    throw new Error('SMTP_HOST / SMTP_USER / SMTP_PASS must be set in .env for SMTP provider.');
+  if (!user || !pass) {
+    throw new Error('SMTP_USER and SMTP_PASS must be set in .env for Gmail SMTP.');
   }
+
+  const fromSender = process.env.SMTP_FROM || user;
 
   const transporter = nodemailer.createTransport({
     host,
@@ -45,16 +47,18 @@ async function sendViaSmtp(to, code) {
   });
 
   await transporter.sendMail({
-    from: `"iCash Banking" <${FROM_ADDRESS}>`,
+    from: fromSender.includes('<') ? fromSender : `"iCash Banking" <${fromSender}>`,
     to,
     subject: 'Your iCash Verification Code',
     text: `Your iCash email verification code is: ${code}\n\nThis code expires in 5 minutes.\n\nIf you did not request this, please ignore this email.`,
     html: `
-      <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
-        <h2 style="color:#0ea5e9">iCash Email Verification</h2>
-        <p>Your one-time verification code is:</p>
-        <p style="font-size:32px;font-weight:700;letter-spacing:8px;color:#0ea5e9;text-align:center">${code}</p>
-        <p style="color:#888;font-size:12px">Valid for 5 minutes. Do not share this code with anyone.</p>
+      <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;border:1px solid #e2e8f0;border-radius:8px">
+        <h2 style="color:#0ea5e9;margin-top:0">iCash Email Verification</h2>
+        <p style="color:#334155;font-size:15px">Your one-time verification code is:</p>
+        <div style="font-size:32px;font-weight:700;letter-spacing:8px;color:#0ea5e9;text-align:center;padding:16px 0;background:#f0f9ff;border-radius:6px;margin:16px 0">
+          ${code}
+        </div>
+        <p style="color:#64748b;font-size:13px;margin-bottom:0">Valid for 5 minutes. Do not share this code with anyone.</p>
       </div>
     `,
   });
