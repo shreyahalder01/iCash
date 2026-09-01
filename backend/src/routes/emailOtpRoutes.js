@@ -26,10 +26,9 @@ router.post('/send', authLimiter, async (req, res) => {
     const response = {
       ok: true,
       expiresAt: result.expiresAt,
-      devMode: isDevMode(),
     };
-    // Only expose the code in dev/console mode (it's already logged to stdout)
-    if (result.devCode) {
+    // Only exposed during automated test suite execution (Jest)
+    if (process.env.NODE_ENV === 'test' && result.devCode) {
       response.devCode = result.devCode;
     }
     return res.json(response);

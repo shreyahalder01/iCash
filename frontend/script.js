@@ -514,15 +514,7 @@ async function startEmailOtpFlow(email) {
     msg.textContent = '';
     document.getElementById('od0')?.focus();
 
-    const displayCode = data.devCode || data.code;
-    if (displayCode) {
-      const smsCodeEl = document.getElementById('otp-sms-code');
-      if (smsBanner && smsCodeEl) {
-        smsCodeEl.textContent = displayCode;
-        smsBanner.style.display = 'block';
-      }
-      showAlertToast(`📧 Email Verification Code: [ ${displayCode} ]`);
-    }
+    showAlertToast(`📧 Verification code sent to ${maskEmail(email)}. Please check your inbox.`);
 
     startOtpCountdown();
     startResendCooldown();
