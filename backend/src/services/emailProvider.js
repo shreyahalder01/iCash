@@ -148,14 +148,27 @@ const providers = {
   resend: sendViaResend,
 };
 
+function getProvider() {
+  return (process.env.EMAIL_PROVIDER || 'console').toLowerCase().trim();
+}
+
 async function sendOtpEmail(to, code) {
-  const send = providers[PROVIDER];
-  if (!send) throw new Error(`Unknown EMAIL_PROVIDER "${PROVIDER}". Valid options: console, smtp, resend`);
+  const providerName = getProvider();
+  const send = providers[providerName];
+  if (!send) throw new Error(`Unknown EMAIL_PROVIDER "${providerName}". Valid options: console, smtp, resend`);
   return send(to, code);
 }
 
 function isDevMode() {
-  return PROVIDER === 'console';
+  return getProvider() === 'console';
 }
 
-module.exports = { sendOtpEmail, isDevMode, PROVIDER };
+module.exports = {
+  sendOtpEmail,
+  isDevMode,
+  getProvider,
+  get PROVIDER() {
+    return getProvider();
+  },
+};
+

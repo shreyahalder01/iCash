@@ -132,15 +132,16 @@ async function issueEmailOtp(email) {
   try {
     await sendOtpEmail(normalizedEmail, code);
   } catch (mailErr) {
-    console.warn('[EmailOTP] Email delivery warning:', mailErr.message);
-    // Don't fail the request — in dev/console mode this is always "ok"
-    // In production the email may genuinely fail; we still return the record
-    // so the caller can decide. The code is not leaked in the response.
+    console.error('[EmailOTP] Email delivery failed:', mailErr.message);
+    if (!isDevMode()) {
+      otpStore.delete(normalizedEmail);
+      throw new Error(`Email delivery failed: ${mailErr.message}`);
+    }
   }
 
   const result = { expiresAt };
   if (isDevMode()) {
-    result.devCode = code; // Only shown in dev/console mode (logged to stdout anyway)
+    result.devCode = code; // Only shown in console/dev mode
   }
   return result;
 }
