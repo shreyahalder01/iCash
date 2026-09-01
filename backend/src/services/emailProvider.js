@@ -5,6 +5,18 @@
  * Every send*() function must return a Promise and throw on failure.
  */
 
+const dns = require('dns');
+
+// Force IPv4 before outbound SMTP connections are created so cloud containers
+// without IPv6 support do not fail with ENETUNREACH during DNS resolution.
+try {
+  if (typeof dns.setDefaultResultOrder === 'function') {
+    dns.setDefaultResultOrder('ipv4first');
+  }
+} catch (e) {
+  // Ignore unsupported runtime behavior; SMTP still works with the per-connection family setting.
+}
+
 const PROVIDER = process.env.EMAIL_PROVIDER || 'console';
 const FROM_ADDRESS = process.env.SMTP_FROM || process.env.EMAIL_FROM || 'noreply@icash.bank';
 
