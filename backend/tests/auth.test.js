@@ -26,12 +26,25 @@ describe('Auth & Session APIs', () => {
 
   beforeAll(async () => {
     // Clean up any existing test user with test phone or email
-    await prisma.user.deleteMany({ where: { phone: testPhone } });
-    await prisma.user.deleteMany({ where: { email: testEmail } });
+    await prisma.user.deleteMany({
+      where: {
+        OR: [
+          { phone: { in: [testPhone, '9111222333', '9111222444'] } },
+          { email: { in: [testEmail, 'replay.test@icash.bank', 'otp.test@icash.bank', 'delete.me@icash.bank'] } },
+        ],
+      },
+    });
   });
 
   afterAll(async () => {
-    await prisma.user.deleteMany({ where: { phone: testPhone } });
+    await prisma.user.deleteMany({
+      where: {
+        OR: [
+          { phone: { in: [testPhone, '9111222333', '9111222444'] } },
+          { email: { in: [testEmail, 'replay.test@icash.bank', 'otp.test@icash.bank', 'delete.me@icash.bank'] } },
+        ],
+      },
+    });
     await prisma.$disconnect();
   });
 

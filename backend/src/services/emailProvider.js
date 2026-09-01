@@ -69,37 +69,74 @@ async function sendViaResend(to, code) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) throw new Error('RESEND_API_KEY is not set in .env');
 
-  let fetch;
-  try {
-    fetch = require('node-fetch');
-  } catch (e) {
-    fetch = globalThis.fetch;
-  }
+  const fromSender = process.env.RESEND_FROM || process.env.EMAIL_FROM || 'onboarding@resend.dev';
 
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: `iCash Banking <${FROM_ADDRESS}>`,
+  // Try official Resend SDK first
+  try {
+    const { Resend } = require('resend');
+    const resend = new Resend(apiKey);
+    const { data, error } = await resend.emails.send({
+      from: fromSender.includes('<') ? fromSender : `iCash Banking <${fromSender}>`,
       to: [to],
       subject: 'Your iCash Verification Code',
+      text: `Your iCash email verification code is: ${code}\n\nThis code expires in 5 minutes.\n\nIf you did not request this, please ignore this email.`,
       html: `
-        <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
-          <h2 style="color:#0ea5e9">iCash Email Verification</h2>
-          <p>Your one-time verification code is:</p>
-          <p style="font-size:32px;font-weight:700;letter-spacing:8px;color:#0ea5e9;text-align:center">${code}</p>
-          <p style="color:#888;font-size:12px">Valid for 5 minutes. Do not share this code with anyone.</p>
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;border:1px solid #e2e8f0;border-radius:8px">
+          <h2 style="color:#0ea5e9;margin-top:0">iCash Email Verification</h2>
+          <p style="color:#334155;font-size:15px">Your one-time verification code is:</p>
+          <div style="font-size:32px;font-weight:700;letter-spacing:8px;color:#0ea5e9;text-align:center;padding:16px 0;background:#f0f9ff;border-radius:6px;margin:16px 0">
+            ${code}
+          </div>
+          <p style="color:#64748b;font-size:13px;margin-bottom:0">Valid for 5 minutes. Do not share this code with anyone.</p>
         </div>
       `,
-    }),
-  });
+    });
 
-  const data = await res.json();
-  if (!res.ok) throw new Error('Resend send failed: ' + JSON.stringify(data));
-  return data;
+    if (error) {
+      throw new Error(`Resend send failed: ${error.message || JSON.stringify(error)}`);
+    }
+
+    return { delivered: true, id: data?.id };
+  } catch (sdkErr) {
+    if (sdkErr.message && sdkErr.message.startsWith('Resend send failed:')) {
+      throw sdkErr;
+    }
+
+    // Fallback to fetch if Resend SDK is missing
+    let fetch;
+    try {
+      fetch = require('node-fetch');
+    } catch (e) {
+      fetch = globalThis.fetch;
+    }
+
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: fromSender.includes('<') ? fromSender : `iCash Banking <${fromSender}>`,
+        to: [to],
+        subject: 'Your iCash Verification Code',
+        html: `
+          <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;border:1px solid #e2e8f0;border-radius:8px">
+            <h2 style="color:#0ea5e9;margin-top:0">iCash Email Verification</h2>
+            <p style="color:#334155;font-size:15px">Your one-time verification code is:</p>
+            <div style="font-size:32px;font-weight:700;letter-spacing:8px;color:#0ea5e9;text-align:center;padding:16px 0;background:#f0f9ff;border-radius:6px;margin:16px 0">
+              ${code}
+            </div>
+            <p style="color:#64748b;font-size:13px;margin-bottom:0">Valid for 5 minutes. Do not share this code with anyone.</p>
+          </div>
+        `,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error('Resend send failed: ' + JSON.stringify(data));
+    return data;
+  }
 }
 
 // ---------------------------------------------------------------------------
