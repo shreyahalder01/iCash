@@ -34,7 +34,10 @@ router.post('/send', authLimiter, async (req, res) => {
     return res.json(response);
   } catch (err) {
     console.error('[Email OTP] Send failed:', err.message);
-    return res.status(502).json({ ok: false, error: 'Could not send verification email. Please try again shortly.' });
+    return res.status(502).json({
+      ok: false,
+      error: err.message || 'Could not send verification email. Please check server SMTP configuration.',
+    });
   }
 });
 
@@ -64,9 +67,23 @@ router.post('/verify', authLimiter, (req, res) => {
 
 /**
  * GET /api/otp/email/health
+ * Diagnostic check for email provider configuration on deployment
  */
 router.get('/health', (req, res) => {
-  res.json({ ok: true, provider: PROVIDER, devMode: isDevMode() });
+  const provider = (process.env.EMAIL_PROVIDER || 'console').toLowerCase().trim();
+  const isSmtp = provider === 'smtp';
+  const isResend = provider === 'resend';
+  res.json({
+    ok: true,
+    provider,
+    configured: isSmtp
+      ? Boolean(process.env.SMTP_USER && process.env.SMTP_PASS)
+      : isResend
+        ? Boolean(process.env.RESEND_API_KEY)
+        : true,
+    smtpUserConfigured: Boolean(process.env.SMTP_USER),
+    smtpPassConfigured: Boolean(process.env.SMTP_PASS),
+  });
 });
 
 module.exports = router;
