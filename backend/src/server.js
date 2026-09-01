@@ -1,5 +1,14 @@
 const fs = require('fs');
 const path = require('path');
+const dns = require('dns');
+
+// Prioritize IPv4 over IPv6 in cloud containers to prevent ENETUNREACH errors
+try {
+  if (typeof dns.setDefaultResultOrder === 'function') {
+    dns.setDefaultResultOrder('ipv4first');
+  }
+} catch (e) {}
+
 try {
   const dotenv = require('dotenv');
   dotenv.config({ path: path.join(__dirname, '..', '.env') });

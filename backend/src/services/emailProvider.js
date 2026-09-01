@@ -39,22 +39,35 @@ async function sendViaSmtp(to, code) {
 
   const fromSender = process.env.SMTP_FROM || user;
 
-  const transportOptions = host.includes('gmail')
+  const isGmail = host.includes('gmail') || user.endsWith('@gmail.com');
+  const targetPort = isGmail ? 465 : port;
+
+  const transportOptions = isGmail
     ? {
-        service: 'gmail',
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
+        family: 4, // Force IPv4 to prevent ENETUNREACH in cloud containers without IPv6
         auth: { user, pass },
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 15000,
+        connectionTimeout: 15000,
+        greetingTimeout: 15000,
+        socketTimeout: 20000,
+        tls: {
+          rejectUnauthorized: false,
+        },
       }
     : {
         host,
-        port,
-        secure: port === 465,
+        port: targetPort,
+        secure: targetPort === 465,
+        family: 4,
         auth: { user, pass },
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 15000,
+        connectionTimeout: 15000,
+        greetingTimeout: 15000,
+        socketTimeout: 20000,
+        tls: {
+          rejectUnauthorized: false,
+        },
       };
 
   const transporter = nodemailer.createTransport(transportOptions);
