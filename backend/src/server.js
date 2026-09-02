@@ -47,7 +47,6 @@ app.use(
           'https://*.cloud.appwrite.io',
           'https://sfo.cloud.appwrite.io',
           'https://nyc.cloud.appwrite.io',
-          'https://*.supabase.co',
         ],
         styleSrc: [
           "'self'",
@@ -64,7 +63,6 @@ app.use(
           'https://*.cloud.appwrite.io',
           'https://sfo.cloud.appwrite.io',
           'https://nyc.cloud.appwrite.io',
-          'https://*.supabase.co',
           'https://cdn.jsdelivr.net',
           'https:',
           'ws:',
@@ -250,7 +248,7 @@ Object.setPrototypeOf(handler, app);
 function autoSyncDatabase() {
   const dbUrl = process.env.DATABASE_URL;
   if (!dbUrl || dbUrl.includes('localhost:5432')) {
-    console.log('ℹ️  Using default DATABASE_URL. For persistent cloud storage, provide your PostgreSQL URL (e.g. Supabase or Neon).');
+    console.log('ℹ️  Using default DATABASE_URL. For persistent cloud storage, provide your PostgreSQL URL.');
     return;
   }
   try {
