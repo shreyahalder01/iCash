@@ -52,10 +52,17 @@ async function sendViaSmtp(to, code) {
   // Gmail requires the sender to be the authenticated mailbox or a configured
   // alias. Defaulting to SMTP_USER avoids rejected OTP messages.
   const fromSender = isGmail ? user : process.env.SMTP_FROM || user;
+  let resolvedHost = host;
+  try {
+    const addresses = await dns.promises.resolve4(host);
+    if (addresses.length > 0) resolvedHost = addresses[0];
+  } catch (error) {
+    throw new Error(`Unable to resolve SMTP host over IPv4: ${error.message}`);
+  }
 
   const transportOptions = isGmail
     ? {
-        host: 'smtp.gmail.com',
+        host: resolvedHost,
         port: 465,
         secure: true,
         family: 4, // Force IPv4 to prevent ENETUNREACH in cloud containers without IPv6
@@ -65,10 +72,11 @@ async function sendViaSmtp(to, code) {
         socketTimeout: 20000,
         tls: {
           rejectUnauthorized: true,
+          servername: 'smtp.gmail.com',
         },
       }
     : {
-        host,
+        host: resolvedHost,
         port: targetPort,
         secure: targetPort === 465,
         family: 4,
@@ -78,6 +86,7 @@ async function sendViaSmtp(to, code) {
         socketTimeout: 20000,
         tls: {
           rejectUnauthorized: true,
+          servername: host,
         },
       };
 
