@@ -48,7 +48,7 @@ async function sendViaSmtp(to, code) {
   }
 
   const isGmail = host.includes('gmail') || user.endsWith('@gmail.com');
-  const targetPort = isGmail ? 465 : port;
+  const targetPort = port;
   // Gmail requires the sender to be the authenticated mailbox or a configured
   // alias. Defaulting to SMTP_USER avoids rejected OTP messages.
   const fromSender = isGmail ? user : process.env.SMTP_FROM || user;
@@ -63,8 +63,9 @@ async function sendViaSmtp(to, code) {
   const transportOptions = isGmail
     ? {
         host: resolvedHost,
-        port: 465,
-        secure: true,
+        port: targetPort,
+        secure: targetPort === 465,
+        requireTLS: targetPort === 587,
         family: 4, // Force IPv4 to prevent ENETUNREACH in cloud containers without IPv6
         auth: { user, pass },
         connectionTimeout: 15000,
