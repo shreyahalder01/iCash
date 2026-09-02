@@ -17,9 +17,6 @@ const registerSchema = z.object({
     .string()
     .email('A valid email address is required.')
     .max(254, 'Email address is too long.'),
-  emailVerificationTicket: z
-    .string()
-    .min(1, 'Email verification is required. Please verify your email before registering.'),
   aadhaarNumber: z.string().regex(/^\d{12}$/, 'Aadhaar number must be 12 digits.'),
   dob: z.string().optional(),
   pin: digits4,

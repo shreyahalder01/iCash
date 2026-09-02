@@ -16,7 +16,7 @@
  *   issue (byte-for-byte after normalization), verification fails — there is
  *   no cross-contact fallback lookup.
  *
- * Security properties (mirrors emailOtpService.js):
+ * Security properties:
  *  - No hardcoded bypass codes.
  *  - OTP codes are NOT returned in the verify response (only an opaque ticket).
  *  - Tickets are single-use (consumed on registration) and bound to the

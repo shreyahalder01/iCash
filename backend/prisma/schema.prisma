@@ -76,7 +76,6 @@ model User {
   aadhaar_reference       String                @unique
   aadhaar_last4           String
   aadhaar_verified        Boolean               @default(true)
-  email_verified          Boolean               @default(false)
   password_hash           String
   emergency_pin_hash      String?
   dob                     DateTime?

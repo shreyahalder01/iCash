@@ -49,13 +49,8 @@ window.getCurrentUser = getCurrentUser;
 
 // (Biometric state managed by biometric.js)
 
-// Active verification session
 let pendingVerificationAction = null;
 let pendingLoginUser = null;
-let pendingOtp = null;
-let otpCountdownTimer = null;
-let otpResendTimer = null;
-const OTP_DIGIT_IDS = ['od0', 'od1', 'od2', 'od3', 'od4', 'od5'];
 
 // Appwrite Web SDK Initialization
 let appwriteClient = null;
@@ -82,7 +77,6 @@ function initAppwrite() {
 // INITIALIZATION & EVENT LISTENERS
 // ============================================================
 window.addEventListener('DOMContentLoaded', async () => {
-  initOtpDigitInputs();
   initCommandPaletteShortcuts();
   initThreeBackground();
   initAppwrite();
@@ -325,13 +319,7 @@ function computeAge(dobStr) {
 }
 
 async function proceedToBiometrics() {
-  // This now just validates the form and stores the pending payload,
-  // then triggers the email OTP step. The actual biometric scan is launched
-  // after email verification succeeds.
-  return proceedToEmailOtp();
-}
-
-async function proceedToEmailOtp() {
+  // Validate the registration form and move directly to biometric enrollment.
   const name = document.getElementById('reg-name').value.trim();
   const aadhaar = document.getElementById('reg-aadhaar').value.replace(/\s/g, '');
   const mobile = document.getElementById('reg-mobile').value.trim();
@@ -404,7 +392,7 @@ async function proceedToEmailOtp() {
 
   const primaryContact = emergencyContacts[0] || null;
 
-  // Store pending payload — email and ticket will be added after OTP verify
+  // Store the validated payload for biometric enrollment.
   window._pendingRegPayload = {
     fullName: name,
     phone: mobile,
@@ -424,8 +412,8 @@ async function proceedToEmailOtp() {
   msg.textContent = '';
   msg.className = 'modal-msg';
 
-  // Proceed to email OTP verification step
-  await startEmailOtpFlow(email);
+  goTo('screen-register-scan');
+  beginRegisterScan();
 }
 
 function addRegistrationEmergencyContactRow() {
@@ -472,200 +460,6 @@ function addRegistrationEmergencyContactRow() {
     </div>
   `;
   container.appendChild(row);
-}
-
-// Alias for backwards compatibility
-async function proceedToOtp() {
-  return proceedToEmailOtp();
-}
-
-// ============================================================
-// EMAIL OTP VERIFICATION FLOW
-// ============================================================
-function maskEmail(email) {
-  if (!email || !email.includes('@')) return 'your email';
-  const [local, domain] = email.split('@');
-  const masked = local.length > 3
-    ? local.slice(0, 2) + '•'.repeat(local.length - 2)
-    : local[0] + '•'.repeat(local.length - 1);
-  return masked + '@' + domain;
-}
-
-async function startEmailOtpFlow(email) {
-  document.getElementById('otp-eyebrow').textContent = 'Step 2 of 3 · Email Verification';
-  const emailDisplay = document.getElementById('otp-email-display');
-  if (emailDisplay) emailDisplay.textContent = maskEmail(email);
-  OTP_DIGIT_IDS.forEach((id) => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
-  });
-
-  const smsBanner = document.getElementById('otp-sms-banner');
-  if (smsBanner) smsBanner.style.display = 'none';
-
-  const msg = document.getElementById('otp-msg');
-  msg.textContent = 'Sending verification code to your email…';
-  msg.className = 'modal-msg';
-  goTo('screen-email-otp');
-
-  try {
-    const data = await window.iCashApi.sendEmailOtp(email);
-    pendingOtp = { purpose: 'register', email, expiresAt: data.expiresAt };
-    msg.textContent = '';
-    document.getElementById('od0')?.focus();
-
-    showAlertToast(`📧 Verification code sent to ${maskEmail(email)}. Please check your inbox.`);
-
-    startOtpCountdown();
-    startResendCooldown();
-  } catch (err) {
-    msg.textContent = err.message || 'Failed to send email. Please check your address and try again.';
-    msg.className = 'modal-msg err';
-  }
-}
-
-function startOtpCountdown() {
-  clearInterval(otpCountdownTimer);
-  updateOtpCountdown();
-  otpCountdownTimer = setInterval(updateOtpCountdown, 1000);
-}
-
-function updateOtpCountdown() {
-  const el = document.getElementById('otp-countdown');
-  if (!el) return;
-  if (!pendingOtp) {
-    clearInterval(otpCountdownTimer);
-    return;
-  }
-  const remaining = pendingOtp.expiresAt - Date.now();
-  if (remaining <= 0) {
-    el.textContent = 'Code expired — please request a new code';
-    clearInterval(otpCountdownTimer);
-    return;
-  }
-  const mins = Math.floor(remaining / 60000);
-  const secs = Math.floor((remaining % 60000) / 1000);
-  el.textContent = `Expires in ${mins}:${secs.toString().padStart(2, '0')}`;
-}
-
-function startResendCooldown() {
-  const btn = document.getElementById('resend-btn');
-  if (!btn) return;
-  let remaining = 30;
-  btn.disabled = true;
-  btn.textContent = `Resend Code (${remaining}s)`;
-  clearInterval(otpResendTimer);
-  otpResendTimer = setInterval(() => {
-    remaining--;
-    btn.textContent = remaining > 0 ? `Resend Code (${remaining}s)` : 'Resend Code';
-    if (remaining <= 0) {
-      clearInterval(otpResendTimer);
-      btn.disabled = false;
-    }
-  }, 1000);
-}
-
-async function resendEmailOtp() {
-  if (!pendingOtp) return;
-  await startEmailOtpFlow(pendingOtp.email);
-}
-
-async function verifyEmailOtpCode() {
-  const msg = document.getElementById('otp-msg');
-  if (!pendingOtp) return;
-  const entered = OTP_DIGIT_IDS.map((id) => document.getElementById(id).value).join('');
-  if (entered.length < 6) {
-    msg.textContent = 'Enter all 6 digits.';
-    msg.className = 'modal-msg err';
-    return;
-  }
-
-  msg.textContent = 'Verifying code…';
-  msg.className = 'modal-msg';
-
-  try {
-    const res = await window.iCashApi.verifyEmailOtp(pendingOtp.email, entered);
-    if (!res.ok) {
-      msg.textContent = res.error || res.reason || 'Incorrect code.';
-      msg.className = 'modal-msg err';
-      return;
-    }
-
-    // Store the verification ticket — required for registration
-    window._emailVerificationTicket = res.ticket;
-    if (window._pendingRegPayload) {
-      window._pendingRegPayload.emailVerificationTicket = res.ticket;
-    }
-
-    msg.textContent = 'Email verified ✓';
-    msg.className = 'modal-msg ok';
-    clearInterval(otpCountdownTimer);
-    clearInterval(otpResendTimer);
-    pendingOtp = null;
-
-    setTimeout(() => {
-      goTo('screen-register-scan');
-      beginRegisterScan();
-    }, 400);
-  } catch (err) {
-    msg.textContent = err.message || 'Verification error.';
-    msg.className = 'modal-msg err';
-  }
-}
-
-function cancelEmailOtp() {
-  clearInterval(otpCountdownTimer);
-  clearInterval(otpResendTimer);
-  pendingOtp = null;
-  window._emailVerificationTicket = null;
-  goTo('screen-register-form');
-}
-
-// Keep old names as no-op stubs so any residual HTML onclick references
-// (e.g. in dist/ if not yet rebuilt) don't throw
-function cancelOtp() { cancelEmailOtp(); }
-function resendOtp() { resendEmailOtp(); }
-function verifyOtpCode() { verifyEmailOtpCode(); }
-
-function autoFillOtp(code) {
-  if (!code) return;
-  const digits = String(code).replace(/\D/g, '').slice(0, 6).split('');
-  digits.forEach((ch, i) => {
-    if (OTP_DIGIT_IDS[i]) document.getElementById(OTP_DIGIT_IDS[i]).value = ch;
-  });
-  if (digits.length === 6) {
-    verifyEmailOtpCode();
-  }
-}
-
-function initOtpDigitInputs() {
-  OTP_DIGIT_IDS.forEach((id, idx) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener('input', () => {
-      el.value = el.value.replace(/\D/g, '').slice(0, 1);
-      if (el.value && idx < OTP_DIGIT_IDS.length - 1) {
-        document.getElementById(OTP_DIGIT_IDS[idx + 1])?.focus();
-      }
-      const allFilled = OTP_DIGIT_IDS.every(
-        (did) => (document.getElementById(did)?.value || '').length === 1
-      );
-      if (allFilled) {
-        verifyOtpCode();
-      }
-    });
-    el.addEventListener('keydown', (e) => {
-      if (e.key === 'Backspace' && !el.value && idx > 0) {
-        document.getElementById(OTP_DIGIT_IDS[idx - 1])?.focus();
-      }
-      if (e.key === 'Enter') verifyOtpCode();
-    });
-    el.addEventListener('paste', (e) => {
-      e.preventDefault();
-      const pasteText = (e.clipboardData || window.clipboardData).getData('text');
-      autoFillOtp(pasteText);
-    });
-  });
 }
 
 // ============================================================

@@ -29,7 +29,6 @@ const { generalApiLimiter } = require('./middleware/rateLimitMiddleware');
 
 const healthRoutes = require('./routes/healthRoutes');
 const authRoutes = require('./routes/authRoutes');
-const emailOtpRoutes = require('./routes/emailOtpRoutes');
 const contactOtpRoutes = require('./routes/contactOtpRoutes');
 const biometricRoutes = require('./routes/biometricRoutes');
 const accountRoutes = require('./routes/accountRoutes');
@@ -41,6 +40,11 @@ const merchantRoutes = require('./routes/merchantRoutes');
 
 const app = express();
 const PORT = Number(process.env.PORT) || 4000;
+
+// Render and other reverse proxies provide the client IP in X-Forwarded-For.
+// Trust only the first proxy hop so rate limiting receives a stable IP without
+// trusting arbitrary client-supplied forwarding chains.
+app.set('trust proxy', 1);
 
 // Multi-path candidate resolution for deployed frontend assets
 const candidateFrontendDirs = [
@@ -182,7 +186,6 @@ app.get('/api/live', HealthController.getLiveness);
 app.get('/api/ready', HealthController.getReadiness);
 
 app.use('/api/auth', authRoutes);
-app.use('/api/otp/email', emailOtpRoutes);
 app.use('/api/otp/contact', contactOtpRoutes);
 app.use('/api/biometric', biometricRoutes);
 app.use('/api/accounts', accountRoutes);

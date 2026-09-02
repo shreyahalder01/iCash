@@ -109,7 +109,7 @@
             id="form-register"
             onsubmit="
               event.preventDefault();
-              proceedToEmailOtp();
+              proceedToBiometrics();
             "
           >
             <div class="field">
@@ -146,7 +146,7 @@
               />
             </div>
             <div class="field">
-              <label>Email Address <span style="color:var(--primary);font-size:11px">(required for verification)</span></label>
+              <label>Email Address</label>
               <input
                 id="reg-email"
                 type="email"
@@ -363,7 +363,7 @@
       </div>
 
       <!-- SCREEN: MOBILE OTP VERIFICATION -->
-      <div class="screen" id="screen-email-otp">
+      <div class="screen" id="screen-email-otp" hidden>
         <div class="card card-narrow">
           <div class="eyebrow" id="otp-eyebrow">Step 2 of 3 · Email Verification</div>
           <h2>Verify Email Address</h2>
@@ -505,11 +505,11 @@
           <div class="modal-msg" id="otp-msg"></div>
 
           <div class="btn-row" style="margin-top: 16px">
-            <button type="button" class="btn btn-ghost" onclick="cancelEmailOtp()">Cancel</button>
-            <button type="button" class="btn btn-ghost" id="resend-btn" onclick="resendEmailOtp()">
+            <button type="button" class="btn btn-ghost" onclick="goTo('screen-register-form')">Cancel</button>
+            <button type="button" class="btn btn-ghost" id="resend-btn" disabled>
               Resend Code
             </button>
-            <button type="button" class="btn btn-primary" onclick="verifyEmailOtpCode()">
+            <button type="button" class="btn btn-primary" disabled>
               Verify &rarr;
             </button>
           </div>
