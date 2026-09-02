@@ -13,12 +13,10 @@ const aadhaarLast4 = z.string().regex(/^\d{4}$/, 'Aadhaar last 4 digits must be 
 const registerSchema = z.object({
   fullName: z.string().min(2, 'Full name is required.'),
   phone: mobile10,
-  email: z
-    .string()
-    .email('A valid email address is required.')
-    .max(254, 'Email address is too long.'),
+  email: z.string().email().optional().or(z.literal('')).optional(),
   aadhaarNumber: z.string().regex(/^\d{12}$/, 'Aadhaar number must be 12 digits.'),
   dob: z.string().optional(),
+  role: z.enum(['USER', 'MERCHANT', 'ADMIN']).optional(),
   pin: digits4,
   emergencyPin: digits4.optional().or(z.literal('')).optional(),
   isSenior: z.boolean().optional(),
@@ -36,11 +34,6 @@ const loginAadhaarSchema = z.object({
 const loginPinSchema = z.object({
   userId: z.string().uuid('Invalid user identifier.'),
   pin: digits4,
-});
-
-const loginBiometricSchema = z.object({
-  userId: z.string().uuid('Invalid user identifier.').or(z.string().min(1)),
-  liveDescriptor: z.array(z.number()).min(1, 'A live face descriptor is required.'),
 });
 
 // Confirm account deletion by providing current PIN
@@ -79,41 +72,18 @@ const accountUpdateSchema = z.object({
 // ---------------- Transactions ----------------
 
 const transactionCreateSchema = z.object({
-  accountId: z.string().optional(),
+  accountId: z.string().uuid().optional(),
   transactionType: z.enum(['WITHDRAWAL', 'DEPOSIT', 'TRANSFER', 'PAYMENT', 'REFUND']),
-  amount: z
-    .number()
-    .finite('Amount must be finite.')
-    .positive('Amount must be greater than zero.')
-    .refine((value) => value <= 100000000, 'Amount exceeds the permitted limit.')
-    .or(
-      z
-        .string()
-        .regex(/^\d+(\.\d{1,2})?$/, 'Amount must have at most two decimal places.')
-        .refine((value) => Number(value) <= 100000000, 'Amount exceeds the permitted limit.')
-        .transform(Number)
-    ),
+  amount: z.number().positive('Amount must be greater than zero.'),
   description: z.string().optional(),
   recipientName: z.string().optional(),
   recipientAccount: z.string().optional(),
-  recipientPhone: z.string().optional(),
-  recipientUserId: z.string().optional(),
-  pin: z.string().optional(),
+  recipientUserId: z.string().uuid().optional(),
   verifyMethod: z.enum(['FACE', 'PIN']).optional().default('PIN'),
 });
 
 const delegateGenerateSchema = z.object({
-  amount: z
-    .number()
-    .finite()
-    .positive('Enter a valid authorization amount.')
-    .max(100000000, 'Amount exceeds the permitted limit.')
-    .or(
-      z
-        .string()
-        .regex(/^\d+(\.\d{1,2})?$/, 'Amount must have at most two decimal places.')
-        .refine((value) => Number(value) <= 100000000, 'Amount exceeds the permitted limit.')
-    ),
+  amount: z.number().positive('Enter a valid authorization amount.').or(z.string()),
 });
 
 const delegateClaimSchema = z.object({
@@ -127,17 +97,7 @@ const emergencyWithdrawalRequestSchema = z.object({
   authorizedPhone: z.string().min(8, 'Authorized person phone number is required.'),
   authorizedIdType: z.string().optional(),
   authorizedIdNumber: z.string().optional(),
-  amount: z
-    .number()
-    .finite()
-    .positive('Amount must be positive.')
-    .max(100000000, 'Amount exceeds the permitted limit.')
-    .or(
-      z
-        .string()
-        .regex(/^\d+(\.\d{1,2})?$/, 'Amount must have at most two decimal places.')
-        .refine((value) => Number(value) <= 100000000, 'Amount exceeds the permitted limit.')
-    ),
+  amount: z.number().positive('Amount must be positive.').or(z.string()),
   reason: z.string().optional(),
 });
 
@@ -161,10 +121,9 @@ const emergencyContactsUpdateSchema = z.object({
 // ---------------- Complaints ----------------
 
 const complaintCreateSchema = z.object({
-  transactionId: z.string().optional().nullable(),
-  subject: z.string().min(1, 'Subject is required.'),
-  description: z.string().min(1, 'Please describe the issue.'),
-  category: z.string().optional(),
+  transactionId: z.string().uuid().optional(),
+  subject: z.string().min(3, 'Subject is required.'),
+  description: z.string().min(5, 'Please describe the issue in more detail.'),
 });
 
 const complaintResolveSchema = z.object({
@@ -203,7 +162,6 @@ module.exports = {
   registerSchema,
   loginAadhaarSchema,
   loginPinSchema,
-  loginBiometricSchema,
   confirmDeleteSchema,
   biometricEnrollSchema,
   biometricVerifySchema,

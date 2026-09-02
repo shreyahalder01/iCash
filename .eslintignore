@@ -6,4 +6,5 @@ build/
 .next/
 .venv/
 .env
+frontend/lib/blink-detection.js
 frontend/models/

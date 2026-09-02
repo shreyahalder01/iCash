@@ -39,9 +39,4 @@ function initAppwriteClient() {
 }
 
 // Expose globally for use in script.js and biometric.js
-window.AppwriteLib = {
-  initAppwriteClient,
-  getClient: () => client,
-  getAccount: () => account,
-  getDatabases: () => databases,
-};
+window.AppwriteLib = { initAppwriteClient, getClient: () => client, getAccount: () => account, getDatabases: () => databases };

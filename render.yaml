@@ -10,12 +10,8 @@ services:
         value: production
       - key: PORT
         value: 10000
-      - key: DATABASE_URL
-        sync: false
-      - key: DIRECT_URL
-        sync: false
       - key: CORS_ORIGIN
-        value: https://icash.onrender.com
+        value: "*"
       - key: SMS_PROVIDER
         value: console
       - key: BIOMETRIC_PROVIDER

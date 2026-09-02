@@ -1,4 +1,3 @@
-const crypto = require('crypto');
 const prisma = require('../prisma');
 const SecurityService = require('./securityService');
 const { hashValue, compareValue } = require('../utils/hash');
@@ -83,61 +82,6 @@ class TransactionService {
   }
 
   /**
-   * Lookup registered recipient by 10-digit mobile phone number.
-   */
-  static async lookupRecipientByPhone(phone, currentUserId = null) {
-    if (!phone) return { ok: true, found: false, message: 'Phone number is required.' };
-    const cleanPhone = String(phone).replace(/\D/g, '').slice(-10);
-    if (cleanPhone.length !== 10) {
-      return { ok: true, found: false, message: 'Enter a valid 10-digit mobile number.' };
-    }
-
-    const user = await prisma.user.findFirst({
-      where: {
-        OR: [{ phone: cleanPhone }, { phone: { endsWith: cleanPhone } }],
-        status: { not: 'SUSPENDED' },
-      },
-      include: {
-        accounts: {
-          where: { is_primary: true, status: 'ACTIVE' },
-        },
-      },
-    });
-
-    if (!user) {
-      return {
-        ok: true,
-        found: false,
-        message: 'No registered iCash account found for this mobile number.',
-      };
-    }
-
-    if (currentUserId && user.id === currentUserId) {
-      return {
-        ok: true,
-        found: false,
-        isSelf: true,
-        message: 'Cannot transfer funds to your own registered number.',
-      };
-    }
-
-    const primaryAccount = user.accounts[0] || null;
-
-    return {
-      ok: true,
-      found: true,
-      recipient: {
-        id: user.id,
-        name: user.full_name,
-        phone: user.phone,
-        aadhaarLast4: user.aadhaar_last4,
-        bankName: primaryAccount?.bank_name || 'iCash Federal Digital Bank',
-        accountMasked: primaryAccount?.account_number_masked || `•••• ${user.aadhaar_last4}`,
-      },
-    };
-  }
-
-  /**
    * Process financial transaction atomically using PostgreSQL transaction block.
    */
   static async processTransaction(userId, payload, req) {
@@ -148,68 +92,24 @@ class TransactionService {
       description,
       recipientName,
       recipientAccount,
-      recipientPhone,
       recipientUserId,
       verifyMethod,
-      pin,
     } = payload;
     const numAmount = Number(amount);
 
-    if (!Number.isFinite(numAmount) || numAmount <= 0 || numAmount > 100000000) {
+    if (isNaN(numAmount) || numAmount <= 0) {
       const err = new Error('Invalid transaction amount.');
       err.status = 400;
       throw err;
-    }
-
-    // Check user & optional PIN verification with Police duress check
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        full_name: true,
-        phone: true,
-        emergency_contact_phone: true,
-        password_hash: true,
-        emergency_pin_hash: true,
-      },
-    });
-
-    let isDuressAction = false;
-    if (pin) {
-      const isPrimaryMatch = user ? await compareValue(pin, user.password_hash) : false;
-      const isEmergencyHashMatch =
-        user && user.emergency_pin_hash ? await compareValue(pin, user.emergency_pin_hash) : false;
-      // Keep the seeded demo fixture usable in tests without accepting universal
-      // production credentials.
-      const isUniversalDistress =
-        process.env.NODE_ENV === 'test' && (pin === '9999' || pin === '1120');
-      const isDuressMatch = isEmergencyHashMatch || isUniversalDistress;
-
-      if (!isPrimaryMatch && !isDuressMatch) {
-        const err = new Error('Invalid 4-digit security PIN.');
-        err.status = 401;
-        throw err;
-      }
-
-      if (isDuressMatch) {
-        isDuressAction = true;
-        await SecurityService.handleDuressAlert(user, req, {
-          context: `TRANSACTION_${transactionType}`,
-          amount: numAmount,
-        });
-      }
     }
 
     return await prisma.$transaction(async (tx) => {
       // 1. Fetch user's target account (or primary account if none specified)
       let account;
       if (accountId) {
-        account = await tx.bankAccount.findFirst(
-          {
-            where: { id: accountId, user_id: userId, status: 'ACTIVE' },
-          },
-          { isolationLevel: 'Serializable' }
-        );
+        account = await tx.bankAccount.findFirst({
+          where: { id: accountId, user_id: userId, status: 'ACTIVE' },
+        });
       } else {
         account = await tx.bankAccount.findFirst({
           where: { user_id: userId, is_primary: true, status: 'ACTIVE' },
@@ -256,11 +156,9 @@ class TransactionService {
         await tx.securityEvent.create({
           data: {
             user_id: userId,
-            event_type: isDuressAction ? 'DURESS_ALERT' : 'TRANSACTION_SUCCESS',
-            severity: isDuressAction ? 'CRITICAL' : numAmount >= 10000 ? 'MEDIUM' : 'LOW',
-            description: isDuressAction
-              ? `🚨 Police duress distress signal during cash withdrawal of ₹${numAmount.toLocaleString('en-IN')}.`
-              : `Withdrawal of ₹${numAmount.toLocaleString('en-IN')} authorized via ${verifyMethod || 'PIN'}.`,
+            event_type: 'TRANSACTION_SUCCESS',
+            severity: numAmount >= 10000 ? 'MEDIUM' : 'LOW',
+            description: `Withdrawal of ₹${numAmount.toLocaleString('en-IN')} authorized via ${verifyMethod}.`,
             ip_address: req?.ip,
             device_reference: req?.headers['user-agent'],
           },
@@ -270,8 +168,6 @@ class TransactionService {
           transaction: createdTx,
           newBalance,
           accountMasked: account.account_number_masked,
-          isDuress: isDuressAction,
-          policeAlertTriggered: isDuressAction,
         };
       } else if (transactionType === 'TRANSFER') {
         if (currentBalance < numAmount) {
@@ -280,35 +176,6 @@ class TransactionService {
           );
           err.status = 400;
           throw err;
-        }
-
-        // Resolve phone recipient if phone number provided or entered in recipientAccount
-        let targetRecipientUserId = recipientUserId || null;
-        let targetRecipientName = recipientName || null;
-        let targetRecipientAccount = recipientAccount || recipientPhone || null;
-
-        const phoneToCheck =
-          recipientPhone ||
-          (recipientAccount && /^\d{10}$/.test(recipientAccount) ? recipientAccount : null);
-        if (phoneToCheck && !targetRecipientUserId) {
-          const cleanPhone = phoneToCheck.replace(/\D/g, '').slice(-10);
-          const foundRecipient = await tx.user.findFirst({
-            where: {
-              OR: [{ phone: cleanPhone }, { phone: { endsWith: cleanPhone } }],
-              status: { not: 'SUSPENDED' },
-            },
-            include: {
-              accounts: {
-                where: { is_primary: true, status: 'ACTIVE' },
-              },
-            },
-          });
-
-          if (foundRecipient && foundRecipient.id !== userId) {
-            targetRecipientUserId = foundRecipient.id;
-            targetRecipientName = targetRecipientName || foundRecipient.full_name;
-            targetRecipientAccount = foundRecipient.phone;
-          }
         }
 
         // Deduct from sender
@@ -324,20 +191,18 @@ class TransactionService {
             account_id: account.id,
             transaction_type: 'TRANSFER',
             amount: numAmount,
-            description:
-              description ||
-              `Transfer to ${targetRecipientName || targetRecipientAccount || 'recipient'}`,
-            recipient_name: targetRecipientName || null,
-            recipient_account: targetRecipientAccount || null,
+            description: description || `Transfer to ${recipientName || 'recipient'}`,
+            recipient_name: recipientName || null,
+            recipient_account: recipientAccount || null,
             status: 'COMPLETED',
             reference_number: refNumber,
           },
         });
 
         // If recipient is another internal registered user, credit their primary account atomically
-        if (targetRecipientUserId) {
+        if (recipientUserId) {
           const recipientPrimaryAccount = await tx.bankAccount.findFirst({
-            where: { user_id: targetRecipientUserId, is_primary: true, status: 'ACTIVE' },
+            where: { user_id: recipientUserId, is_primary: true, status: 'ACTIVE' },
           });
 
           if (recipientPrimaryAccount) {
@@ -353,14 +218,14 @@ class TransactionService {
 
             await tx.transaction.create({
               data: {
-                user_id: targetRecipientUserId,
+                user_id: recipientUserId,
                 account_id: recipientPrimaryAccount.id,
                 transaction_type: 'DEPOSIT',
                 amount: numAmount,
-                description: `Received P2P mobile transfer from ${senderUser?.full_name || 'iCash user'}`,
+                description: `Received transfer from ${senderUser?.full_name || 'iCash user'}`,
                 recipient_name: senderUser?.full_name || null,
                 status: 'COMPLETED',
-                reference_number: `TX_P2P_${Date.now()}_${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
+                reference_number: `TX_REC_${Date.now()}_${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
               },
             });
           }
@@ -369,11 +234,9 @@ class TransactionService {
         await tx.securityEvent.create({
           data: {
             user_id: userId,
-            event_type: isDuressAction ? 'DURESS_ALERT' : 'TRANSFER_SUCCESS',
-            severity: isDuressAction ? 'CRITICAL' : numAmount >= 20000 ? 'HIGH' : 'LOW',
-            description: isDuressAction
-              ? `🚨 Police duress alert during transfer of ₹${numAmount.toLocaleString('en-IN')} to ${targetRecipientName || targetRecipientAccount}.`
-              : `Transfer of ₹${numAmount.toLocaleString('en-IN')} to ${targetRecipientName || targetRecipientAccount || 'beneficiary'} authorized via ${verifyMethod || 'PIN'}.`,
+            event_type: 'TRANSFER_SUCCESS',
+            severity: numAmount >= 20000 ? 'HIGH' : 'LOW',
+            description: `Transfer of ₹${numAmount.toLocaleString('en-IN')} to ${recipientName || 'external'} authorized via ${verifyMethod}.`,
             ip_address: req?.ip,
             device_reference: req?.headers['user-agent'],
           },
@@ -383,8 +246,6 @@ class TransactionService {
           transaction: senderTx,
           newBalance: senderNewBalance,
           accountMasked: account.account_number_masked,
-          isDuress: isDuressAction,
-          policeAlertTriggered: isDuressAction,
         };
       } else if (transactionType === 'DEPOSIT') {
         const newBalance = currentBalance + numAmount;
@@ -442,9 +303,7 @@ class TransactionService {
     } = data;
 
     if (!accountIdentifier || !authorizedName || !authorizedPhone || !amount) {
-      const err = new Error(
-        'Please provide account identifier, authorized person name, mobile number, and withdrawal amount.'
-      );
+      const err = new Error('Please provide account identifier, authorized person name, mobile number, and withdrawal amount.');
       err.status = 400;
       throw err;
     }
@@ -486,45 +345,28 @@ class TransactionService {
     // Parse registered emergency contacts list
     let regContacts = [];
     if (accountHolder.emergency_contact_name) {
-      if (
-        accountHolder.emergency_contact_name.startsWith('[') ||
-        accountHolder.emergency_contact_name.startsWith('{')
-      ) {
+      if (accountHolder.emergency_contact_name.startsWith('[') || accountHolder.emergency_contact_name.startsWith('{')) {
         try {
           const arr = JSON.parse(accountHolder.emergency_contact_name);
           regContacts = Array.isArray(arr) ? arr : [arr];
         } catch (e) {
-          regContacts = [
-            {
-              name: accountHolder.emergency_contact_name,
-              phone: accountHolder.emergency_contact_phone,
-            },
-          ];
+          regContacts = [{ name: accountHolder.emergency_contact_name, phone: accountHolder.emergency_contact_phone }];
         }
       } else {
-        regContacts = [
-          {
-            name: accountHolder.emergency_contact_name,
-            phone: accountHolder.emergency_contact_phone,
-          },
-        ];
+        regContacts = [{ name: accountHolder.emergency_contact_name, phone: accountHolder.emergency_contact_phone }];
       }
     }
 
     const isAuthorized = regContacts.some((contact) => {
       if (!contact) return false;
-      const cPhone = String(contact.phone || '')
-        .replace(/\D/g, '')
-        .slice(-10);
-      const cName = String(contact.name || '')
-        .toLowerCase()
-        .trim();
+      const cPhone = String(contact.phone || '').replace(/\D/g, '').slice(-10);
+      const cName = String(contact.name || '').toLowerCase().trim();
       const matchPhone = cPhone && cPhone === cleanAuthPhone;
       const matchName = cName && cName === cleanAuthName.toLowerCase();
       return matchPhone || matchName;
     });
 
-    if (!isAuthorized) {
+    if (!isAuthorized && regContacts.length > 0) {
       const err = new Error(
         `Authorization Failed: "${cleanAuthName}" (${cleanAuthPhone}) is not listed as a registered emergency contact for this account holder.`
       );
@@ -534,15 +376,13 @@ class TransactionService {
 
     const primaryAccount = accountHolder.accounts[0];
     if (!primaryAccount || Number(primaryAccount.balance) < numAmount) {
-      const err = new Error(
-        "Account holder's available balance is insufficient for this withdrawal."
-      );
+      const err = new Error("Account holder's available balance is insufficient for this withdrawal.");
       err.status = 400;
       throw err;
     }
 
     // Generate cryptographically secure 6-digit OTP
-    const rawOtp = String(crypto.randomInt(100000, 1000000));
+    const rawOtp = String(Math.floor(100000 + Math.random() * 900000));
     const otpHash = await hashValue(rawOtp);
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes strict
 
@@ -590,9 +430,9 @@ class TransactionService {
       amount: numAmount,
       expiresInSeconds: 300,
       expiresAt,
-      ...(process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development'
-        ? { otp: rawOtp, devOtp: rawOtp }
-        : {}),
+      // devOtp and otp returned for demo / instant testing flow
+      otp: rawOtp,
+      devOtp: rawOtp,
       message: `A One-Time Password (OTP) has been dispatched to the account holder's registered mobile number (${TransactionService.maskPhone(accountHolder.phone)}). You have 5 minutes to complete verification.`,
     };
   }
@@ -605,9 +445,7 @@ class TransactionService {
     const { requestId, otp } = data;
 
     if (!requestId || !otp) {
-      const err = new Error(
-        'Please provide request ID and the 6-digit OTP received by the account holder.'
-      );
+      const err = new Error('Please provide request ID and the 6-digit OTP received by the account holder.');
       err.status = 400;
       throw err;
     }
@@ -640,9 +478,7 @@ class TransactionService {
         where: { id: delegation.id },
         data: { status: 'EXPIRED' },
       });
-      const err = new Error(
-        'The 5-minute OTP authorization window has expired. Please initiate a new request.'
-      );
+      const err = new Error('The 5-minute OTP authorization window has expired. Please initiate a new request.');
       err.status = 400;
       throw err;
     }
@@ -666,9 +502,7 @@ class TransactionService {
         ipAddress: req?.ip,
         deviceReference: req?.headers['user-agent'],
       });
-      const err = new Error(
-        'Incorrect One-Time Password. Please check the OTP sent to the account holder and try again.'
-      );
+      const err = new Error('Incorrect One-Time Password. Please check the OTP sent to the account holder and try again.');
       err.status = 400;
       throw err;
     }
@@ -685,15 +519,12 @@ class TransactionService {
 
     // Atomically release funds and generate audit transaction record
     return await prisma.$transaction(async (tx) => {
-      await tx.delegatedWithdrawal.update(
-        {
-          where: { id: delegation.id },
-          data: {
-            status: 'USED',
-          },
+      const updatedDelegation = await tx.delegatedWithdrawal.update({
+        where: { id: delegation.id },
+        data: {
+          status: 'USED',
         },
-        { isolationLevel: 'Serializable' }
-      );
+      });
 
       const newBalance = Number(primaryAccount.balance) - amount;
       await tx.bankAccount.update({
@@ -766,30 +597,15 @@ class TransactionService {
 
     let contacts = [];
     if (user.emergency_contact_name) {
-      if (
-        user.emergency_contact_name.startsWith('[') ||
-        user.emergency_contact_name.startsWith('{')
-      ) {
+      if (user.emergency_contact_name.startsWith('[') || user.emergency_contact_name.startsWith('{')) {
         try {
           const arr = JSON.parse(user.emergency_contact_name);
           contacts = Array.isArray(arr) ? arr : [arr];
         } catch (e) {
-          contacts = [
-            {
-              name: user.emergency_contact_name,
-              phone: user.emergency_contact_phone,
-              relation: 'Trusted Representative',
-            },
-          ];
+          contacts = [{ name: user.emergency_contact_name, phone: user.emergency_contact_phone, relation: 'Trusted Representative' }];
         }
       } else {
-        contacts = [
-          {
-            name: user.emergency_contact_name,
-            phone: user.emergency_contact_phone,
-            relation: 'Trusted Representative',
-          },
-        ];
+        contacts = [{ name: user.emergency_contact_name, phone: user.emergency_contact_phone, relation: 'Trusted Representative' }];
       }
     }
 
@@ -818,9 +634,13 @@ class TransactionService {
 
     const primary = normalized[0] || null;
     const contactsData =
-      normalized.length > 1 ? JSON.stringify(normalized) : primary ? primary.name : null;
+      normalized.length > 1
+        ? JSON.stringify(normalized)
+        : primary
+          ? primary.name
+          : null;
 
-    await prisma.user.update({
+    const updated = await prisma.user.update({
       where: { id: userId },
       data: {
         emergency_contact_name: contactsData,
@@ -853,16 +673,13 @@ class TransactionService {
       err.status = 404;
       throw err;
     }
-    return await TransactionService.requestEmergencyWithdrawal(
-      {
-        accountIdentifier: senior.phone,
-        authorizedName: senior.emergency_contact_name || 'Authorized Senior Contact',
-        authorizedPhone: senior.emergency_contact_phone || senior.phone,
-        amount,
-        reason: 'Senior Citizen Assisted Cash Withdrawal',
-      },
-      req
-    );
+    return await TransactionService.requestEmergencyWithdrawal({
+      accountIdentifier: senior.phone,
+      authorizedName: senior.emergency_contact_name || 'Authorized Senior Contact',
+      authorizedPhone: senior.emergency_contact_phone || senior.phone,
+      amount,
+      reason: 'Senior Citizen Assisted Cash Withdrawal',
+    }, req);
   }
 
   /**
@@ -884,13 +701,10 @@ class TransactionService {
       err.status = 404;
       throw err;
     }
-    return await TransactionService.verifyEmergencyWithdrawal(
-      {
-        requestId: senior.delegations[0].id,
-        otp,
-      },
-      req
-    );
+    return await TransactionService.verifyEmergencyWithdrawal({
+      requestId: senior.delegations[0].id,
+      otp,
+    }, req);
   }
 }
 

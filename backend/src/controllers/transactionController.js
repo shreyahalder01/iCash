@@ -30,16 +30,6 @@ class TransactionController {
     }
   }
 
-  static async lookupRecipient(req, res, next) {
-    try {
-      const phone = req.query.phone || req.body.phone;
-      const result = await TransactionService.lookupRecipientByPhone(phone, req.user?.id);
-      res.json(result);
-    } catch (err) {
-      next(err);
-    }
-  }
-
   static async createTransaction(req, res, next) {
     try {
       const result = await TransactionService.processTransaction(req.user.id, req.body, req);
@@ -49,8 +39,6 @@ class TransactionController {
         transaction: result.transaction,
         newBalance: result.newBalance,
         accountMasked: result.accountMasked,
-        isDuress: result.isDuress || false,
-        policeAlertTriggered: result.policeAlertTriggered || false,
       });
     } catch (err) {
       next(err);
@@ -59,9 +47,6 @@ class TransactionController {
 
   static async topUpDemoFunds(req, res, next) {
     try {
-      if (process.env.NODE_ENV === 'production') {
-        return res.status(404).json({ ok: false, message: 'Demo top-up is unavailable.' });
-      }
       const amount = Number(req.body.amount) || 5000;
       const result = await TransactionService.processTransaction(
         req.user.id,

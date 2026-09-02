@@ -145,106 +145,34 @@ body {
   }
 }
 
-img {
-  max-width: 100%;
-  height: auto;
-  display: block;
-}
-
 /* ============================================================
    AUTH & ONBOARDING CARDS (CLEAN & MINIMAL)
    ============================================================ */
-.welcome-topbar {
-  width: 100%;
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 24px 20px 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  z-index: 10;
-  position: relative;
-}
-
-.hero-logo-wrap {
-  margin-bottom: 20px;
-  display: flex;
-  align-items: center;
-}
-
-.hero-brand-logo {
-  height: 48px;
-  width: auto;
-  max-width: 210px;
-  object-fit: contain;
-  filter: drop-shadow(0 4px 16px rgba(14, 165, 233, 0.28));
-}
-
-.security-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
-  background: rgba(16, 23, 40, 0.85);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-pill);
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  color: var(--text-muted);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-.dot-live {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #10b981;
-  box-shadow: 0 0 10px #10b981;
-  animation: pulseLive 2s infinite ease-in-out;
-}
-
-@keyframes pulseLive {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.6;
-    transform: scale(1.15);
-  }
-}
-
 .auth-container {
   width: 100%;
-  max-width: 1100px;
+  max-width: 1000px;
   margin: auto;
   display: grid;
-  grid-template-columns: 1.15fr 1fr;
-  gap: 40px;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 32px;
   align-items: center;
-  padding: 24px 20px;
+  padding: 20px;
 }
 
 @media (max-width: 860px) {
   .auth-container {
     grid-template-columns: 1fr;
     max-width: 480px;
-    gap: 28px;
-  }
-  .welcome-topbar {
-    padding: 16px 16px 0;
   }
 }
 
 .auth-hero-info h1 {
   font-family: var(--font-display);
-  font-size: 38px;
+  font-size: 40px;
   font-weight: 800;
-  line-height: 1.18;
+  line-height: 1.15;
   letter-spacing: -1px;
-  margin: 16px 0 12px;
+  margin: 16px 0;
   background: linear-gradient(180deg, #ffffff 40%, #94a3b8 100%);
   -webkit-background-clip: text;
   background-clip: text;
@@ -270,82 +198,6 @@ img {
   font-size: 11.5px;
   font-weight: 600;
   letter-spacing: 0.5px;
-}
-
-/* Feature Grid in Welcome Hero */
-.hero-feature-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 20px;
-}
-
-.hero-feature-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 14px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  color: var(--text-main);
-  width: fit-content;
-  transition:
-    background 0.2s,
-    border-color 0.2s;
-}
-
-.hero-feature-pill:hover {
-  background: rgba(45, 212, 191, 0.06);
-  border-color: rgba(45, 212, 191, 0.25);
-}
-
-.feature-icon {
-  font-size: 14px;
-}
-
-.feature-label {
-  font-weight: 500;
-}
-
-/* Security Standards Strip */
-.security-standards-strip {
-  display: flex;
-  gap: 18px;
-  margin-top: 24px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.sec-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.sec-label {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  color: var(--text-faint);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.sec-val {
-  color: var(--text-main);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.sec-highlight {
-  color: var(--primary);
-}
-
-.sec-divider {
-  width: 1px;
-  height: 28px;
-  background: var(--border);
 }
 
 .card {
@@ -805,61 +657,23 @@ textarea:focus {
 .brand-wrapper {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   text-decoration: none;
 }
 
-.brand-logo-img {
-  width: 36px !important;
-  height: 36px !important;
-  min-width: 36px !important;
-  min-height: 36px !important;
-  max-width: 36px !important;
-  max-height: 36px !important;
-  border-radius: 9px;
-  object-fit: contain;
-  background: rgba(45, 212, 191, 0.08);
-  border: 1px solid rgba(45, 212, 191, 0.22);
-  padding: 3px;
-  flex-shrink: 0;
-  display: block;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.brand-wrapper:hover .brand-logo-img {
-  transform: scale(1.06);
-  background: rgba(45, 212, 191, 0.14);
-  border-color: rgba(45, 212, 191, 0.5);
-  box-shadow: 0 0 16px rgba(45, 212, 191, 0.35);
-}
-
-.auth-hero-brand {
-  margin-bottom: 24px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.welcome-hero-logo {
-  height: 52px;
-  width: auto;
-  max-width: 220px;
-  object-fit: contain;
-  filter: drop-shadow(0 4px 18px rgba(14, 165, 233, 0.3));
-}
-
-.card-brand-header {
+.brand-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #2dd4bf, #0ea5e9);
+  color: #07090e;
   display: flex;
   align-items: center;
-  margin-bottom: 14px;
-}
-
-.card-brand-logo {
-  height: 32px;
-  width: auto;
-  object-fit: contain;
-  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
+  justify-content: center;
+  font-weight: 800;
+  font-size: 14px;
+  font-family: var(--font-display);
+  flex-shrink: 0;
 }
 
 .brand-text {
@@ -963,36 +777,10 @@ textarea:focus {
 .nav-item .nav-icon {
   font-size: 15px;
   width: 18px;
-  height: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--text-muted);
-  flex-shrink: 0;
-}
-
-.nav-svg-icon {
-  width: 18px;
-  height: 18px;
-  stroke: currentColor;
-  flex-shrink: 0;
-  transition:
-    transform 0.2s,
-    stroke 0.2s;
-}
-
-.nav-item:hover .nav-svg-icon,
-.nav-item.active .nav-svg-icon {
-  stroke: var(--primary);
-  transform: scale(1.08);
-}
-
-.btn-svg-icon {
-  width: 18px;
-  height: 18px;
-  stroke: currentColor;
-  display: inline-block;
-  vertical-align: middle;
   flex-shrink: 0;
 }
 
@@ -2274,9 +2062,7 @@ textarea:focus {
   stroke-linecap: round;
   stroke-dasharray: 276.46;
   stroke-dashoffset: 0;
-  transition:
-    stroke-dashoffset 1s linear,
-    stroke 0.3s ease;
+  transition: stroke-dashoffset 1s linear, stroke 0.3s ease;
 }
 
 .emg-timer-text {
@@ -2403,9 +2189,7 @@ textarea:focus {
 }
 
 .emergency-contact-row {
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .emergency-contact-row:hover {

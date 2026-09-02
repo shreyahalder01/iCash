@@ -47,27 +47,6 @@ class AuthController {
     }
   }
 
-  static async loginBiometric(req, res, next) {
-    try {
-      const { userId, liveDescriptor } = req.body;
-      const { user, token, confidence } = await AuthService.loginWithBiometric(
-        userId,
-        liveDescriptor,
-        req
-      );
-      res.cookie(COOKIE_NAME, token, getCookieOptions());
-      res.json({
-        ok: true,
-        message: 'Biometric authentication successful.',
-        user,
-        token,
-        confidence,
-      });
-    } catch (err) {
-      next(err);
-    }
-  }
-
   static async getMe(req, res, next) {
     try {
       const primaryAccount = req.user.accounts && req.user.accounts[0];

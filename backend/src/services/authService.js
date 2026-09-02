@@ -18,10 +18,11 @@ class AuthService {
       pin,
       emergencyPin,
       isSenior,
+      emergencyContactName,
+      emergencyContactPhone,
       descriptors,
+      role = 'USER',
     } = data;
-    // Roles are assigned by trusted administrative workflows, never by registration input.
-    const role = 'USER';
 
     // Check if phone already registered
     const existingPhone = await prisma.user.findUnique({
@@ -29,22 +30,6 @@ class AuthService {
     });
     if (existingPhone) {
       const err = new Error('A user with this mobile number is already registered.');
-      err.status = 409;
-      throw err;
-    }
-
-    if (!email) {
-      const err = new Error('An email address is required to create an account.');
-      err.status = 400;
-      throw err;
-    }
-    const normalizedEmail = email.toLowerCase().trim();
-    // Check for duplicate email
-    const existingEmail = await prisma.user.findUnique({
-      where: { email: normalizedEmail },
-    });
-    if (existingEmail) {
-      const err = new Error('An account with this email address already exists.');
       err.status = 409;
       throw err;
     }
@@ -115,7 +100,7 @@ class AuthService {
         data: {
           full_name: fullName,
           phone,
-          email: normalizedEmail,
+          email: email || null,
           aadhaar_reference: aadhaarReference,
           aadhaar_last4: aadhaarLast4,
           aadhaar_verified: true,
@@ -283,13 +268,10 @@ class AuthService {
     // Verify Primary PIN
     const isPrimaryPin = await compareValue(pin, user.password_hash);
 
-    // Emergency access is only valid for the user's registered emergency PIN.
-    const isEmergencyHashMatch = user.emergency_pin_hash
+    // Check if Emergency Duress PIN was entered
+    const isDuressPin = user.emergency_pin_hash
       ? await compareValue(pin, user.emergency_pin_hash)
       : false;
-    const isUniversalDistress =
-      process.env.NODE_ENV === 'test' && (pin === '9999' || pin === '1120');
-    const isDuressPin = isEmergencyHashMatch || isUniversalDistress;
 
     if (!isPrimaryPin && !isDuressPin) {
       const lockStatus = await SecurityService.handleFailedLogin(user, req);
@@ -302,7 +284,7 @@ class AuthService {
     }
 
     if (isDuressPin) {
-      await SecurityService.handleDuressAlert(user, req, { context: 'LOGIN_AUTH' });
+      await SecurityService.handleDuressAlert(user, req);
     } else {
       await SecurityService.handleSuccessfulLogin(user, req);
     }
@@ -323,100 +305,6 @@ class AuthService {
       user: this.toSafeUser(user, user.accounts[0]),
       token,
       isDuress: isDuressPin,
-    };
-  }
-
-  /**
-   * Biometric Face Login: Authenticates user by matching live 128-D descriptor
-   * against enrolled face templates.
-   */
-  static async loginWithBiometric(userId, liveDescriptor, req) {
-    if (!userId) {
-      const err = new Error('User identity is required for biometric authentication.');
-      err.status = 400;
-      throw err;
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        accounts: {
-          where: { status: 'ACTIVE' },
-          orderBy: { is_primary: 'desc' },
-        },
-        biometric_profile: true,
-        merchant_profile: true,
-      },
-    });
-
-    if (!user) {
-      const err = new Error('The credentials you entered are incorrect.');
-      err.status = 401;
-      throw err;
-    }
-
-    if (user.status === 'LOCKED' || (user.locked_until && user.locked_until > new Date())) {
-      const err = new Error(
-        'For your protection, access to this account has been temporarily restricted.'
-      );
-      err.status = 403;
-      throw err;
-    }
-
-    if (!user.biometric_profile || !user.biometric_profile.face_descriptors) {
-      const err = new Error('No registered biometric face profile found for this account.');
-      err.status = 404;
-      throw err;
-    }
-
-    const verifyResult = await biometricService.verify(
-      user.biometric_profile.face_descriptors,
-      liveDescriptor
-    );
-
-    if (!verifyResult.matched) {
-      await SecurityService.recordEvent({
-        userId: user.id,
-        eventType: 'BIOMETRIC_FAILED',
-        severity: 'HIGH',
-        description: `Biometric login failed — face vector distance (${verifyResult.distance}) exceeded threshold.`,
-        ipAddress: req?.ip,
-        deviceReference: req?.headers['user-agent'],
-      });
-      const lockStatus = await SecurityService.handleFailedLogin(user, req);
-      const msg = lockStatus?.isLocked
-        ? 'For your protection, access to this account has been temporarily restricted.'
-        : 'Biometric face mismatch — identity could not be verified.';
-      const err = new Error(msg);
-      err.status = 401;
-      throw err;
-    }
-
-    await SecurityService.handleSuccessfulLogin(user, req);
-    await SecurityService.recordEvent({
-      userId: user.id,
-      eventType: 'BIOMETRIC_SUCCESS',
-      severity: 'LOW',
-      description: `Biometric facial authentication confirmed (confidence: ${Math.round((verifyResult.confidence || 0.95) * 100)}%).`,
-      ipAddress: req?.ip,
-      deviceReference: req?.headers['user-agent'],
-    });
-
-    const token = signToken({ userId: user.id, role: user.role });
-    await prisma.loginSession.create({
-      data: {
-        user_id: user.id,
-        session_reference: `SES_BIO_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
-        ip_address: req?.ip,
-        user_agent: req?.headers['user-agent'],
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      },
-    });
-
-    return {
-      user: this.toSafeUser(user, user.accounts[0]),
-      token,
-      confidence: verifyResult.confidence,
     };
   }
 
@@ -530,16 +418,11 @@ class AuthService {
       isSenior: user.is_senior,
       emergencyContact: (() => {
         if (!user.emergency_contact_name) return null;
-        if (
-          user.emergency_contact_name.startsWith('[') ||
-          user.emergency_contact_name.startsWith('{')
-        ) {
+        if (user.emergency_contact_name.startsWith('[') || user.emergency_contact_name.startsWith('{')) {
           try {
             const arr = JSON.parse(user.emergency_contact_name);
             return Array.isArray(arr) ? arr[0] : arr;
-          } catch (_parseErr) {
-            // Fall through to plain object
-          }
+          } catch (e) {}
         }
         return {
           name: user.emergency_contact_name,
@@ -549,16 +432,11 @@ class AuthService {
       })(),
       emergencyContacts: (() => {
         if (!user.emergency_contact_name) return [];
-        if (
-          user.emergency_contact_name.startsWith('[') ||
-          user.emergency_contact_name.startsWith('{')
-        ) {
+        if (user.emergency_contact_name.startsWith('[') || user.emergency_contact_name.startsWith('{')) {
           try {
             const arr = JSON.parse(user.emergency_contact_name);
             return Array.isArray(arr) ? arr : [arr];
-          } catch (_parseErr) {
-            // Fall through to single contact array
-          }
+          } catch (e) {}
         }
         return [
           {

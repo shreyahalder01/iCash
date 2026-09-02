@@ -15,22 +15,14 @@ const API_BASE_CANDIDATES = [
 
 function getConfiguredBaseUrl() {
   if (typeof window !== 'undefined') {
-    if (
-      window.ICASH_CONFIG &&
-      typeof window.ICASH_CONFIG.API_BASE_URL === 'string' &&
-      window.ICASH_CONFIG.API_BASE_URL.trim()
-    ) {
+    if (window.ICASH_CONFIG && typeof window.ICASH_CONFIG.API_BASE_URL === 'string' && window.ICASH_CONFIG.API_BASE_URL.trim()) {
       return window.ICASH_CONFIG.API_BASE_URL.trim().replace(/\/+$/, '');
     }
     const stored = localStorage.getItem('icash_api_url');
     if (stored && stored.trim()) {
       return stored.trim().replace(/\/+$/, '');
     }
-    if (
-      window.__API_BASE__ &&
-      typeof window.__API_BASE__ === 'string' &&
-      window.__API_BASE__.trim()
-    ) {
+    if (window.__API_BASE__ && typeof window.__API_BASE__ === 'string' && window.__API_BASE__.trim()) {
       return window.__API_BASE__.trim().replace(/\/+$/, '');
     }
   }
@@ -54,9 +46,7 @@ async function detectApiBase() {
         return currentBase;
       }
     } catch (e) {
-      console.warn(
-        `[iCash API] Configured remote server (${currentBase}) health check failed, checking alternatives...`
-      );
+      console.warn(`[iCash API] Configured remote server (${currentBase}) health check failed, checking alternatives...`);
     }
   }
 
@@ -97,8 +87,13 @@ async function request(endpoint, options = {}) {
   const base = await detectApiBase();
   const url = `${base}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
 
+  // Get stored token if any
+  const storedToken =
+    typeof localStorage !== 'undefined' ? localStorage.getItem('icash_token') : null;
+
   const headers = {
     'Content-Type': 'application/json',
+    ...(storedToken ? { Authorization: `Bearer ${storedToken}` } : {}),
     ...(options.headers || {}),
   };
 
@@ -116,11 +111,7 @@ async function request(endpoint, options = {}) {
   try {
     response = await fetch(url, config);
   } catch (netErr) {
-    const attemptedTarget = base
-      ? base
-      : typeof window !== 'undefined'
-        ? window.location.origin
-        : 'server';
+    const attemptedTarget = base ? base : (typeof window !== 'undefined' ? window.location.origin : 'server');
     throw new Error(
       `Unable to connect to banking backend (${attemptedTarget}). Please ensure the backend server is running and accessible.`
     );
@@ -153,8 +144,19 @@ async function request(endpoint, options = {}) {
     throw error;
   }
 
+  // Automatically save token on successful login or register
+  if (response.ok && data && data.token && typeof localStorage !== 'undefined') {
+    localStorage.setItem('icash_token', data.token);
+  }
+
+  // Clear token on logout
+  if (endpoint.includes('/logout') && typeof localStorage !== 'undefined') {
+    localStorage.removeItem('icash_token');
+  }
+
   if (!response.ok) {
     if (response.status === 401 && typeof localStorage !== 'undefined') {
+      // Clear potentially invalid token
       localStorage.removeItem('icash_token');
     }
     const errorMsg =
@@ -176,7 +178,6 @@ const api = {
   register: (userData) => request('/api/auth/register', { method: 'POST', body: userData }),
   loginAadhaar: (data) => request('/api/auth/login-aadhaar', { method: 'POST', body: data }),
   loginPin: (data) => request('/api/auth/login-pin', { method: 'POST', body: data }),
-  loginBiometric: (data) => request('/api/auth/login-biometric', { method: 'POST', body: data }),
   loginEmergencyPin: (data) =>
     request('/api/auth/login-emergency-pin', { method: 'POST', body: data }),
   logout: () => request('/api/auth/logout', { method: 'POST' }),
@@ -185,13 +186,12 @@ const api = {
   // Delete own account (requires PIN confirmation)
   deleteMe: (data) => request('/api/auth/me', { method: 'DELETE', body: data }),
 
-  // Unified contact OTP (registration): `contact` is whatever the user typed
-  // into the email-or-phone field, captured fresh at submit-time. It is
-  // passed straight through — never substituted with a stored value.
-  sendContactOtp: (contact) =>
-    request('/api/otp/contact/send', { method: 'POST', body: { contact } }),
-  verifyContactOtp: (contact, code) =>
-    request('/api/otp/contact/verify', { method: 'POST', body: { contact, code } }),
+  // OTP
+  sendOtp: (mobile, purpose) =>
+    request('/api/otp/send', { method: 'POST', body: { mobile, purpose } }),
+  verifyOtp: (mobile, purpose, code) =>
+    request('/api/otp/verify', { method: 'POST', body: { mobile, purpose, code } }),
+
   // Biometric
   enrollBiometric: (data) => request('/api/biometric/enroll', { method: 'POST', body: data }),
   verifyBiometric: (data) => request('/api/biometric/verify', { method: 'POST', body: data }),
@@ -218,10 +218,6 @@ const api = {
     };
     return request('/api/transactions', { method: 'POST', body: payload });
   },
-  lookupRecipient: (phone) =>
-    request(`/api/transactions/lookup-recipient?phone=${encodeURIComponent(phone)}`, {
-      method: 'GET',
-    }),
   topUpDemoFunds: (amount = 5000) =>
     request('/api/transactions/topup', { method: 'POST', body: { amount } }),
 
@@ -318,9 +314,7 @@ const api = {
     },
   },
 
-  // Server Configuration & Health Helpers
-  getHealth: () => request('/api/health', { method: 'GET' }),
-  checkLiveness: () => request('/api/healthz', { method: 'GET' }),
+  // Server Configuration Helpers
   setServerUrl: (url) => {
     if (typeof localStorage !== 'undefined') {
       if (url && url.trim()) {
@@ -332,11 +326,7 @@ const api = {
     currentBase = getConfiguredBaseUrl();
   },
   getServerUrl: () => {
-    return (
-      currentBase ||
-      getConfiguredBaseUrl() ||
-      (typeof window !== 'undefined' ? window.location.origin : '')
-    );
+    return currentBase || getConfiguredBaseUrl() || (typeof window !== 'undefined' ? window.location.origin : '');
   },
 };
 

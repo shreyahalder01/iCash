@@ -3,7 +3,7 @@
  * Ensures technical details (PrismaClientKnownRequestError, ECONNREFUSED, SQL queries, stack traces)
  * are NEVER returned to the end-user.
  */
-function errorHandler(err, req, res, _next) {
+function errorHandler(err, req, res, next) {
   if (process.env.NODE_ENV !== 'test') {
     console.error('Unhandled Error caught by middleware:', {
       message: err.message,
@@ -62,19 +62,13 @@ function errorHandler(err, req, res, _next) {
     err.code === 'P1001' ||
     err.code === 'P1000' ||
     err.code === 'P1017' ||
-    (err.message &&
-      (err.message.includes("Can't reach database server") ||
-        err.message.includes('ECONNREFUSED') ||
-        err.message.includes('password authentication failed') ||
-        err.message.includes('Tenant or user not found')))
+    (err.message && (err.message.includes("Can't reach database server") || err.message.includes('ECONNREFUSED') || err.message.includes('password authentication failed') || err.message.includes('Tenant or user not found')))
   ) {
     const cleanDetail = err.message
       ? err.message
           .split('\n')
           .map((s) => s.trim())
-          .filter(
-            (s) => s && !s.startsWith('-->') && !s.startsWith('at ') && !s.includes('PrismaClient')
-          )
+          .filter((s) => s && !s.startsWith('-->') && !s.startsWith('at ') && !s.includes('PrismaClient'))
           .slice(-1)[0] || err.message
       : 'Database connection failed';
 
@@ -89,8 +83,7 @@ function errorHandler(err, req, res, _next) {
   return res.status(500).json({
     ok: false,
     error: 'ServerError',
-    message:
-      err.message || "We're unable to connect to banking services right now. Please try again.",
+    message: err.message || "We're unable to connect to banking services right now. Please try again.",
   });
 }
 

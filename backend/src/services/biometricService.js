@@ -7,10 +7,10 @@
  */
 
 class IBiometricProvider {
-  async enroll(_userId, _descriptors) {
+  async enroll(userId, descriptors) {
     throw new Error('enroll() not implemented');
   }
-  async verify(_storedDescriptors, _liveDescriptor) {
+  async verify(storedDescriptors, liveDescriptor) {
     throw new Error('verify() not implemented');
   }
 }
@@ -94,7 +94,7 @@ class ProductionBiometricProvider extends IBiometricProvider {
     this.apiKey = apiKey;
   }
 
-  async enroll(userId, _descriptors) {
+  async enroll(userId, descriptors) {
     // In production, this issues an encrypted token or device certificate
     return {
       provider: this.name,
@@ -103,7 +103,7 @@ class ProductionBiometricProvider extends IBiometricProvider {
     };
   }
 
-  async verify(_storedReference, _liveAuthToken) {
+  async verify(storedReference, liveAuthToken) {
     // Real UIDAI Auth 2.5 API request via signed XML/JSON payload
     throw new Error(
       'Production UIDAI integration requires active license and certified HSM token.'

@@ -12,7 +12,7 @@
   },
   "rules": {
     "prettier/prettier": ["error", { "endOfLine": "auto" }],
-    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
     "no-console": "off"
   },
   "overrides": [
@@ -61,49 +61,14 @@
         "handleDobChange": "readonly",
         "launchBiometricGate": "readonly",
         "teardownVerifyGate": "readonly",
-        "toggleVerifyPin": "readonly",
-        "submitVerifyPin": "readonly",
-        "loadComplaintsList": "readonly",
-        "submitInlineComplaint": "readonly",
-        "submitComplaint": "readonly",
-        "switchTransferMode": "readonly",
-        "switchModalSendMode": "readonly",
-        "handleTransferPhoneInput": "readonly",
-        "handleSendPhoneInput": "readonly",
-        "initiateTransferWorkflow": "readonly",
-        "confirmSend": "readonly",
-        "openDepositModal": "readonly",
-        "confirmDeposit": "readonly",
-        "confirmWithdraw": "readonly",
-        "submitAddAccount": "readonly",
-        "setPrimaryAccount": "readonly",
-        "openDeleteAccountModal": "readonly",
-        "confirmDeleteAccount": "readonly",
-        "openDelegateCollectModal": "readonly",
-        "closeEmergencyWithdrawalModal": "readonly",
-        "submitEmergencyWithdrawalRequest": "readonly",
-        "submitEmergencyWithdrawalOtp": "readonly",
-        "submitPaymentRequest": "readonly",
-        "logout": "readonly",
         "promptLoginPin": "readonly",
         "verifyAadhaarLogin": "readonly",
         "toggleBalanceVisibility": "readonly",
-        "filterTransactions": "readonly",
-        "handleTransactionSearch": "readonly",
-        "prevPage": "readonly",
-        "nextPage": "readonly",
-        "exportStatement": "readonly",
-        "createScanRingRenderer": "readonly",
-        "addRegistrationEmergencyContactRow": "readonly",
-        "captureVerifyFace": "readonly",
-        "cancelVerify": "readonly",
-        "FaceMesh": "readonly",
         "THREE": "readonly",
         "Appwrite": "readonly"
       },
       "rules": {
-        "no-empty": "off",
-        "no-unused-vars": "off"
+        "no-empty": "off"
       }
     }
   ]

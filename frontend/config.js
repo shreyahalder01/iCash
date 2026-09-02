@@ -1,6 +1,6 @@
 /**
  * iCash Frontend Configuration
- *
+ * 
  * Configure your backend server endpoint here.
  * - Set API_BASE_URL to your remote server (e.g., 'https://your-icash-backend.onrender.com')
  * - Leave as '' (empty string) to automatically use the current host (same origin) or auto-detect.

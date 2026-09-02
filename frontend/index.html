@@ -9,13 +9,9 @@
       content="Next-generation digital banking secured with 128-dimensional biometric facial vectors, 256-bit encryption, and real-time fraud monitoring."
     />
     <!-- CSP is set by backend Helmet middleware. Meta tag removed to avoid conflicts. -->
-    <meta
-      http-equiv="Permissions-Policy"
-      content="camera=(self), microphone=(), geolocation=(), payment=(self)"
-    />
+    <meta http-equiv="Permissions-Policy" content="camera=(self), microphone=(), geolocation=(), payment=(self)" />
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
-    <link rel="icon" type="image/png" href="assets/favicon.png" />
-    <link rel="apple-touch-icon" href="assets/logo-icon.png" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
@@ -28,31 +24,65 @@
 
       <!-- SCREEN: WELCOME / LANDING -->
       <div class="screen active" id="screen-welcome">
-        <!-- MAIN AUTH HERO & PORTAL SELECTION -->
         <div class="auth-container">
           <div class="auth-hero-info">
-            <div class="hero-logo-wrap" style="margin-bottom: 20px">
-              <img
-                src="assets/logo-full.png"
-                alt="iCash Biometric Banking"
-                class="hero-brand-logo"
-                style="
-                  height: 48px;
-                  width: auto;
-                  max-width: 210px;
-                  filter: drop-shadow(0 4px 16px rgba(14, 165, 233, 0.28));
-                "
-              />
-            </div>
             <div class="auth-badge">
               <span class="dot-indicator"></span>
-              <span>BioGate 2.0 Identity Protocol</span>
+              <span>BioGate 256-Bit Cryptographic Core</span>
             </div>
             <h1>Next-Generation Biometric Banking</h1>
             <p>
               Experience passwordless, instant banking verified by encrypted facial biometric
               vectors. Instant transfers, multi-account portfolios, and enterprise security.
             </p>
+
+            <div style="display: flex; gap: 18px; margin-top: 28px; flex-wrap: wrap">
+              <div>
+                <div
+                  style="
+                    font-family: var(--font-mono);
+                    font-size: 11px;
+                    color: var(--text-faint);
+                    text-transform: uppercase;
+                  "
+                >
+                  Security Standard
+                </div>
+                <strong style="color: var(--text-main); font-size: 13.5px"
+                  >ISO 27001 Certified</strong
+                >
+              </div>
+              <div style="width: 1px; background: var(--border)"></div>
+              <div>
+                <div
+                  style="
+                    font-family: var(--font-mono);
+                    font-size: 11px;
+                    color: var(--text-faint);
+                    text-transform: uppercase;
+                  "
+                >
+                  Identity Protocol
+                </div>
+                <strong style="color: var(--primary); font-size: 13.5px"
+                  >UIDAI e-KYC Verified</strong
+                >
+              </div>
+              <div style="width: 1px; background: var(--border)"></div>
+              <div>
+                <div
+                  style="
+                    font-family: var(--font-mono);
+                    font-size: 11px;
+                    color: var(--text-faint);
+                    text-transform: uppercase;
+                  "
+                >
+                  Encryption
+                </div>
+                <strong style="color: var(--text-main); font-size: 13.5px">AES-256 GCM</strong>
+              </div>
+            </div>
           </div>
 
           <div class="card card-narrow">
@@ -75,17 +105,31 @@
               </div>
             </div>
 
-            <div style="border-top: 1px solid var(--border); padding-top: 14px; margin-top: 14px">
+            <!-- Instant Portal Access for Demo / Rapid Testing -->
+            <div style="margin-top: 14px; background: rgba(45, 212, 191, 0.06); border: 1px dashed rgba(45, 212, 191, 0.35); border-radius: 12px; padding: 12px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-size: 11px; font-weight: 600; color: var(--primary); font-family: var(--font-mono); text-transform: uppercase;">⚡ 1-Click Demo Portal Access</span>
+                <button class="mini-btn" style="padding: 4px 10px; font-size: 11px; background: var(--primary); color: #000; font-weight: 600;" onclick="quickDemoLogin('4821', '4821')">
+                  Enter Portal &rarr;
+                </button>
+              </div>
+              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                <button class="mini-btn" style="font-size: 10.5px; padding: 3px 8px;" onclick="quickDemoLogin('4821', '4821')">
+                  👤 Sidd Paul (4821)
+                </button>
+                <button class="mini-btn" style="font-size: 10.5px; padding: 3px 8px;" onclick="quickDemoLogin('9999', '9999')">
+                  🛡️ Admin (9999)
+                </button>
+                <button class="mini-btn" style="font-size: 10.5px; padding: 3px 8px;" onclick="quickDemoLogin('7712', '7712')">
+                  👴 Ramesh (Senior)
+                </button>
+              </div>
+            </div>
+
+            <div style="border-top: 1px solid var(--border); padding-top: 14px; margin-top: 14px;">
               <button
                 class="mini-btn"
-                style="
-                  width: 100%;
-                  justify-content: center;
-                  font-weight: 600;
-                  background: rgba(239, 68, 68, 0.08);
-                  border-color: rgba(239, 68, 68, 0.25);
-                  color: #f87171;
-                "
+                style="width: 100%; justify-content: center; font-weight: 600; background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.25); color: #f87171;"
                 onclick="openEmergencyWithdrawalModal()"
               >
                 🚨 Emergency &amp; Authorized Representative Cash Withdrawal
@@ -98,20 +142,14 @@
       <!-- SCREEN: REGISTER FORM -->
       <div class="screen" id="screen-register-form">
         <div class="card card-narrow">
-          <div class="eyebrow">Step 1 of 3 · Customer Identity</div>
+          <div class="eyebrow">Step 1 of 2 · Customer Identity</div>
           <h2>Open Digital Account</h2>
           <p class="lead">
             Your identity is secured with 256-bit encryption. Raw Aadhaar numbers are never stored
             in plaintext.
           </p>
 
-          <form
-            id="form-register"
-            onsubmit="
-              event.preventDefault();
-              proceedToBiometrics();
-            "
-          >
+          <form id="form-register" onsubmit="event.preventDefault(); proceedToBiometrics();">
             <div class="field">
               <label>Full Name (as per Aadhaar)</label>
               <input
@@ -146,16 +184,6 @@
               />
             </div>
             <div class="field">
-              <label>Email Address</label>
-              <input
-                id="reg-email"
-                type="email"
-                placeholder="e.g. you@example.com"
-                maxlength="254"
-                autocomplete="email"
-              />
-            </div>
-            <div class="field">
               <label>Date of Birth</label>
               <input id="reg-dob" type="date" onchange="handleDobChange()" />
               <p
@@ -167,21 +195,8 @@
                   margin-top: 4px;
                 "
               ></p>
-              <div
-                id="reg-senior-block"
-                style="
-                  display: none;
-                  background: rgba(245, 158, 11, 0.08);
-                  border: 1px solid rgba(245, 158, 11, 0.3);
-                  border-radius: 8px;
-                  padding: 10px;
-                  margin-top: 8px;
-                  font-size: 11.5px;
-                  color: #fbbf24;
-                "
-              >
-                👴 <strong>Senior Citizen Assisted Banking Active:</strong> Priority customer
-                support, trusted contact authorization, and assisted banking mode enabled.
+              <div id="reg-senior-block" style="display: none; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 10px; margin-top: 8px; font-size: 11.5px; color: #fbbf24;">
+                👴 <strong>Senior Citizen Assisted Banking Active:</strong> Priority customer support, trusted contact authorization, and assisted banking mode enabled.
               </div>
             </div>
             <div class="field">
@@ -221,8 +236,7 @@
                   line-height: 1.4;
                 "
               >
-                Used to covertly trigger silent safety alarms if coerced to authenticate under
-                duress.
+                Used to covertly trigger silent safety alarms if coerced to authenticate under duress.
               </p>
             </div>
 
@@ -238,59 +252,24 @@
                 margin-top: 16px;
               "
             >
-              <div
-                style="
-                  display: flex;
-                  justify-content: space-between;
-                  align-items: center;
-                  margin-bottom: 8px;
-                "
-              >
-                <label style="color: var(--primary); font-size: 13px; font-weight: 600; margin: 0">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <label style="color: var(--primary); font-size: 13px; font-weight: 600; margin: 0;">
                   🛡️ Trusted Emergency Contacts &amp; Authorized Representatives
                 </label>
-                <span
-                  style="font-size: 10px; color: var(--text-faint); font-family: var(--font-mono)"
-                >
+                <span style="font-size: 10px; color: var(--text-faint); font-family: var(--font-mono);">
                   Optional but Recommended
                 </span>
               </div>
-              <p
-                style="
-                  color: var(--text-muted);
-                  font-size: 11px;
-                  margin-bottom: 12px;
-                  line-height: 1.4;
-                "
-              >
-                Authorized persons can withdraw emergency funds on your behalf. Before release, the
-                system will strictly require your <strong>real-time 5-minute OTP approval</strong>.
+              <p style="color: var(--text-muted); font-size: 11px; margin-bottom: 12px; line-height: 1.4;">
+                Authorized persons can withdraw emergency funds on your behalf. Before release, the system will strictly require your <strong>real-time 5-minute OTP approval</strong>.
               </p>
 
-              <div
-                id="reg-emergency-contacts-list"
-                style="display: flex; flex-direction: column; gap: 10px"
-              >
+              <div id="reg-emergency-contacts-list" style="display: flex; flex-direction: column; gap: 10px;">
                 <!-- Contact Row 1 -->
-                <div
-                  class="emergency-contact-row"
-                  style="
-                    background: var(--bg-surface);
-                    border: 1px solid var(--border);
-                    border-radius: 10px;
-                    padding: 12px;
-                  "
-                >
-                  <div
-                    style="
-                      display: grid;
-                      grid-template-columns: 1fr 1fr;
-                      gap: 8px;
-                      margin-bottom: 8px;
-                    "
-                  >
+                <div class="emergency-contact-row" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px;">
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
                     <div>
-                      <label style="font-size: 11px">Full Name *</label>
+                      <label style="font-size: 11px;">Full Name *</label>
                       <input
                         class="reg-ec-name"
                         type="text"
@@ -300,7 +279,7 @@
                       />
                     </div>
                     <div>
-                      <label style="font-size: 11px">10-Digit Mobile *</label>
+                      <label style="font-size: 11px;">10-Digit Mobile *</label>
                       <input
                         class="reg-ec-phone"
                         type="tel"
@@ -311,24 +290,22 @@
                       />
                     </div>
                   </div>
-                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px">
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
                     <div>
-                      <label style="font-size: 11px">Relationship</label>
+                      <label style="font-size: 11px;">Relationship</label>
                       <select class="reg-ec-relation">
                         <option value="Spouse">Spouse</option>
                         <option value="Parent">Parent</option>
                         <option value="Child">Child / Son / Daughter</option>
                         <option value="Sibling">Sibling / Brother / Sister</option>
                         <option value="Caregiver">Designated Caregiver</option>
-                        <option value="Legal Representative">
-                          Legal Representative / Attorney
-                        </option>
+                        <option value="Legal Representative">Legal Representative / Attorney</option>
                         <option value="Trusted Relative">Trusted Relative / Friend</option>
                         <option value="Other">Other Authorized Person</option>
                       </select>
                     </div>
                     <div>
-                      <label style="font-size: 11px">Gov ID Proof (Optional)</label>
+                      <label style="font-size: 11px;">Gov ID Proof (Optional)</label>
                       <input
                         class="reg-ec-idnum"
                         type="text"
@@ -344,7 +321,7 @@
               <button
                 type="button"
                 class="mini-btn"
-                style="margin-top: 10px; width: 100%; justify-content: center; font-size: 11.5px"
+                style="margin-top: 10px; width: 100%; justify-content: center; font-size: 11.5px;"
                 onclick="addRegistrationEmergencyContactRow()"
               >
                 + Add Another Authorized Contact
@@ -353,165 +330,47 @@
 
             <div class="modal-msg" id="reg-msg"></div>
             <div class="btn-row">
-              <button type="button" class="btn btn-ghost" onclick="goTo('screen-welcome')">
-                Back
+              <button type="button" class="btn btn-ghost" onclick="goTo('screen-welcome')">Back</button>
+              <button type="submit" class="btn btn-primary">
+                Continue to Face Scan &rarr;
               </button>
-              <button type="submit" class="btn btn-primary">Continue to Face Scan &rarr;</button>
             </div>
           </form>
         </div>
       </div>
 
       <!-- SCREEN: MOBILE OTP VERIFICATION -->
-      <div class="screen" id="screen-email-otp" hidden>
+      <div class="screen" id="screen-aadhaar-otp">
         <div class="card card-narrow">
-          <div class="eyebrow" id="otp-eyebrow">Step 2 of 3 · Email Verification</div>
-          <h2>Verify Email Address</h2>
+          <div class="eyebrow" id="otp-eyebrow">Step 2 of 3 · Mobile OTP</div>
+          <h2>Verify Mobile Number</h2>
           <p class="lead">
-            A 6-digit security code was sent to
-            <strong id="otp-email-display">your email</strong>
+            A 6-digit security code was sent to <strong id="otp-mobile-display">+91 ••••••4821</strong>
           </p>
 
+          <div id="otp-sms-banner" style="display: none; background: rgba(45, 212, 191, 0.1); border: 1px solid var(--primary); border-radius: 8px; padding: 10px; margin-bottom: 16px; font-size: 13px; text-align: center;">
+            📲 Simulated SMS: Your verification code is <strong id="otp-sms-code" style="color: var(--primary); font-size: 16px; letter-spacing: 2px;">123456</strong>
+          </div>
 
-          <div class="field" style="text-align: center">
-            <label style="margin-bottom: 12px; display: block">Enter 6-Digit OTP</label>
-            <div style="display: flex; justify-content: center; gap: 8px">
-              <input
-                id="od0"
-                class="otp-digit"
-                type="text"
-                maxlength="1"
-                inputmode="numeric"
-                style="
-                  width: 44px;
-                  height: 48px;
-                  text-align: center;
-                  font-size: 20px;
-                  font-weight: 700;
-                  font-family: var(--font-mono);
-                  border-radius: 8px;
-                  border: 1px solid var(--border);
-                  background: var(--bg-surface);
-                  color: var(--text-main);
-                "
-              />
-              <input
-                id="od1"
-                class="otp-digit"
-                type="text"
-                maxlength="1"
-                inputmode="numeric"
-                style="
-                  width: 44px;
-                  height: 48px;
-                  text-align: center;
-                  font-size: 20px;
-                  font-weight: 700;
-                  font-family: var(--font-mono);
-                  border-radius: 8px;
-                  border: 1px solid var(--border);
-                  background: var(--bg-surface);
-                  color: var(--text-main);
-                "
-              />
-              <input
-                id="od2"
-                class="otp-digit"
-                type="text"
-                maxlength="1"
-                inputmode="numeric"
-                style="
-                  width: 44px;
-                  height: 48px;
-                  text-align: center;
-                  font-size: 20px;
-                  font-weight: 700;
-                  font-family: var(--font-mono);
-                  border-radius: 8px;
-                  border: 1px solid var(--border);
-                  background: var(--bg-surface);
-                  color: var(--text-main);
-                "
-              />
-              <input
-                id="od3"
-                class="otp-digit"
-                type="text"
-                maxlength="1"
-                inputmode="numeric"
-                style="
-                  width: 44px;
-                  height: 48px;
-                  text-align: center;
-                  font-size: 20px;
-                  font-weight: 700;
-                  font-family: var(--font-mono);
-                  border-radius: 8px;
-                  border: 1px solid var(--border);
-                  background: var(--bg-surface);
-                  color: var(--text-main);
-                "
-              />
-              <input
-                id="od4"
-                class="otp-digit"
-                type="text"
-                maxlength="1"
-                inputmode="numeric"
-                style="
-                  width: 44px;
-                  height: 48px;
-                  text-align: center;
-                  font-size: 20px;
-                  font-weight: 700;
-                  font-family: var(--font-mono);
-                  border-radius: 8px;
-                  border: 1px solid var(--border);
-                  background: var(--bg-surface);
-                  color: var(--text-main);
-                "
-              />
-              <input
-                id="od5"
-                class="otp-digit"
-                type="text"
-                maxlength="1"
-                inputmode="numeric"
-                style="
-                  width: 44px;
-                  height: 48px;
-                  text-align: center;
-                  font-size: 20px;
-                  font-weight: 700;
-                  font-family: var(--font-mono);
-                  border-radius: 8px;
-                  border: 1px solid var(--border);
-                  background: var(--bg-surface);
-                  color: var(--text-main);
-                "
-              />
+          <div class="field" style="text-align: center;">
+            <label style="margin-bottom: 12px; display: block;">Enter 6-Digit OTP</label>
+            <div style="display: flex; justify-content: center; gap: 8px;">
+              <input id="od0" class="otp-digit" type="text" maxlength="1" inputmode="numeric" style="width: 44px; height: 48px; text-align: center; font-size: 20px; font-weight: 700; font-family: var(--font-mono); border-radius: 8px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-main);" />
+              <input id="od1" class="otp-digit" type="text" maxlength="1" inputmode="numeric" style="width: 44px; height: 48px; text-align: center; font-size: 20px; font-weight: 700; font-family: var(--font-mono); border-radius: 8px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-main);" />
+              <input id="od2" class="otp-digit" type="text" maxlength="1" inputmode="numeric" style="width: 44px; height: 48px; text-align: center; font-size: 20px; font-weight: 700; font-family: var(--font-mono); border-radius: 8px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-main);" />
+              <input id="od3" class="otp-digit" type="text" maxlength="1" inputmode="numeric" style="width: 44px; height: 48px; text-align: center; font-size: 20px; font-weight: 700; font-family: var(--font-mono); border-radius: 8px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-main);" />
+              <input id="od4" class="otp-digit" type="text" maxlength="1" inputmode="numeric" style="width: 44px; height: 48px; text-align: center; font-size: 20px; font-weight: 700; font-family: var(--font-mono); border-radius: 8px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-main);" />
+              <input id="od5" class="otp-digit" type="text" maxlength="1" inputmode="numeric" style="width: 44px; height: 48px; text-align: center; font-size: 20px; font-weight: 700; font-family: var(--font-mono); border-radius: 8px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-main);" />
             </div>
-            <div
-              id="otp-countdown"
-              style="
-                margin-top: 12px;
-                font-size: 12px;
-                color: var(--text-faint);
-                font-family: var(--font-mono);
-              "
-            ></div>
+            <div id="otp-countdown" style="margin-top: 12px; font-size: 12px; color: var(--text-faint); font-family: var(--font-mono);"></div>
           </div>
 
           <div class="modal-msg" id="otp-msg"></div>
 
-          <div class="btn-row" style="margin-top: 16px">
-            <button type="button" class="btn btn-ghost" onclick="goTo('screen-register-form')">Cancel</button>
-            <button type="button" class="btn btn-ghost" id="resend-btn" disabled>
-              Resend Code
-            </button>
-            <button type="button" class="btn btn-primary" disabled>
-              Verify &rarr;
-            </button>
+          <div class="btn-row" style="margin-top: 16px;">
+            <button type="button" class="btn btn-ghost" onclick="cancelOtp()">Cancel</button>
+            <button type="button" class="btn btn-ghost" id="resend-btn" onclick="resendOtp()">Resend Code</button>
+            <button type="button" class="btn btn-primary" onclick="verifyOtpCode()">Verify &rarr;</button>
           </div>
         </div>
       </div>
@@ -520,7 +379,7 @@
       <div class="screen" id="screen-register-scan">
         <div class="scan-wrap">
           <div class="card card-narrow" style="padding: 24px; text-align: center">
-            <div class="eyebrow">Step 3 of 3 · Biometric Enrollment</div>
+            <div class="eyebrow">Step 2 of 2 · Biometric Enrollment</div>
             <h2>Look Directly at Camera</h2>
             <p class="lead" style="margin-bottom: 16px">
               Position your face in the center of the scan ring. Single person in view.
@@ -579,6 +438,20 @@
               autocomplete="off"
             />
             <div id="aadhaar-login-status" style="margin-top: 8px"></div>
+          </div>
+
+          <!-- Quick Fill Demo Profiles -->
+          <div style="display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; align-items: center;">
+            <span style="font-size: 10.5px; color: var(--text-faint);">Demo Aadhaar:</span>
+            <button type="button" class="mini-btn" style="font-size: 10px; padding: 2px 7px;" onclick="document.getElementById('login-aadhaar-last4').value='4821'; verifyAadhaarLogin();">
+              4821 (Sidd)
+            </button>
+            <button type="button" class="mini-btn" style="font-size: 10px; padding: 2px 7px;" onclick="document.getElementById('login-aadhaar-last4').value='9999'; verifyAadhaarLogin();">
+              9999 (Admin)
+            </button>
+            <button type="button" class="mini-btn" style="font-size: 10px; padding: 2px 7px;" onclick="document.getElementById('login-aadhaar-last4').value='8888'; verifyAadhaarLogin();">
+              8888 (Merchant)
+            </button>
           </div>
 
           <div class="btn-row">
@@ -654,13 +527,7 @@
             <p class="lead">
               Biometric identity verified. Enter your 4-digit PIN to access accounts.
             </p>
-            <form
-              id="form-login-pin"
-              onsubmit="
-                event.preventDefault();
-                submitLoginPin();
-              "
-            >
+            <form id="form-login-pin" onsubmit="event.preventDefault(); submitLoginPin();">
               <div class="field">
                 <label>4-Digit Security PIN</label>
                 <input
@@ -674,10 +541,10 @@
               </div>
               <div class="modal-msg" id="login-pin-msg"></div>
               <div class="btn-row">
-                <button type="button" class="btn btn-ghost" onclick="goTo('screen-welcome')">
-                  Cancel
+                <button type="button" class="btn btn-ghost" onclick="goTo('screen-welcome')">Cancel</button>
+                <button type="submit" class="btn btn-primary">
+                  Authorize &amp; Enter
                 </button>
-                <button type="submit" class="btn btn-primary">Authorize &amp; Enter</button>
               </div>
             </form>
           </div>
@@ -692,13 +559,7 @@
           <p class="lead">
             Direct authorization for customers using standard security credentials.
           </p>
-          <form
-            id="form-pin-login"
-            onsubmit="
-              event.preventDefault();
-              attemptPinDirectLogin();
-            "
-          >
+          <form id="form-pin-login" onsubmit="event.preventDefault(); attemptPinDirectLogin();">
             <div class="field">
               <label>Last 4 Digits of Aadhaar</label>
               <input
@@ -721,12 +582,20 @@
                 autocomplete="current-password"
               />
             </div>
+            
+            <div style="display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; align-items: center;">
+              <span style="font-size: 10.5px; color: var(--text-faint);">Demo Fill:</span>
+              <button type="button" class="mini-btn" style="font-size: 10px; padding: 2px 7px;" onclick="document.getElementById('pin-login-aadhaar').value='4821'; document.getElementById('pin-login-pin').value='4821'; attemptPinDirectLogin();">
+                Sidd Paul (4821 / 4821)
+              </button>
+              <button type="button" class="mini-btn" style="font-size: 10px; padding: 2px 7px;" onclick="document.getElementById('pin-login-aadhaar').value='9999'; document.getElementById('pin-login-pin').value='9999'; attemptPinDirectLogin();">
+                Admin (9999 / 9999)
+              </button>
+            </div>
 
             <div class="modal-msg" id="pin-login-msg"></div>
             <div class="btn-row">
-              <button type="button" class="btn btn-ghost" onclick="goTo('screen-welcome')">
-                Back
-              </button>
+              <button type="button" class="btn btn-ghost" onclick="goTo('screen-welcome')">Back</button>
               <button type="submit" class="btn btn-primary">Sign In</button>
             </div>
           </form>
@@ -742,13 +611,7 @@
             Authorized trusted contacts can disburse approved withdrawals using the senior citizen's
             delegation OTP.
           </p>
-          <form
-            id="form-delegate-collect"
-            onsubmit="
-              event.preventDefault();
-              attemptDelegateWithdraw();
-            "
-          >
+          <form id="form-delegate-collect" onsubmit="event.preventDefault(); attemptDelegateWithdraw();">
             <div class="field">
               <label>Senior Citizen's Full Name</label>
               <input
@@ -772,10 +635,12 @@
             </div>
             <div class="modal-msg" id="delegate-collect-msg"></div>
             <div class="btn-row">
-              <button type="button" class="btn btn-ghost" onclick="goTo('screen-welcome')">
-                Back
-              </button>
-              <button type="submit" class="btn btn-primary" id="delegate-claim-btn">
+              <button type="button" class="btn btn-ghost" onclick="goTo('screen-welcome')">Back</button>
+              <button
+                type="submit"
+                class="btn btn-primary"
+                id="delegate-claim-btn"
+              >
                 Verify &amp; Disburse
               </button>
             </div>
@@ -822,13 +687,7 @@
           <aside class="app-sidebar" id="app-sidebar">
             <div class="sidebar-header">
               <a href="#" class="brand-wrapper" onclick="switchView('dashboard')">
-                <img
-                  src="assets/logo-icon.png"
-                  alt="iCash"
-                  class="brand-logo-img"
-                  width="36"
-                  height="36"
-                />
+                <div class="brand-icon">iC</div>
                 <div class="brand-text">
                   <span class="brand-title">iCash</span>
                   <span class="brand-subtitle">BIOMETRIC BANKING</span>
@@ -852,58 +711,15 @@
                   id="nav-item-dashboard"
                   onclick="switchView('dashboard')"
                 >
-                  <span class="nav-icon"
-                    ><svg
-                      class="nav-svg-icon"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <rect x="3" y="3" width="7" height="7" rx="1" />
-                      <rect x="14" y="3" width="7" height="7" rx="1" />
-                      <rect x="14" y="14" width="7" height="7" rx="1" />
-                      <rect x="3" y="14" width="7" height="7" rx="1" /></svg
-                  ></span>
+                  <span class="nav-icon">📊</span>
                   <span>Dashboard</span>
                 </button>
                 <button class="nav-item" id="nav-item-accounts" onclick="switchView('accounts')">
-                  <span class="nav-icon"
-                    ><svg
-                      class="nav-svg-icon"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <path d="M3 21h18" />
-                      <path d="M3 10h18" />
-                      <path d="M5 6l7-3 7 3" />
-                      <path d="M4 10v11" />
-                      <path d="M20 10v11" />
-                      <path d="M8 14v4" />
-                      <path d="M12 14v4" />
-                      <path d="M16 14v4" /></svg
-                  ></span>
+                  <span class="nav-icon">🏛️</span>
                   <span>Accounts</span>
                 </button>
                 <button class="nav-item" id="nav-item-transfers" onclick="switchView('transfers')">
-                  <span class="nav-icon"
-                    ><svg
-                      class="nav-svg-icon"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <path d="M7 17l9.2-9.2M17 17V7H7" /></svg
-                  ></span>
+                  <span class="nav-icon">↗</span>
                   <span>Transfer Money</span>
                 </button>
                 <button
@@ -911,53 +727,15 @@
                   id="nav-item-transactions"
                   onclick="switchView('transactions')"
                 >
-                  <span class="nav-icon"
-                    ><svg
-                      class="nav-svg-icon"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                      <polyline points="14 2 14 8 20 8" />
-                      <line x1="16" y1="13" x2="8" y2="13" />
-                      <line x1="16" y1="17" x2="8" y2="17" /></svg
-                  ></span>
+                  <span class="nav-icon">📝</span>
                   <span>Transactions</span>
                 </button>
                 <button class="nav-item" id="nav-item-payments" onclick="switchView('payments')">
-                  <span class="nav-icon"
-                    ><svg
-                      class="nav-svg-icon"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
-                      <line x1="1" y1="10" x2="23" y2="10" /></svg
-                  ></span>
+                  <span class="nav-icon">💳</span>
                   <span>Payments &amp; Bills</span>
                 </button>
                 <button class="nav-item" id="nav-item-security" onclick="switchView('security')">
-                  <span class="nav-icon"
-                    ><svg
-                      class="nav-svg-icon"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                      <polyline points="9 12 11 14 15 10" /></svg
-                  ></span>
+                  <span class="nav-icon">🛡️</span>
                   <span>Biometric Security</span>
                 </button>
               </div>
@@ -965,37 +743,11 @@
               <div class="nav-group-title">Support</div>
               <div class="nav-group">
                 <button class="nav-item" id="nav-item-support" onclick="switchView('support')">
-                  <span class="nav-icon"
-                    ><svg
-                      class="nav-svg-icon"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <path
-                        d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
-                      /></svg
-                  ></span>
+                  <span class="nav-icon">💬</span>
                   <span>Help &amp; Support</span>
                 </button>
                 <button class="nav-item" id="nav-item-complaints" onclick="openModal('complaint')">
-                  <span class="nav-icon"
-                    ><svg
-                      class="nav-svg-icon"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <polygon
-                        points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
-                      /></svg
-                  ></span>
+                  <span class="nav-icon">⚖️</span>
                   <span>File Grievance</span>
                 </button>
               </div>
@@ -1003,38 +755,11 @@
 
             <div class="sidebar-footer">
               <button class="nav-item" id="nav-item-profile" onclick="switchView('profile')">
-                <span class="nav-icon"
-                  ><svg
-                    class="nav-svg-icon"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <circle cx="12" cy="12" r="3" />
-                    <path
-                      d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
-                    /></svg
-                ></span>
+                <span class="nav-icon">⚙️</span>
                 <span>Settings &amp; Profile</span>
               </button>
               <button class="nav-item" onclick="logout()">
-                <span class="nav-icon"
-                  ><svg
-                    class="nav-svg-icon"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                    <polyline points="16 17 21 12 16 7" />
-                    <line x1="21" y1="12" x2="9" y2="12" /></svg
-                ></span>
+                <span class="nav-icon">🚪</span>
                 <span>Sign Out</span>
               </button>
             </div>
@@ -1059,22 +784,7 @@
                   onclick="openCommandPalette()"
                   title="Press Cmd+K to search"
                 >
-                  <span style="display: inline-flex; align-items: center; gap: 6px">
-                    <svg
-                      class="btn-svg-icon"
-                      style="width: 13px; height: 13px"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2.5"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <circle cx="11" cy="11" r="8" />
-                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                    </svg>
-                    Search iCash…
-                  </span>
+                  <span>🔍 Search iCash…</span>
                   <span class="kbd-shortcut">⌘K</span>
                 </button>
 
@@ -1095,19 +805,7 @@
                   onclick="openDrawer('notifications')"
                   title="Notifications"
                 >
-                  <svg
-                    class="btn-svg-icon"
-                    style="width: 16px; height: 16px"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                  </svg>
+                  <span>🔔</span>
                   <span class="unread-badge"></span>
                 </button>
 
@@ -1160,19 +858,7 @@
                           onclick="toggleBalanceVisibility()"
                           title="Hide/Show Balance"
                         >
-                          <svg
-                            class="btn-svg-icon"
-                            style="width: 15px; height: 15px"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                          >
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                            <circle cx="12" cy="12" r="3" />
-                          </svg>
+                          👁️
                         </button>
                       </div>
                       <div class="balance-number-wrap">
@@ -1183,25 +869,7 @@
 
                     <div class="balance-footer-meta">
                       <div class="balance-acc-badge">
-                        <svg
-                          class="btn-svg-icon"
-                          style="width: 14px; height: 14px; color: var(--primary)"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        >
-                          <path d="M3 21h18" />
-                          <path d="M3 10h18" />
-                          <path d="M5 6l7-3 7 3" />
-                          <path d="M4 10v11" />
-                          <path d="M20 10v11" />
-                          <path d="M8 14v4" />
-                          <path d="M12 14v4" />
-                          <path d="M16 14v4" />
-                        </svg>
+                        <span>🏛️</span>
                         <strong id="dash-primary-bank-label">iCash Federal Digital Bank</strong>
                         <span style="color: var(--text-faint)" id="dash-primary-acc-mask"
                           >•••• 6926</span
@@ -1222,19 +890,7 @@
                     <div class="insight-tile">
                       <div class="insight-tile-header">
                         <span class="insight-tile-label">Money In (Monthly)</span>
-                        <span class="insight-tile-icon"
-                          ><svg
-                            class="btn-svg-icon"
-                            style="width: 14px; height: 14px; color: var(--success)"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                          >
-                            <path d="M12 5v14M19 12l-7 7-7-7" /></svg
-                        ></span>
+                        <span class="insight-tile-icon">↓</span>
                       </div>
                       <div class="insight-tile-val" id="dash-money-in">₹12,500.00</div>
                       <div class="insight-tile-trend pos">+8.4% vs last mo</div>
@@ -1243,19 +899,7 @@
                     <div class="insight-tile">
                       <div class="insight-tile-header">
                         <span class="insight-tile-label">Money Out (Spend)</span>
-                        <span class="insight-tile-icon"
-                          ><svg
-                            class="btn-svg-icon"
-                            style="width: 14px; height: 14px; color: var(--alert)"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                          >
-                            <path d="M12 19V5M5 12l7-7 7 7" /></svg
-                        ></span>
+                        <span class="insight-tile-icon">↑</span>
                       </div>
                       <div class="insight-tile-val" id="dash-money-out">₹7,250.00</div>
                       <div class="insight-tile-trend neg">-3.2% vs budget</div>
@@ -1264,19 +908,7 @@
                     <div class="insight-tile">
                       <div class="insight-tile-header">
                         <span class="insight-tile-label">Available Liquidity</span>
-                        <span class="insight-tile-icon"
-                          ><svg
-                            class="btn-svg-icon"
-                            style="width: 14px; height: 14px; color: var(--primary)"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                          >
-                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg
-                        ></span>
+                        <span class="insight-tile-icon">✨</span>
                       </div>
                       <div class="insight-tile-val" id="dash-available-bal">₹25,000.00</div>
                       <div class="insight-tile-trend" style="color: var(--primary)">
@@ -1287,23 +919,7 @@
                     <div class="insight-tile">
                       <div class="insight-tile-header">
                         <span class="insight-tile-label">Linked Portfolios</span>
-                        <span class="insight-tile-icon"
-                          ><svg
-                            class="btn-svg-icon"
-                            style="width: 14px; height: 14px; color: var(--accent-indigo)"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                          >
-                            <path d="M3 21h18" />
-                            <path d="M3 10h18" />
-                            <path d="M5 6l7-3 7 3" />
-                            <path d="M4 10v11" />
-                            <path d="M20 10v11" /></svg
-                        ></span>
+                        <span class="insight-tile-icon">🏛️</span>
                       </div>
                       <div class="insight-tile-val" id="dash-linked-count">1 Account</div>
                       <div class="insight-tile-trend">UIDAI e-KYC Verified</div>
@@ -1326,102 +942,27 @@
                   </div>
                   <div class="action-buttons-row">
                     <button class="action-tile-btn primary-action" onclick="openModal('send')">
-                      <span class="tile-icon"
-                        ><svg
-                          class="btn-svg-icon"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        >
-                          <path d="M7 17l9.2-9.2M17 17V7H7" /></svg
-                      ></span>
+                      <span class="tile-icon">↗</span>
                       <span>Transfer</span>
                     </button>
-                    <button class="action-tile-btn" onclick="openDepositModal()">
-                      <span class="tile-icon"
-                        ><svg
-                          class="btn-svg-icon"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        >
-                          <path
-                            d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"
-                          /></svg
-                      ></span>
+                    <button class="action-tile-btn" onclick="addDemoFunds()">
+                      <span class="tile-icon">✨</span>
                       <span>Deposit</span>
                     </button>
                     <button class="action-tile-btn" onclick="openModal('withdraw')">
-                      <span class="tile-icon"
-                        ><svg
-                          class="btn-svg-icon"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        >
-                          <path d="M12 5v14M19 12l-7 7-7-7" /></svg
-                      ></span>
+                      <span class="tile-icon">↓</span>
                       <span>Withdraw</span>
                     </button>
                     <button class="action-tile-btn" onclick="switchView('payments')">
-                      <span class="tile-icon"
-                        ><svg
-                          class="btn-svg-icon"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        >
-                          <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
-                          <line x1="1" y1="10" x2="23" y2="10" /></svg
-                      ></span>
+                      <span class="tile-icon">💳</span>
                       <span>Pay Bills</span>
                     </button>
                     <button class="action-tile-btn" onclick="openModal('payment-request')">
-                      <span class="tile-icon"
-                        ><svg
-                          class="btn-svg-icon"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        >
-                          <rect x="3" y="3" width="7" height="7" />
-                          <rect x="14" y="3" width="7" height="7" />
-                          <rect x="14" y="14" width="7" height="7" />
-                          <rect x="3" y="14" width="7" height="7" /></svg
-                      ></span>
+                      <span class="tile-icon">📱</span>
                       <span>Scan &amp; Pay</span>
                     </button>
                     <button class="action-tile-btn" onclick="exportStatement()">
-                      <span class="tile-icon"
-                        ><svg
-                          class="btn-svg-icon"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        >
-                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                          <polyline points="14 2 14 8 20 8" />
-                          <line x1="16" y1="13" x2="8" y2="13" />
-                          <line x1="16" y1="17" x2="8" y2="17" /></svg
-                      ></span>
+                      <span class="tile-icon">📄</span>
                       <span>Statement</span>
                     </button>
                   </div>
@@ -1662,94 +1203,21 @@
                VIEW 3: TRANSFER MONEY WORKFLOW
                ============================================================ -->
               <div class="portal-view" id="view-transfers">
-                <div class="card" style="max-width: 620px; margin: 0 auto">
-                  <div class="eyebrow">Instant P2P &amp; Account Settlement</div>
+                <div class="card" style="max-width: 600px; margin: 0 auto">
+                  <div class="eyebrow">Instant Fund Settlement</div>
                   <h2>Transfer Funds</h2>
                   <p class="lead">
-                    Send money instantly to any 10-digit mobile number or linked bank account.
+                    Transfer money to verified beneficiaries with real-time biometric authorization.
                   </p>
 
-                  <div
-                    style="
-                      display: flex;
-                      gap: 8px;
-                      margin-bottom: 16px;
-                      background: var(--bg-inset);
-                      padding: 4px;
-                      border-radius: 10px;
-                      border: 1px solid var(--border);
-                    "
-                  >
-                    <button
-                      type="button"
-                      class="tab-btn active"
-                      id="tab-transfer-phone"
-                      style="flex: 1; padding: 8px 12px; font-size: 12.5px; border-radius: 7px"
-                      onclick="switchTransferMode('PHONE')"
-                    >
-                      📱 Mobile Phone Number
-                    </button>
-                    <button
-                      type="button"
-                      class="tab-btn"
-                      id="tab-transfer-acct"
-                      style="flex: 1; padding: 8px 12px; font-size: 12.5px; border-radius: 7px"
-                      onclick="switchTransferMode('ACCOUNT')"
-                    >
-                      🏦 Beneficiary / Account
-                    </button>
-                  </div>
-
-                  <form
-                    id="form-transfer"
-                    onsubmit="
-                      event.preventDefault();
-                      initiateTransferWorkflow();
-                    "
-                  >
+                  <form id="form-transfer" onsubmit="event.preventDefault(); initiateTransferWorkflow();">
                     <div class="field">
                       <label>Debiting Account</label>
                       <select id="transfer-source-select"></select>
                     </div>
 
-                    <div id="transfer-phone-group">
-                      <div class="field">
-                        <label>Recipient Mobile Phone Number</label>
-                        <div style="display: flex; gap: 8px">
-                          <span
-                            style="
-                              display: flex;
-                              align-items: center;
-                              padding: 0 12px;
-                              background: var(--bg-inset);
-                              border: 1px solid var(--border);
-                              border-radius: 8px;
-                              font-size: 13px;
-                              color: var(--text-muted);
-                              font-weight: 600;
-                            "
-                            >+91</span
-                          >
-                          <input
-                            id="transfer-dest-phone"
-                            type="tel"
-                            inputmode="numeric"
-                            maxlength="10"
-                            placeholder="Enter 10-digit mobile number"
-                            autocomplete="tel"
-                            oninput="handleTransferPhoneInput(this.value)"
-                            style="flex: 1"
-                          />
-                        </div>
-                        <div
-                          id="transfer-phone-lookup-badge"
-                          style="margin-top: 6px; font-size: 12px; min-height: 18px"
-                        ></div>
-                      </div>
-                    </div>
-
-                    <div class="field" id="transfer-name-group">
-                      <label>Beneficiary Full Name</label>
+                    <div class="field">
+                      <label>Beneficiary Name</label>
                       <input
                         id="transfer-dest-name"
                         type="text"
@@ -1800,19 +1268,23 @@
                     </div>
 
                     <div class="field">
-                      <label>Payment Purpose / Memo (Optional)</label>
+                      <label>Payment Purpose / Memo</label>
                       <input
                         id="transfer-memo"
                         type="text"
                         maxlength="150"
-                        placeholder="e.g. Rent, grocery, invoice payment"
+                        placeholder="e.g. Rent, invoice payment"
                         autocomplete="off"
                       />
                     </div>
 
                     <div class="modal-msg" id="transfer-msg"></div>
 
-                    <button type="submit" class="btn btn-indigo" style="margin-top: 10px">
+                    <button
+                      type="submit"
+                      class="btn btn-indigo"
+                      style="margin-top: 10px"
+                    >
                       Proceed to Biometric Authorization Gate &rarr;
                     </button>
                   </form>
@@ -1990,98 +1462,16 @@
                   <div>
                     <h2>Help, Grievances &amp; Dispute Resolution</h2>
                     <p style="color: var(--text-muted); font-size: 13px">
-                      Official banking dispute management and administrative resolution portal.
+                      Official banking support and dispute tickets.
                     </p>
                   </div>
-                  <div style="display: flex; gap: 8px">
-                    <button class="mini-btn" onclick="loadComplaintsList()">
-                      ↻ Refresh Tickets
-                    </button>
-                    <button
-                      class="btn btn-primary"
-                      style="width: auto"
-                      onclick="openModal('complaint')"
-                    >
-                      + File a Grievance
-                    </button>
-                  </div>
-                </div>
-
-                <!-- QUICK DISPUTE / GRIEVANCE SUBMISSION CARD -->
-                <div
-                  class="card"
-                  style="
-                    margin-bottom: 24px;
-                    background: var(--bg-card);
-                    border: 1px solid var(--border);
-                  "
-                >
-                  <div class="eyebrow">Direct Ticket Desk</div>
-                  <h3 style="margin-bottom: 6px">Submit a New Dispute or Grievance</h3>
-                  <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px">
-                    Report incorrect deductions, failed transfers, ATM cash delivery issues, or
-                    security discrepancies.
-                  </p>
-
-                  <form
-                    id="form-support-direct"
-                    onsubmit="
-                      event.preventDefault();
-                      submitInlineComplaint();
-                    "
+                  <button
+                    class="btn btn-primary"
+                    style="width: auto"
+                    onclick="openModal('complaint')"
                   >
-                    <div
-                      style="
-                        display: grid;
-                        grid-template-columns: 1fr 2fr;
-                        gap: 12px;
-                        margin-bottom: 12px;
-                      "
-                    >
-                      <div class="field" style="margin-bottom: 0">
-                        <label>Issue Category</label>
-                        <select id="support-inline-category">
-                          <option value="Transaction Discrepancy">Transaction Discrepancy</option>
-                          <option value="ATM Cash Issue">ATM Cash Issue</option>
-                          <option value="Mobile Transfer Failed">Mobile Transfer Failed</option>
-                          <option value="Unauthorized Debit">Unauthorized Debit</option>
-                          <option value="Biometric Failure">Biometric / Security Issue</option>
-                          <option value="General Grievance">General Banking Inquiry</option>
-                        </select>
-                      </div>
-                      <div class="field" style="margin-bottom: 0">
-                        <label>Grievance Subject</label>
-                        <input
-                          id="support-inline-subject"
-                          type="text"
-                          maxlength="150"
-                          placeholder="Brief summary of the issue (e.g. ₹2,000 debited but cash not disbursed)"
-                          autocomplete="off"
-                        />
-                      </div>
-                    </div>
-
-                    <div class="field">
-                      <label>Detailed Incident Summary</label>
-                      <textarea
-                        id="support-inline-desc"
-                        rows="3"
-                        maxlength="1000"
-                        placeholder="Provide details including date, approx time, beneficiary or transaction reference if applicable..."
-                      ></textarea>
-                    </div>
-
-                    <div class="modal-msg" id="support-inline-msg"></div>
-
-                    <button
-                      type="submit"
-                      class="btn btn-primary"
-                      id="support-inline-btn"
-                      style="width: auto; padding: 10px 24px"
-                    >
-                      Submit Grievance Ticket &rarr;
-                    </button>
-                  </form>
+                    File a Grievance
+                  </button>
                 </div>
 
                 <div class="table-panel">
@@ -2164,13 +1554,7 @@
                     This will permanently delete your account and all associated data. This action
                     is irreversible. To confirm, enter your 4-digit security PIN below.
                   </p>
-                  <form
-                    id="form-delete-account"
-                    onsubmit="
-                      event.preventDefault();
-                      confirmDeleteAccount();
-                    "
-                  >
+                  <form id="form-delete-account" onsubmit="event.preventDefault(); confirmDeleteAccount();">
                     <div class="field">
                       <label>Confirm 4-digit PIN</label>
                       <input
@@ -2183,17 +1567,15 @@
                       />
                     </div>
                     <div class="modal-msg" id="delete-account-msg"></div>
-                    <div
-                      style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px"
-                    >
-                      <button
-                        type="button"
-                        class="btn btn-ghost"
-                        onclick="closeModal('delete-account')"
-                      >
+                    <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px">
+                      <button type="button" class="btn btn-ghost" onclick="closeModal('delete-account')">
                         Cancel
                       </button>
-                      <button type="submit" class="btn btn-danger" id="delete-account-btn">
+                      <button
+                        type="submit"
+                        class="btn btn-danger"
+                        id="delete-account-btn"
+                      >
                         Delete Permanently
                       </button>
                     </div>
@@ -2420,16 +1802,6 @@
           <div
             class="command-item"
             onclick="
-              openDepositModal();
-              closeCommandPalette();
-            "
-          >
-            <div class="cmd-left"><span>✨</span><span>Deposit Funds</span></div>
-            <span class="kbd-shortcut">Action</span>
-          </div>
-          <div
-            class="command-item"
-            onclick="
               switchView('transactions');
               closeCommandPalette();
             "
@@ -2465,57 +1837,6 @@
      FINANCIAL ACTION MODALS & BIOMETRIC GATE
      ============================================================ -->
 
-    <!-- DEPOSIT MODAL -->
-    <div class="modal-backdrop" id="modal-deposit">
-      <div class="modal">
-        <button class="close-x" onclick="closeModal('deposit')">&#10005;</button>
-        <div class="eyebrow">Cash Credit</div>
-        <h2>Deposit Funds</h2>
-        <p class="lead">Select or enter the amount to deposit into your primary digital account.</p>
-        <form
-          id="form-deposit"
-          onsubmit="
-            event.preventDefault();
-            confirmDeposit();
-          "
-        >
-          <div class="chip-row">
-            <div class="chip" onclick="setAmt('deposit', 500)">₹500</div>
-            <div class="chip" onclick="setAmt('deposit', 1000)">₹1,000</div>
-            <div class="chip" onclick="setAmt('deposit', 2000)">₹2,000</div>
-            <div class="chip" onclick="setAmt('deposit', 5000)">₹5,000</div>
-            <div class="chip" onclick="setAmt('deposit', 10000)">₹10,000</div>
-          </div>
-          <div class="field">
-            <label>Amount (₹)</label>
-            <input
-              id="deposit-amt"
-              type="number"
-              inputmode="numeric"
-              maxlength="10"
-              min="1"
-              max="1000000"
-              placeholder="0"
-            />
-          </div>
-          <div class="field">
-            <label>Description (optional)</label>
-            <input
-              id="deposit-desc"
-              type="text"
-              maxlength="120"
-              placeholder="e.g. Cash deposit, Bank transfer in"
-              autocomplete="off"
-            />
-          </div>
-          <div class="modal-msg" id="deposit-msg"></div>
-          <button type="submit" class="btn btn-primary" style="margin-top: 10px">
-            Proceed to Biometric Authorization
-          </button>
-        </form>
-      </div>
-    </div>
-
     <!-- WITHDRAW MODAL -->
     <div class="modal-backdrop" id="modal-withdraw">
       <div class="modal">
@@ -2525,13 +1846,7 @@
         <p class="lead">
           Select or enter the amount to withdraw from your primary digital account.
         </p>
-        <form
-          id="form-withdraw"
-          onsubmit="
-            event.preventDefault();
-            confirmWithdraw();
-          "
-        >
+        <form id="form-withdraw" onsubmit="event.preventDefault(); confirmWithdraw();">
           <div class="chip-row">
             <div class="chip" onclick="setAmt('withdraw', 500)">₹500</div>
             <div class="chip" onclick="setAmt('withdraw', 1000)">₹1,000</div>
@@ -2565,84 +1880,10 @@
         <div class="eyebrow">Instant Transfer</div>
         <h2>Transfer Funds</h2>
         <p class="lead">
-          Send funds instantly to any registered mobile number or external beneficiary.
+          Send funds securely to another verified account holder or external beneficiary.
         </p>
-
-        <div
-          style="
-            display: flex;
-            gap: 8px;
-            margin-bottom: 14px;
-            background: var(--bg-inset);
-            padding: 4px;
-            border-radius: 10px;
-            border: 1px solid var(--border);
-          "
-        >
-          <button
-            type="button"
-            class="tab-btn active"
-            id="tab-send-phone"
-            style="flex: 1; padding: 7px 10px; font-size: 12px; border-radius: 7px"
-            onclick="switchModalSendMode('PHONE')"
-          >
-            📱 Mobile Number
-          </button>
-          <button
-            type="button"
-            class="tab-btn"
-            id="tab-send-acct"
-            style="flex: 1; padding: 7px 10px; font-size: 12px; border-radius: 7px"
-            onclick="switchModalSendMode('ACCOUNT')"
-          >
-            🏦 Beneficiary
-          </button>
-        </div>
-
-        <form
-          id="form-send"
-          onsubmit="
-            event.preventDefault();
-            confirmSend();
-          "
-        >
-          <div id="send-phone-group">
-            <div class="field">
-              <label>Recipient Mobile Phone Number</label>
-              <div style="display: flex; gap: 8px">
-                <span
-                  style="
-                    display: flex;
-                    align-items: center;
-                    padding: 0 10px;
-                    background: var(--bg-inset);
-                    border: 1px solid var(--border);
-                    border-radius: 8px;
-                    font-size: 12px;
-                    color: var(--text-muted);
-                    font-weight: 600;
-                  "
-                  >+91</span
-                >
-                <input
-                  id="send-phone"
-                  type="tel"
-                  inputmode="numeric"
-                  maxlength="10"
-                  placeholder="Enter 10-digit phone number"
-                  autocomplete="tel"
-                  oninput="handleSendPhoneInput(this.value)"
-                  style="flex: 1"
-                />
-              </div>
-              <div
-                id="send-phone-lookup-badge"
-                style="margin-top: 5px; font-size: 11.5px; min-height: 16px"
-              ></div>
-            </div>
-          </div>
-
-          <div class="field" id="send-name-group">
+        <form id="form-send" onsubmit="event.preventDefault(); confirmSend();">
+          <div class="field">
             <label>Beneficiary Full Name</label>
             <input
               id="send-external-name"
@@ -2672,7 +1913,7 @@
           </div>
           <div class="modal-msg" id="send-msg"></div>
           <button type="submit" class="btn btn-indigo" style="margin-top: 10px">
-            Proceed to Authorization Gate &rarr;
+            Proceed to Authorization
           </button>
         </form>
       </div>
@@ -2729,13 +1970,7 @@
             Use 4-digit security PIN instead
           </button>
           <div id="verify-pin-block" style="display: none; width: 100%">
-            <form
-              id="form-verify-pin"
-              onsubmit="
-                event.preventDefault();
-                submitVerifyPin();
-              "
-            >
+            <form id="form-verify-pin" onsubmit="event.preventDefault(); submitVerifyPin();">
               <div class="field" style="margin-bottom: 8px">
                 <input
                   id="verify-pin-input"
@@ -2763,13 +1998,7 @@
         <p class="lead">
           Link an external savings, current, or digital card to your iCash profile.
         </p>
-        <form
-          id="form-add-account"
-          onsubmit="
-            event.preventDefault();
-            submitAddAccount();
-          "
-        >
+        <form id="form-add-account" onsubmit="event.preventDefault(); submitAddAccount();">
           <div class="field">
             <label>Bank Name / Financial Institution</label>
             <input
@@ -2811,25 +2040,8 @@
         <button class="close-x" onclick="closeModal('complaint')">&#10005;</button>
         <div class="eyebrow">Customer Protection</div>
         <h2>File a Grievance or Dispute</h2>
-        <p class="lead">Submit an official dispute ticket for priority administrative review.</p>
-        <form
-          id="form-complaint"
-          onsubmit="
-            event.preventDefault();
-            submitComplaint();
-          "
-        >
-          <div class="field">
-            <label>Category</label>
-            <select id="complaint-category">
-              <option value="Transaction Discrepancy">Transaction Discrepancy</option>
-              <option value="ATM Cash Issue">ATM Cash Issue</option>
-              <option value="Mobile Transfer Failed">Mobile Transfer Issue</option>
-              <option value="Unauthorized Debit">Unauthorized Debit</option>
-              <option value="Security Anomaly">Security / Biometric Anomaly</option>
-              <option value="General Support">General Support</option>
-            </select>
-          </div>
+        <p class="lead">Submit an official complaint ticket for administrative review.</p>
+        <form id="form-complaint" onsubmit="event.preventDefault(); submitComplaint();">
           <div class="field">
             <label>Subject</label>
             <input
@@ -2846,13 +2058,11 @@
               id="complaint-desc"
               rows="3"
               maxlength="1000"
-              placeholder="Describe the discrepancy with transaction IDs or date..."
+              placeholder="Describe the discrepancy in detail..."
             ></textarea>
           </div>
           <div class="modal-msg" id="complaint-msg"></div>
-          <button type="submit" class="btn btn-primary" id="complaint-submit-btn">
-            Submit Grievance Ticket
-          </button>
+          <button type="submit" class="btn btn-primary">Submit Grievance Ticket</button>
         </form>
       </div>
     </div>
@@ -2864,13 +2074,7 @@
         <div class="eyebrow">Point of Sale</div>
         <h2>Create Payment Request</h2>
         <p class="lead">Generate a dynamic checkout reference for customer billing.</p>
-        <form
-          id="form-payreq"
-          onsubmit="
-            event.preventDefault();
-            submitPaymentRequest();
-          "
-        >
+        <form id="form-payreq" onsubmit="event.preventDefault(); submitPaymentRequest();">
           <div class="field">
             <label>Billing Amount (₹)</label>
             <input
@@ -2900,26 +2104,18 @@
 
     <!-- EMERGENCY & AUTHORIZED REPRESENTATIVE CASH WITHDRAWAL MODAL -->
     <div class="modal-backdrop" id="modal-emergency-withdrawal">
-      <div class="modal" style="max-width: 520px">
+      <div class="modal" style="max-width: 520px;">
         <button class="close-x" onclick="closeEmergencyWithdrawalModal()">&#10005;</button>
 
         <!-- STEP 1: IDENTITY & WITHDRAWAL DETAILS -->
         <div id="emg-step-1">
-          <div class="eyebrow" style="color: #ef4444">🚨 Emergency Authorized Cash Withdrawal</div>
+          <div class="eyebrow" style="color: #ef4444;">🚨 Emergency Authorized Cash Withdrawal</div>
           <h2>Authorized Representative Withdrawal</h2>
           <p class="lead">
-            Withdraw cash on behalf of an account holder during emergencies. The system will verify
-            authorization and dispatch a real-time <strong>5-minute OTP</strong> to the account
-            holder's registered mobile.
+            Withdraw cash on behalf of an account holder during emergencies. The system will verify authorization and dispatch a real-time <strong>5-minute OTP</strong> to the account holder's registered mobile.
           </p>
 
-          <form
-            id="form-emergency-request"
-            onsubmit="
-              event.preventDefault();
-              submitEmergencyWithdrawalRequest();
-            "
-          >
+          <form id="form-emergency-request" onsubmit="event.preventDefault(); submitEmergencyWithdrawalRequest();">
             <div class="field">
               <label>Account Holder Identifier *</label>
               <input
@@ -2931,7 +2127,7 @@
               />
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
               <div class="field">
                 <label>Your Full Name (Representative) *</label>
                 <input
@@ -2955,7 +2151,7 @@
               </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
               <div class="field">
                 <label>Your Gov ID Type</label>
                 <select id="emg-auth-idtype">
@@ -2989,19 +2185,11 @@
                 min="100"
                 max="1000000"
               />
-              <div class="chip-row" style="margin-top: 6px">
-                <div class="chip" onclick="document.getElementById('emg-amount').value = 1000">
-                  ₹1,000
-                </div>
-                <div class="chip" onclick="document.getElementById('emg-amount').value = 2000">
-                  ₹2,000
-                </div>
-                <div class="chip" onclick="document.getElementById('emg-amount').value = 5000">
-                  ₹5,000
-                </div>
-                <div class="chip" onclick="document.getElementById('emg-amount').value = 10000">
-                  ₹10,000
-                </div>
+              <div class="chip-row" style="margin-top: 6px;">
+                <div class="chip" onclick="document.getElementById('emg-amount').value = 1000">₹1,000</div>
+                <div class="chip" onclick="document.getElementById('emg-amount').value = 2000">₹2,000</div>
+                <div class="chip" onclick="document.getElementById('emg-amount').value = 5000">₹5,000</div>
+                <div class="chip" onclick="document.getElementById('emg-amount').value = 10000">₹10,000</div>
               </div>
             </div>
 
@@ -3018,10 +2206,8 @@
 
             <div class="modal-msg" id="emg-msg-1"></div>
 
-            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px">
-              <button type="button" class="btn btn-ghost" onclick="closeEmergencyWithdrawalModal()">
-                Cancel
-              </button>
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px;">
+              <button type="button" class="btn btn-ghost" onclick="closeEmergencyWithdrawalModal()">Cancel</button>
               <button type="submit" class="btn btn-danger" id="emg-submit-req-btn">
                 Verify &amp; Dispatch 5-Min OTP &rarr;
               </button>
@@ -3030,14 +2216,12 @@
         </div>
 
         <!-- STEP 2: LIVE 5-MINUTE OTP VERIFICATION -->
-        <div id="emg-step-2" style="display: none; text-align: center">
-          <div class="eyebrow" style="color: #ef4444">⏱ 5-Minute Live Authorization Window</div>
+        <div id="emg-step-2" style="display: none; text-align: center;">
+          <div class="eyebrow" style="color: #ef4444;">⏱ 5-Minute Live Authorization Window</div>
           <h2>Account Holder Approval</h2>
-          <p class="lead" style="font-size: 13px">
+          <p class="lead" style="font-size: 13px;">
             A 6-digit One-Time Password was dispatched to the account holder's registered mobile:
-            <br /><strong id="emg-holder-phone-badge" style="color: var(--primary); font-size: 15px"
-              >+91 ••••••0000</strong
-            >
+            <br /><strong id="emg-holder-phone-badge" style="color: var(--primary); font-size: 15px;">+91 ••••••0000</strong>
           </p>
 
           <!-- Animated Circular Countdown Timer -->
@@ -3045,13 +2229,7 @@
             <div class="emg-timer-circle">
               <svg class="emg-timer-svg" viewBox="0 0 100 100">
                 <circle class="emg-timer-bg" cx="50" cy="50" r="44"></circle>
-                <circle
-                  id="emg-timer-progress"
-                  class="emg-timer-bar"
-                  cx="50"
-                  cy="50"
-                  r="44"
-                ></circle>
+                <circle id="emg-timer-progress" class="emg-timer-bar" cx="50" cy="50" r="44"></circle>
               </svg>
               <div class="emg-timer-text">
                 <span id="emg-timer-digits">05:00</span>
@@ -3060,24 +2238,16 @@
             </div>
           </div>
 
-          <div id="emg-dev-otp-banner" class="dev-otp-pill" style="display: none"></div>
+          <div id="emg-dev-otp-banner" class="dev-otp-pill" style="display: none;"></div>
 
-          <p style="font-size: 11.5px; color: var(--text-muted); margin: 12px 0 16px">
+          <p style="font-size: 11.5px; color: var(--text-muted); margin: 12px 0 16px;">
             The account holder must receive the OTP on their mobile and provide it to you.
-            <br /><strong
-              >Without correct OTP verification within 5 minutes, money cannot be released.</strong
-            >
+            <br /><strong>Without correct OTP verification within 5 minutes, money cannot be released.</strong>
           </p>
 
-          <form
-            id="form-emergency-verify"
-            onsubmit="
-              event.preventDefault();
-              submitEmergencyWithdrawalOtp();
-            "
-          >
-            <div class="field" style="max-width: 260px; margin: 0 auto 12px">
-              <label style="text-align: center">Enter 6-Digit OTP</label>
+          <form id="form-emergency-verify" onsubmit="event.preventDefault(); submitEmergencyWithdrawalOtp();">
+            <div class="field" style="max-width: 260px; margin: 0 auto 12px;">
+              <label style="text-align: center;">Enter 6-Digit OTP</label>
               <input
                 id="emg-otp-input"
                 class="otp-large-input"
@@ -3091,10 +2261,8 @@
 
             <div class="modal-msg" id="emg-msg-2"></div>
 
-            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 16px">
-              <button type="button" class="btn btn-ghost" onclick="resetEmergencyStep1()">
-                Back / Edit Details
-              </button>
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 16px;">
+              <button type="button" class="btn btn-ghost" onclick="resetEmergencyStep1()">Back / Edit Details</button>
               <button type="submit" class="btn btn-primary" id="emg-verify-otp-btn">
                 Verify OTP &amp; Authorize Cash Release
               </button>
@@ -3103,27 +2271,14 @@
         </div>
 
         <!-- STEP 3: OFFICIAL CASH RELEASE VOUCHER -->
-        <div id="emg-step-3" style="display: none">
-          <div style="text-align: center; margin-bottom: 16px">
-            <div
-              style="
-                width: 54px;
-                height: 54px;
-                border-radius: 50%;
-                background: rgba(34, 197, 94, 0.12);
-                color: #22c55e;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 26px;
-                margin-bottom: 8px;
-              "
-            >
+        <div id="emg-step-3" style="display: none;">
+          <div style="text-align: center; margin-bottom: 16px;">
+            <div style="width: 54px; height: 54px; border-radius: 50%; background: rgba(34, 197, 94, 0.12); color: #22c55e; display: inline-flex; align-items: center; justify-content: center; font-size: 26px; margin-bottom: 8px;">
               ✓
             </div>
-            <div class="eyebrow" style="color: var(--success)">Authorization Complete</div>
+            <div class="eyebrow" style="color: var(--success);">Authorization Complete</div>
             <h2>Cash Disbursement Voucher</h2>
-            <p style="font-size: 12.5px; color: var(--text-muted)">
+            <p style="font-size: 12.5px; color: var(--text-muted);">
               Funds have been atomically debited and authorized for cash disbursement.
             </p>
           </div>
@@ -3160,12 +2315,12 @@
               </div>
               <div>
                 <span class="voucher-label">Authorization Protocol</span>
-                <strong style="color: var(--primary)">5-Min SMS OTP Verified ✓</strong>
+                <strong style="color: var(--primary);">5-Min SMS OTP Verified ✓</strong>
               </div>
             </div>
           </div>
 
-          <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px">
+          <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px;">
             <button class="btn btn-ghost" onclick="window.print()">🖨️ Print Voucher</button>
             <button class="btn btn-primary" onclick="closeEmergencyWithdrawalModal()">Done</button>
           </div>
@@ -3187,11 +2342,8 @@
       integrity="sha384-M5nePoB6/w/a9JhtegEibSLGiJy/+QMZZMfvcxjWVCQW/HPwrQ7i21V/Px/8AyVA"
       crossorigin="anonymous"
     ></script>
-    <!-- MediaPipe FaceMesh (478-keypoint blink detection) -->
-    <script
-      src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js"
-      crossorigin="anonymous"
-    ></script>
+    <!-- Ankur Kedia blink-detection engine (bundled MediaPipe Facemesh + TF.js) -->
+    <script src="lib/blink-detection.js"></script>
     <script
       src="https://cdn.jsdelivr.net/npm/appwrite@17.0.0/dist/iife/sdk.min.js"
       crossorigin="anonymous"

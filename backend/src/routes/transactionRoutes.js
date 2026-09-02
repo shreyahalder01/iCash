@@ -3,7 +3,7 @@ const router = express.Router();
 const TransactionController = require('../controllers/transactionController');
 const { authenticate } = require('../middleware/authMiddleware');
 const { validateRequest } = require('../middleware/validateMiddleware');
-const { transactionLimiter, emergencyLimiter } = require('../middleware/rateLimitMiddleware');
+const { transactionLimiter } = require('../middleware/rateLimitMiddleware');
 const {
   transactionCreateSchema,
   delegateGenerateSchema,
@@ -18,7 +18,6 @@ const {
 // 1. Authorized person requests emergency withdrawal -> dispatches 5-min OTP to account holder's registered mobile
 router.post(
   '/emergency-withdrawal/request',
-  emergencyLimiter,
   validateRequest(emergencyWithdrawalRequestSchema),
   TransactionController.requestEmergencyWithdrawal
 );
@@ -26,7 +25,6 @@ router.post(
 // 2. Authorized person enters 6-digit OTP received by account holder to release cash
 router.post(
   '/emergency-withdrawal/verify',
-  emergencyLimiter,
   validateRequest(emergencyWithdrawalVerifySchema),
   TransactionController.verifyEmergencyWithdrawal
 );
@@ -34,7 +32,6 @@ router.post(
 // Legacy aliases for backward compatibility
 router.post(
   '/delegate/claim',
-  emergencyLimiter,
   validateRequest(delegateClaimSchema),
   TransactionController.claimDelegateWithdrawal
 );
@@ -42,8 +39,6 @@ router.post(
 // ── Protected User Routes ───────────────────────────────────────────────────
 router.use(authenticate);
 
-router.get('/lookup-recipient', TransactionController.lookupRecipient);
-router.post('/lookup-recipient', TransactionController.lookupRecipient);
 router.get('/', TransactionController.getTransactions);
 router.get('/:id', TransactionController.getTransactionById);
 router.post(
