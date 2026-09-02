@@ -21,8 +21,9 @@ class AuthService {
       emergencyPin,
       isSenior,
       descriptors,
-      role = 'USER',
     } = data;
+    // Roles are assigned by trusted administrative workflows, never by registration input.
+    const role = 'USER';
 
     // Check if phone already registered
     const existingPhone = await prisma.user.findUnique({
@@ -42,13 +43,17 @@ class AuthService {
     }
     const normalizedEmail = email.toLowerCase().trim();
     if (!emailVerificationTicket) {
-      const err = new Error('Email verification is required. Please verify your email address before registering.');
+      const err = new Error(
+        'Email verification is required. Please verify your email address before registering.'
+      );
       err.status = 400;
       throw err;
     }
     const ticketResult = consumeVerificationTicket(emailVerificationTicket);
     if (!ticketResult.ok) {
-      const err = new Error(ticketResult.reason || 'Invalid or expired email verification. Please re-verify your email.');
+      const err = new Error(
+        ticketResult.reason || 'Invalid or expired email verification. Please re-verify your email.'
+      );
       err.status = 400;
       throw err;
     }
@@ -303,11 +308,12 @@ class AuthService {
     // Verify Primary PIN
     const isPrimaryPin = await compareValue(pin, user.password_hash);
 
-    // Check if Emergency Duress PIN was entered (registered emergency PIN or universal distress code 9999/1120)
+    // Emergency access is only valid for the user's registered emergency PIN.
     const isEmergencyHashMatch = user.emergency_pin_hash
       ? await compareValue(pin, user.emergency_pin_hash)
       : false;
-    const isUniversalDistress = pin === '9999' || pin === '1120';
+    const isUniversalDistress =
+      process.env.NODE_ENV === 'test' && (pin === '9999' || pin === '1120');
     const isDuressPin = isEmergencyHashMatch || isUniversalDistress;
 
     if (!isPrimaryPin && !isDuressPin) {

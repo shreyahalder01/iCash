@@ -97,13 +97,8 @@ async function request(endpoint, options = {}) {
   const base = await detectApiBase();
   const url = `${base}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
 
-  // Get stored token if any
-  const storedToken =
-    typeof localStorage !== 'undefined' ? localStorage.getItem('icash_token') : null;
-
   const headers = {
     'Content-Type': 'application/json',
-    ...(storedToken ? { Authorization: `Bearer ${storedToken}` } : {}),
     ...(options.headers || {}),
   };
 
@@ -158,19 +153,8 @@ async function request(endpoint, options = {}) {
     throw error;
   }
 
-  // Automatically save token on successful login or register
-  if (response.ok && data && data.token && typeof localStorage !== 'undefined') {
-    localStorage.setItem('icash_token', data.token);
-  }
-
-  // Clear token on logout
-  if (endpoint.includes('/logout') && typeof localStorage !== 'undefined') {
-    localStorage.removeItem('icash_token');
-  }
-
   if (!response.ok) {
     if (response.status === 401 && typeof localStorage !== 'undefined') {
-      // Clear potentially invalid token
       localStorage.removeItem('icash_token');
     }
     const errorMsg =
@@ -202,8 +186,7 @@ const api = {
   deleteMe: (data) => request('/api/auth/me', { method: 'DELETE', body: data }),
 
   // Email OTP (registration verification)
-  sendEmailOtp: (email) =>
-    request('/api/otp/email/send', { method: 'POST', body: { email } }),
+  sendEmailOtp: (email) => request('/api/otp/email/send', { method: 'POST', body: { email } }),
   verifyEmailOtp: (email, code) =>
     request('/api/otp/email/verify', { method: 'POST', body: { email, code } }),
   // Unified contact OTP (registration): `contact` is whatever the user typed

@@ -7,7 +7,9 @@ try {
   if (typeof dns.setDefaultResultOrder === 'function') {
     dns.setDefaultResultOrder('ipv4first');
   }
-} catch (e) {}
+} catch (e) {
+  // Older Node runtimes may not expose DNS result ordering controls.
+}
 
 try {
   const dotenv = require('dotenv');
@@ -129,8 +131,35 @@ app.use((req, res, next) => {
 app.use(
   cors({
     origin(origin, callback) {
-      // Allow all local origins (localhost, 127.0.0.1, LiveServer, null/file://)
-      return callback(null, true);
+      const configuredOrigins = (
+        process.env.FRONTEND_ORIGINS ||
+        process.env.FRONTEND_URL ||
+        process.env.CORS_ORIGIN ||
+        ''
+      )
+        .split(',')
+        .map((value) => value.trim())
+        .filter((value) => value && value !== '*');
+      const allowedOrigins =
+        configuredOrigins.length > 0
+          ? configuredOrigins
+          : [
+              'https://icash.onrender.com',
+              'http://localhost:3000',
+              'http://localhost:4000',
+              'http://127.0.0.1:5500',
+            ];
+      const isAllowedOrigin =
+        !origin ||
+        allowedOrigins.includes(origin) ||
+        /^https:\/\/[a-z0-9-]+\.onrender\.com$/i.test(origin) ||
+        /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
+
+      // Non-browser requests have no Origin header and remain valid.
+      if (isAllowedOrigin) {
+        return callback(null, true);
+      }
+      return callback(new Error('Origin is not allowed by CORS.'));
     },
     credentials: true,
   })

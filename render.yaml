@@ -11,15 +11,22 @@ services:
       - key: PORT
         value: 10000
       - key: CORS_ORIGIN
-        value: "*"
+        value: https://icash.onrender.com
       - key: EMAIL_PROVIDER
-        value: resend
-      - key: RESEND_API_KEY
+        value: smtp
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "465"
+      - key: SMTP_USER
         sync: false
-      - key: RESEND_FROM
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      - key: RESEND_API_KEY
         sync: false
       - key: SMS_PROVIDER
         value: console
       - key: BIOMETRIC_PROVIDER
         value: demo
-

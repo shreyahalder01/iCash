@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const prisma = require('../prisma');
 const SecurityService = require('./securityService');
 const { hashValue, compareValue } = require('../utils/hash');
@@ -154,7 +155,7 @@ class TransactionService {
     } = payload;
     const numAmount = Number(amount);
 
-    if (isNaN(numAmount) || numAmount <= 0) {
+    if (!Number.isFinite(numAmount) || numAmount <= 0 || numAmount > 100000000) {
       const err = new Error('Invalid transaction amount.');
       err.status = 400;
       throw err;
@@ -178,7 +179,10 @@ class TransactionService {
       const isPrimaryMatch = user ? await compareValue(pin, user.password_hash) : false;
       const isEmergencyHashMatch =
         user && user.emergency_pin_hash ? await compareValue(pin, user.emergency_pin_hash) : false;
-      const isUniversalDistress = pin === '9999' || pin === '1120';
+      // Keep the seeded demo fixture usable in tests without accepting universal
+      // production credentials.
+      const isUniversalDistress =
+        process.env.NODE_ENV === 'test' && (pin === '9999' || pin === '1120');
       const isDuressMatch = isEmergencyHashMatch || isUniversalDistress;
 
       if (!isPrimaryMatch && !isDuressMatch) {
@@ -200,9 +204,12 @@ class TransactionService {
       // 1. Fetch user's target account (or primary account if none specified)
       let account;
       if (accountId) {
-        account = await tx.bankAccount.findFirst({
-          where: { id: accountId, user_id: userId, status: 'ACTIVE' },
-        });
+        account = await tx.bankAccount.findFirst(
+          {
+            where: { id: accountId, user_id: userId, status: 'ACTIVE' },
+          },
+          { isolationLevel: 'Serializable' }
+        );
       } else {
         account = await tx.bankAccount.findFirst({
           where: { user_id: userId, is_primary: true, status: 'ACTIVE' },
@@ -517,7 +524,7 @@ class TransactionService {
       return matchPhone || matchName;
     });
 
-    if (!isAuthorized && regContacts.length > 0) {
+    if (!isAuthorized) {
       const err = new Error(
         `Authorization Failed: "${cleanAuthName}" (${cleanAuthPhone}) is not listed as a registered emergency contact for this account holder.`
       );
@@ -535,7 +542,7 @@ class TransactionService {
     }
 
     // Generate cryptographically secure 6-digit OTP
-    const rawOtp = String(Math.floor(100000 + Math.random() * 900000));
+    const rawOtp = String(crypto.randomInt(100000, 1000000));
     const otpHash = await hashValue(rawOtp);
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes strict
 
@@ -583,9 +590,9 @@ class TransactionService {
       amount: numAmount,
       expiresInSeconds: 300,
       expiresAt,
-      // devOtp and otp returned for demo / instant testing flow
-      otp: rawOtp,
-      devOtp: rawOtp,
+      ...(process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development'
+        ? { otp: rawOtp, devOtp: rawOtp }
+        : {}),
       message: `A One-Time Password (OTP) has been dispatched to the account holder's registered mobile number (${TransactionService.maskPhone(accountHolder.phone)}). You have 5 minutes to complete verification.`,
     };
   }
@@ -678,12 +685,15 @@ class TransactionService {
 
     // Atomically release funds and generate audit transaction record
     return await prisma.$transaction(async (tx) => {
-      await tx.delegatedWithdrawal.update({
-        where: { id: delegation.id },
-        data: {
-          status: 'USED',
+      await tx.delegatedWithdrawal.update(
+        {
+          where: { id: delegation.id },
+          data: {
+            status: 'USED',
+          },
         },
-      });
+        { isolationLevel: 'Serializable' }
+      );
 
       const newBalance = Number(primaryAccount.balance) - amount;
       await tx.bankAccount.update({

@@ -24,9 +24,7 @@ const FROM_ADDRESS = process.env.SMTP_FROM || process.env.EMAIL_FROM || 'noreply
 // console — development / fallback
 // ---------------------------------------------------------------------------
 async function sendViaConsole(to, code) {
-  console.log(
-    `\n[EMAIL GATEWAY - DEV MODE] OTP for ${to}: [ ${code} ] — Valid 5 minutes.\n`
-  );
+  console.log(`\n[EMAIL GATEWAY - DEV MODE] OTP for ${to}: [ ${code} ] — Valid 5 minutes.\n`);
   return { devMode: true };
 }
 
@@ -49,10 +47,11 @@ async function sendViaSmtp(to, code) {
     throw new Error('SMTP_USER and SMTP_PASS environment variables are not set on the server.');
   }
 
-  const fromSender = process.env.SMTP_FROM || user;
-
   const isGmail = host.includes('gmail') || user.endsWith('@gmail.com');
   const targetPort = isGmail ? 465 : port;
+  // Gmail requires the sender to be the authenticated mailbox or a configured
+  // alias. Defaulting to SMTP_USER avoids rejected OTP messages.
+  const fromSender = isGmail ? user : process.env.SMTP_FROM || user;
 
   const transportOptions = isGmail
     ? {
@@ -65,7 +64,7 @@ async function sendViaSmtp(to, code) {
         greetingTimeout: 15000,
         socketTimeout: 20000,
         tls: {
-          rejectUnauthorized: false,
+          rejectUnauthorized: true,
         },
       }
     : {
@@ -78,7 +77,7 @@ async function sendViaSmtp(to, code) {
         greetingTimeout: 15000,
         socketTimeout: 20000,
         tls: {
-          rejectUnauthorized: false,
+          rejectUnauthorized: true,
         },
       };
 
@@ -198,7 +197,10 @@ function getProvider() {
 async function sendOtpEmail(to, code) {
   const providerName = getProvider();
   const send = providers[providerName];
-  if (!send) throw new Error(`Unknown EMAIL_PROVIDER "${providerName}". Valid options: console, smtp, resend`);
+  if (!send)
+    throw new Error(
+      `Unknown EMAIL_PROVIDER "${providerName}". Valid options: console, smtp, resend`
+    );
   return send(to, code);
 }
 
@@ -214,4 +216,3 @@ module.exports = {
     return getProvider();
   },
 };
-

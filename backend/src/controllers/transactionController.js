@@ -59,6 +59,9 @@ class TransactionController {
 
   static async topUpDemoFunds(req, res, next) {
     try {
+      if (process.env.NODE_ENV === 'production') {
+        return res.status(404).json({ ok: false, message: 'Demo top-up is unavailable.' });
+      }
       const amount = Number(req.body.amount) || 5000;
       const result = await TransactionService.processTransaction(
         req.user.id,

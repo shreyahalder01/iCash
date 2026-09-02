@@ -26,6 +26,18 @@ const transactionLimiter = rateLimit({
   },
 });
 
+const emergencyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: process.env.NODE_ENV === 'test' ? 1000 : 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    ok: false,
+    error: 'TooManyRequests',
+    message: 'Too many emergency authorization attempts. Please try again later.',
+  },
+});
+
 // General API rate limiter
 const generalApiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
@@ -42,5 +54,6 @@ const generalApiLimiter = rateLimit({
 module.exports = {
   authLimiter,
   transactionLimiter,
+  emergencyLimiter,
   generalApiLimiter,
 };

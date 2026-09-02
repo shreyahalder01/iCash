@@ -13,11 +13,15 @@ const aadhaarLast4 = z.string().regex(/^\d{4}$/, 'Aadhaar last 4 digits must be 
 const registerSchema = z.object({
   fullName: z.string().min(2, 'Full name is required.'),
   phone: mobile10,
-  email: z.string().email('A valid email address is required.').max(254, 'Email address is too long.'),
-  emailVerificationTicket: z.string().min(1, 'Email verification is required. Please verify your email before registering.'),
+  email: z
+    .string()
+    .email('A valid email address is required.')
+    .max(254, 'Email address is too long.'),
+  emailVerificationTicket: z
+    .string()
+    .min(1, 'Email verification is required. Please verify your email before registering.'),
   aadhaarNumber: z.string().regex(/^\d{12}$/, 'Aadhaar number must be 12 digits.'),
   dob: z.string().optional(),
-  role: z.enum(['USER', 'MERCHANT', 'ADMIN']).optional(),
   pin: digits4,
   emergencyPin: digits4.optional().or(z.literal('')).optional(),
   isSenior: z.boolean().optional(),
@@ -82,11 +86,14 @@ const transactionCreateSchema = z.object({
   transactionType: z.enum(['WITHDRAWAL', 'DEPOSIT', 'TRANSFER', 'PAYMENT', 'REFUND']),
   amount: z
     .number()
+    .finite('Amount must be finite.')
     .positive('Amount must be greater than zero.')
+    .refine((value) => value <= 100000000, 'Amount exceeds the permitted limit.')
     .or(
       z
         .string()
-        .regex(/^\d+(\.\d+)?$/)
+        .regex(/^\d+(\.\d{1,2})?$/, 'Amount must have at most two decimal places.')
+        .refine((value) => Number(value) <= 100000000, 'Amount exceeds the permitted limit.')
         .transform(Number)
     ),
   description: z.string().optional(),
@@ -99,7 +106,17 @@ const transactionCreateSchema = z.object({
 });
 
 const delegateGenerateSchema = z.object({
-  amount: z.number().positive('Enter a valid authorization amount.').or(z.string()),
+  amount: z
+    .number()
+    .finite()
+    .positive('Enter a valid authorization amount.')
+    .max(100000000, 'Amount exceeds the permitted limit.')
+    .or(
+      z
+        .string()
+        .regex(/^\d+(\.\d{1,2})?$/, 'Amount must have at most two decimal places.')
+        .refine((value) => Number(value) <= 100000000, 'Amount exceeds the permitted limit.')
+    ),
 });
 
 const delegateClaimSchema = z.object({
@@ -113,7 +130,17 @@ const emergencyWithdrawalRequestSchema = z.object({
   authorizedPhone: z.string().min(8, 'Authorized person phone number is required.'),
   authorizedIdType: z.string().optional(),
   authorizedIdNumber: z.string().optional(),
-  amount: z.number().positive('Amount must be positive.').or(z.string()),
+  amount: z
+    .number()
+    .finite()
+    .positive('Amount must be positive.')
+    .max(100000000, 'Amount exceeds the permitted limit.')
+    .or(
+      z
+        .string()
+        .regex(/^\d+(\.\d{1,2})?$/, 'Amount must have at most two decimal places.')
+        .refine((value) => Number(value) <= 100000000, 'Amount exceeds the permitted limit.')
+    ),
   reason: z.string().optional(),
 });
 

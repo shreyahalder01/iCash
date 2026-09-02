@@ -31,7 +31,9 @@ class AccountService {
    * Link a new bank or wallet account for the authenticated user.
    */
   static async createAccount(userId, data) {
-    const { bankName, accountType = 'SAVINGS', initialBalance = 0, isPrimary = false } = data;
+    const { bankName, accountType = 'SAVINGS', isPrimary = false } = data;
+    // Linked accounts cannot be funded by an untrusted client request.
+    const initialBalance = 0;
 
     const accountMasked = `•••• ${Math.floor(1000 + Math.random() * 9000)}`;
     const accountRef = `ACC_${userId.slice(0, 6).toUpperCase()}_${Date.now()}`;
