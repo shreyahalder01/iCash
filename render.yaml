@@ -11,7 +11,7 @@ services:
       - key: PORT
         value: 10000
       - key: CORS_ORIGIN
-        value: https://icash.onrender.com
+        value: https://icash.onrender.com,https://icash-server.onrender.com
       - key: SMS_PROVIDER
         value: twilio
       - key: BIOMETRIC_PROVIDER
@@ -34,4 +34,4 @@ services:
     startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120 app:app
     envVars:
       - key: LIVENESS_ALLOWED_ORIGINS
-        value: https://icash.onrender.com
+        value: https://icash.onrender.com,https://icash-server.onrender.com

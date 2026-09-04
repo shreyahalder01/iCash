@@ -266,6 +266,7 @@ const api = {
       }
       return 'http://127.0.0.1:5001';
     },
+
     start: async function() {
       try {
         const res = await fetch(`${this.baseUrl}/liveness/start`, {
@@ -309,6 +310,18 @@ const api = {
       } catch {
         // Reset call failed or server offline — safe to ignore
       }
+    },
+  },
+
+  // AI Financial Copilot (v2)
+  ai: {
+    chat: (message) => request('/api/v2/ai/chat', { method: 'POST', body: { message } }),
+    history: ({ limit, offset } = {}) => {
+      const params = new URLSearchParams();
+      if (limit !== undefined) params.set('limit', limit);
+      if (offset !== undefined) params.set('offset', offset);
+      const suffix = params.toString() ? `?${params.toString()}` : '';
+      return request(`/api/v2/ai/history${suffix}`, { method: 'GET' });
     },
   },
 

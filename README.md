@@ -158,6 +158,21 @@ npm run prisma:push
 npm run prisma:seed
 ```
 
+For production deployments, apply checked-in migrations instead:
+
+```bash
+npx prisma migrate deploy --schema=backend/prisma/schema.prisma
+```
+
+To enable hosted AI responses for the Financial Copilot, configure:
+
+```bash
+OPENAI_API_KEY=your-key
+OPENAI_MODEL=gpt-4o-mini
+```
+
+Without an API key, the Copilot uses a clearly labelled local, transaction-grounded summary so the feature remains usable during development.
+
 ---
 
 ### 4. Running the Servers
@@ -228,6 +243,15 @@ npm test
 | `POST` | `/api/transactions/topup`             | Instant demo wallet top-up                   | Protected |
 | `POST` | `/api/transactions/delegate/generate` | Generate senior citizen withdrawal OTP       | Protected |
 | `POST` | `/api/transactions/delegate/claim`    | Disburse delegated cash withdrawal           | Public    |
+
+### AI Financial Copilot (`/api/v2/ai`)
+
+| Method | Endpoint | Description | Auth |
+| :----- | :------- | :---------- | :--- |
+| `POST` | `/api/v2/ai/chat` | Ask a transaction-grounded finance question | Protected |
+| `GET` | `/api/v2/ai/history` | Read the authenticated user's Copilot history | Protected |
+
+The chat request body is `{ "message": "Why did I spend so much this month?" }`. Conversation records and transaction context are strictly scoped to the authenticated user.
 
 ### Liveness Detection Microservice (`http://localhost:5001`)
 

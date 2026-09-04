@@ -111,6 +111,9 @@ const securityEventSchema = z.object({
   description: z.string().trim().min(2).max(1000),
   deviceReference: z.string().trim().max(500).optional(),
 });
+const aiChatSchema = z.object({
+  message: z.string().trim().min(1, 'Message is required.').max(2000),
+});
 
 module.exports = {
   registerSchema,
@@ -133,4 +136,5 @@ module.exports = {
   merchantRefundSchema,
   userStatusUpdateSchema,
   securityEventSchema,
+  aiChatSchema,
 };

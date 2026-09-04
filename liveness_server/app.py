@@ -29,7 +29,8 @@ app = Flask(__name__)
 def _origins():
     raw = os.getenv(
         "LIVENESS_ALLOWED_ORIGINS",
-        "https://icash.onrender.com,http://localhost:3000,http://localhost:4000,"
+        "https://icash.onrender.com,https://icash-server.onrender.com,"
+        "http://localhost:3000,http://localhost:4000,"
         "http://localhost:4001,http://localhost:5173,http://localhost:5500,"
         "http://127.0.0.1:3000,http://127.0.0.1:4000,http://127.0.0.1:4001,"
         "http://127.0.0.1:5173,http://127.0.0.1:5500",

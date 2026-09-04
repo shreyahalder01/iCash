@@ -25,6 +25,7 @@ const securityRoutes = require('./routes/securityRoutes');
 const complaintRoutes = require('./routes/complaintRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const merchantRoutes = require('./routes/merchantRoutes');
+const aiRoutes = require('./routes/aiRoutes');
 
 const app = express();
 const PORT = Number(process.env.PORT) || 4000;
@@ -110,31 +111,77 @@ app.use(
     origin(origin, callback) {
       const configured = (process.env.CORS_ORIGIN || process.env.CORS_ORIGINS || '')
         .split(',')
-        .map((value) => value.trim())
+        .map((value) => value.trim().replace(/^["']|["']$/g, '').replace(/\/+$/, ''))
         .filter(Boolean);
-      const defaults = process.env.NODE_ENV === 'production'
-        ? []
-        : [
-            'http://localhost:3000',
-            'http://localhost:4000',
-            'http://localhost:5173',
-            'http://localhost:5500',
-            'http://localhost:8080',
-            'http://127.0.0.1:3000',
-            'http://127.0.0.1:4000',
-            'http://127.0.0.1:5173',
-            'http://127.0.0.1:5500',
-            'http://127.0.0.1:8080',
-          ];
-      const allowed = configured.length ? configured : defaults;
+
+      const defaults = [
+        'https://icash.onrender.com',
+        'https://icash-server.onrender.com',
+        ...(process.env.RENDER_EXTERNAL_URL
+          ? [process.env.RENDER_EXTERNAL_URL.trim().replace(/^["']|["']$/g, '').replace(/\/+$/, '')]
+          : []),
+        ...(process.env.NODE_ENV === 'production'
+          ? []
+          : [
+              'http://localhost:3000',
+              'http://localhost:4000',
+              'http://localhost:4001',
+              'http://localhost:4002',
+              'http://localhost:5173',
+              'http://localhost:5500',
+              'http://localhost:8080',
+              'http://127.0.0.1:3000',
+              'http://127.0.0.1:4000',
+              'http://127.0.0.1:4001',
+              'http://127.0.0.1:4002',
+              'http://127.0.0.1:5173',
+              'http://127.0.0.1:5500',
+              'http://127.0.0.1:8080',
+            ]),
+      ];
+
+      const allowed = Array.from(new Set([...configured, ...defaults]));
+
       // Non-browser clients do not send Origin and remain supported.
-      if (!origin || allowed.includes('*') || allowed.includes(origin)) {
+      if (!origin) {
         return callback(null, true);
       }
+
+      const normalizedOrigin = origin.trim().replace(/\/+$/, '').toLowerCase();
+      const normalizedAllowed = allowed.map((url) => url.trim().replace(/\/+$/, '').toLowerCase());
+
+      if (normalizedAllowed.includes('*') || normalizedAllowed.includes(normalizedOrigin)) {
+        return callback(null, true);
+      }
+
+      // Allow wildcard patterns like https://*.onrender.com if configured
+      const matchesWildcard = allowed.some((pattern) => {
+        if (!pattern.includes('*')) return false;
+        const regexStr =
+          '^' + pattern.trim().replace(/\/+$/, '').replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$';
+        try {
+          return new RegExp(regexStr, 'i').test(normalizedOrigin);
+        } catch {
+          return false;
+        }
+      });
+      if (matchesWildcard) {
+        return callback(null, true);
+      }
+
+      // Automatically allow any icash*.onrender.com deployments
+      if (/^https:\/\/(icash|icash-[a-z0-9-]+)\.onrender\.com$/i.test(normalizedOrigin)) {
+        return callback(null, true);
+      }
+
       // In development, allow any localhost / 127.0.0.1 port automatically
-      if (process.env.NODE_ENV !== 'production' && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+      if (
+        process.env.NODE_ENV !== 'production' &&
+        /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(normalizedOrigin)
+      ) {
         return callback(null, true);
       }
+
       return callback(new Error(`Origin ${origin} is not allowed by CORS`));
     },
     credentials: true,
@@ -173,6 +220,7 @@ app.use('/api/security', securityRoutes);
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/merchant', merchantRoutes);
+app.use('/api/v2/ai', aiRoutes);
 
 // Any unmatched /api/* route is a genuine 404, not the SPA fallback.
 app.use('/api', notFoundHandler);
