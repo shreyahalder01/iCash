@@ -6,11 +6,7 @@ class AuthController {
     try {
       const { user, token } = await AuthService.registerUser(req.body, req);
       res.cookie(COOKIE_NAME, token, getCookieOptions());
-      res.status(201).json({
-        ok: true,
-        message: 'Registration completed successfully.',
-        user,
-      });
+      res.status(201).json({ ok: true, message: 'Registration completed successfully.', user });
     } catch (err) {
       next(err);
     }
@@ -45,8 +41,7 @@ class AuthController {
   static async getMe(req, res, next) {
     try {
       const primaryAccount = req.user.accounts && req.user.accounts[0];
-      const safeUser = AuthService.toSafeUser(req.user, primaryAccount);
-      res.json({ ok: true, user: safeUser });
+      res.json({ ok: true, user: AuthService.toSafeUser(req.user, primaryAccount) });
     } catch (err) {
       next(err);
     }
@@ -54,7 +49,7 @@ class AuthController {
 
   static async logout(req, res, next) {
     try {
-      if (req.user) await AuthService.logout(req.user.id, req.sessionReference);
+      if (req.user) await AuthService.logout(req.user.id);
       res.clearCookie(COOKIE_NAME, getClearCookieOptions());
       res.json({ ok: true, message: 'Logged out successfully.' });
     } catch (err) {
@@ -68,13 +63,12 @@ class AuthController {
         return res.status(401).json({ ok: false, message: 'Session expired.' });
       }
 
-      // Rotate the session reference and revoke the old session to prevent replay.
-      await AuthService.rotateSession(req.user.id, req.sessionReference, req);
-      const sessionReference = await AuthService.getLatestSessionReference(req.user.id);
+      // Keep the existing server-side session reference. The session middleware
+      // already validates it and the JWT remains short-lived and cookie-only.
       const token = signToken({
         userId: req.user.id,
         role: req.user.role,
-        sessionReference,
+        sessionReference: req.sessionReference,
       });
       res.cookie(COOKIE_NAME, token, getCookieOptions());
       res.json({ ok: true });
@@ -85,9 +79,7 @@ class AuthController {
 
   static async deleteMe(req, res, next) {
     try {
-      const userId = req.user && req.user.id;
-      const { pin } = req.body || {};
-      await AuthService.deleteUserAccount(userId, pin, req);
+      await AuthService.deleteUserAccount(req.user && req.user.id, req.body?.pin, req);
       res.clearCookie(COOKIE_NAME, getClearCookieOptions());
       res.json({ ok: true, message: 'Your account has been permanently deleted.' });
     } catch (err) {
