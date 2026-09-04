@@ -31,7 +31,7 @@ function errorHandler(err, req, res, next) {
     });
   }
 
-  if (err.name === 'ForbiddenError' || err.status === 403) {
+  if (err.name === 'ForbiddenError' || err.status === 403 || (err.message && err.message.includes('CORS'))) {
     return res.status(403).json({
       ok: false,
       error: 'Forbidden',
@@ -83,7 +83,7 @@ function errorHandler(err, req, res, next) {
   return res.status(500).json({
     ok: false,
     error: 'ServerError',
-    message: err.message || "We're unable to connect to banking services right now. Please try again.",
+    message: "We're unable to process your request right now. Please try again.",
   });
 }
 

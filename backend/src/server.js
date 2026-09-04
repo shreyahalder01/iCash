@@ -101,16 +101,42 @@ app.use((req, res, next) => {
 app.use(
   cors({
     origin(origin, callback) {
-      // Allow all local origins (localhost, 127.0.0.1, LiveServer, null/file://)
-      return callback(null, true);
+      const configured = (process.env.CORS_ORIGIN || process.env.CORS_ORIGINS || '')
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean);
+      const defaults = process.env.NODE_ENV === 'production'
+        ? []
+        : [
+            'http://localhost:3000',
+            'http://localhost:4000',
+            'http://localhost:5173',
+            'http://localhost:5500',
+            'http://localhost:8080',
+            'http://127.0.0.1:3000',
+            'http://127.0.0.1:4000',
+            'http://127.0.0.1:5173',
+            'http://127.0.0.1:5500',
+            'http://127.0.0.1:8080',
+          ];
+      const allowed = configured.length ? configured : defaults;
+      // Non-browser clients do not send Origin and remain supported.
+      if (!origin || allowed.includes('*') || allowed.includes(origin)) {
+        return callback(null, true);
+      }
+      // In development, allow any localhost / 127.0.0.1 port automatically
+      if (process.env.NODE_ENV !== 'production' && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error(`Origin ${origin} is not allowed by CORS`));
     },
     credentials: true,
   })
 );
 
 app.use(cookieParser());
-app.use(express.json({ limit: '2mb' }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '100kb' }));
+app.use(express.urlencoded({ extended: false, limit: '100kb' }));
 app.use(generalApiLimiter);
 
 // Health check — used by frontend/api.js to auto-detect the API base URL and check DB health.
@@ -297,4 +323,3 @@ if (require.main === module) {
 module.exports = handler;
 module.exports.app = app;
 module.exports.default = handler;
-

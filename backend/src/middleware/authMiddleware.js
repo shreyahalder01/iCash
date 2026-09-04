@@ -35,6 +35,23 @@ async function authenticate(req, res, next) {
       });
     }
 
+    // Verify the backing session when present. Tokens issued by this backend always
+    // carry a session reference; accepting old tokens without one preserves
+    // compatibility with already-issued tokens while they naturally expire.
+    if (decoded.sessionReference) {
+      const session = await prisma.loginSession.findUnique({
+        where: { session_reference: decoded.sessionReference },
+      });
+      if (!session || session.user_id !== decoded.userId || session.revoked_at || session.expires_at <= new Date()) {
+        return res.status(401).json({
+          ok: false,
+          error: 'Unauthorized',
+          message: 'Your secure session has expired. Please authenticate again.',
+        });
+      }
+      req.sessionReference = session.session_reference;
+    }
+
     // Verify user exists and check lock status
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },

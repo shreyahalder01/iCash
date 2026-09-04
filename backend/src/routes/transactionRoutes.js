@@ -18,6 +18,7 @@ const {
 // 1. Authorized person requests emergency withdrawal -> dispatches 5-min OTP to account holder's registered mobile
 router.post(
   '/emergency-withdrawal/request',
+  transactionLimiter,
   validateRequest(emergencyWithdrawalRequestSchema),
   TransactionController.requestEmergencyWithdrawal
 );
@@ -25,6 +26,7 @@ router.post(
 // 2. Authorized person enters 6-digit OTP received by account holder to release cash
 router.post(
   '/emergency-withdrawal/verify',
+  transactionLimiter,
   validateRequest(emergencyWithdrawalVerifySchema),
   TransactionController.verifyEmergencyWithdrawal
 );
@@ -32,6 +34,7 @@ router.post(
 // Legacy aliases for backward compatibility
 router.post(
   '/delegate/claim',
+  transactionLimiter,
   validateRequest(delegateClaimSchema),
   TransactionController.claimDelegateWithdrawal
 );
@@ -40,7 +43,8 @@ router.post(
 router.use(authenticate);
 
 router.get('/', TransactionController.getTransactions);
-router.get('/:id', TransactionController.getTransactionById);
+// Static paths must precede the dynamic transaction-id route.
+router.get('/emergency-contacts', TransactionController.getEmergencyContacts);
 router.post(
   '/',
   transactionLimiter,
@@ -50,7 +54,6 @@ router.post(
 router.post('/topup', transactionLimiter, TransactionController.topUpDemoFunds);
 
 // Emergency contacts management
-router.get('/emergency-contacts', TransactionController.getEmergencyContacts);
 router.post(
   '/emergency-contacts',
   validateRequest(emergencyContactsUpdateSchema),
@@ -62,5 +65,8 @@ router.post(
   validateRequest(delegateGenerateSchema),
   TransactionController.generateDelegateOtp
 );
+
+// Keep the parameterized route last so it cannot shadow static endpoints.
+router.get('/:id', TransactionController.getTransactionById);
 
 module.exports = router;

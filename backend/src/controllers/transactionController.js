@@ -47,6 +47,9 @@ class TransactionController {
 
   static async topUpDemoFunds(req, res, next) {
     try {
+      if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEMO_TOPUP !== 'true') {
+        return res.status(404).json({ ok: false, error: 'NotFound', message: 'Endpoint not found.' });
+      }
       const amount = Number(req.body.amount) || 5000;
       const result = await TransactionService.processTransaction(
         req.user.id,

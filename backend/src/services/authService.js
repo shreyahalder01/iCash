@@ -3,6 +3,7 @@ const { hashValue, compareValue } = require('../utils/hash');
 const { signToken } = require('../utils/token');
 const SecurityService = require('./securityService');
 const { biometricService } = require('./biometricService');
+const crypto = require('crypto');
 
 class AuthService {
   /**
@@ -21,8 +22,8 @@ class AuthService {
       emergencyContactName,
       emergencyContactPhone,
       descriptors,
-      role = 'USER',
     } = data;
+    const role = 'USER';
 
     // Check if phone already registered
     const existingPhone = await prisma.user.findUnique({
@@ -36,7 +37,7 @@ class AuthService {
 
     // Mask Aadhaar: never store the raw 12-digit number
     const aadhaarLast4 = aadhaarNumber.slice(-4);
-    const aadhaarReference = `AADHAAR_REF_${Date.now()}_${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+    const aadhaarReference = `AADHAAR_REF_${crypto.randomUUID()}`;
 
     // Hash credentials
     const passwordHash = await hashValue(pin);
@@ -111,14 +112,15 @@ class AuthService {
           is_senior: computedSenior,
           emergency_contact_name: contactsData,
           emergency_contact_phone: primaryContact ? primaryContact.phone : null,
-          role: role || 'USER',
+          // Never trust a client-supplied role during public registration.
+          role: 'USER',
           status: 'ACTIVE',
         },
       });
 
       // Primary Savings account with initial starting balance
       const initialBalance = 25000.0;
-      const accountMasked = `•••• ${Math.floor(1000 + Math.random() * 9000)}`;
+      const accountMasked = `•••• ${crypto.randomInt(1000, 10000)}`;
       const accountReference = `ACC_REF_${user.id.slice(0, 8).toUpperCase()}_SAVINGS`;
 
       const primaryAccount = await tx.bankAccount.create({
@@ -184,15 +186,20 @@ class AuthService {
     });
 
     // Create session token
-    const token = signToken({ userId: result.user.id, role: result.user.role });
+    const sessionReference = `SES_${crypto.randomUUID()}`;
     await prisma.loginSession.create({
       data: {
         user_id: result.user.id,
-        session_reference: `SES_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+        session_reference: sessionReference,
         ip_address: req?.ip,
         user_agent: req?.headers['user-agent'],
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
       },
+    });
+    const token = signToken({
+      userId: result.user.id,
+      role: result.user.role,
+      sessionReference,
     });
 
     return {
@@ -290,16 +297,17 @@ class AuthService {
     }
 
     // Create session token
-    const token = signToken({ userId: user.id, role: user.role });
+    const sessionReference = `SES_${crypto.randomUUID()}`;
     await prisma.loginSession.create({
       data: {
         user_id: user.id,
-        session_reference: `SES_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+        session_reference: sessionReference,
         ip_address: req?.ip,
         user_agent: req?.headers['user-agent'],
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
       },
     });
+    const token = signToken({ userId: user.id, role: user.role, sessionReference });
 
     return {
       user: this.toSafeUser(user, user.accounts[0]),

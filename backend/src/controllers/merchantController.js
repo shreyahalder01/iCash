@@ -1,5 +1,6 @@
 const prisma = require('../prisma');
 const SecurityService = require('../services/securityService');
+const crypto = require('crypto');
 
 class MerchantController {
   static async getProfile(req, res, next) {
@@ -57,7 +58,7 @@ class MerchantController {
         return res.status(404).json({ ok: false, message: 'Merchant profile not found.' });
       }
 
-      const refCode = `PAY_REQ_${Date.now()}_${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+      const refCode = `PAY_REQ_${crypto.randomUUID()}`;
       const paymentRequest = await prisma.paymentRequest.create({
         data: {
           merchant_id: merchant.id,

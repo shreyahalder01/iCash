@@ -1,6 +1,7 @@
 const prisma = require('../prisma');
 const SecurityService = require('./securityService');
 const { hashValue, compareValue } = require('../utils/hash');
+const crypto = require('crypto');
 
 class TransactionService {
   /**
@@ -123,23 +124,23 @@ class TransactionService {
       }
 
       const currentBalance = Number(account.balance);
-      const refNumber = `TX_${Date.now()}_${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+      const refNumber = `TX_${crypto.randomUUID()}`;
 
       // 2. Handle specific transaction types
       if (transactionType === 'WITHDRAWAL') {
-        if (currentBalance < numAmount) {
-          const err = new Error(
-            `Insufficient funds. Your balance is ₹${currentBalance.toLocaleString('en-IN')}.`
-          );
+        // Conditional update prevents two concurrent withdrawals from both
+        // passing a stale in-memory balance check.
+        const debited = await tx.bankAccount.updateMany({
+          where: { id: account.id, status: 'ACTIVE', balance: { gte: numAmount } },
+          data: { balance: { decrement: numAmount } },
+        });
+        if (debited.count !== 1) {
+          const err = new Error('Insufficient funds.');
           err.status = 400;
           throw err;
         }
-
-        const newBalance = currentBalance - numAmount;
-        await tx.bankAccount.update({
-          where: { id: account.id },
-          data: { balance: newBalance },
-        });
+        const updatedAccount = await tx.bankAccount.findUnique({ where: { id: account.id } });
+        const newBalance = Number(updatedAccount.balance);
 
         const createdTx = await tx.transaction.create({
           data: {
@@ -170,20 +171,29 @@ class TransactionService {
           accountMasked: account.account_number_masked,
         };
       } else if (transactionType === 'TRANSFER') {
-        if (currentBalance < numAmount) {
-          const err = new Error(
-            `Insufficient funds. Your balance is ₹${currentBalance.toLocaleString('en-IN')}.`
-          );
+        let recipientPrimaryAccount = null;
+        if (recipientUserId) {
+          recipientPrimaryAccount = await tx.bankAccount.findFirst({
+            where: { user_id: recipientUserId, is_primary: true, status: 'ACTIVE' },
+          });
+          if (!recipientPrimaryAccount || recipientUserId === userId) {
+            const err = new Error('A valid active recipient account is required.');
+            err.status = 400;
+            throw err;
+          }
+        }
+
+        const debited = await tx.bankAccount.updateMany({
+          where: { id: account.id, status: 'ACTIVE', balance: { gte: numAmount } },
+          data: { balance: { decrement: numAmount } },
+        });
+        if (debited.count !== 1) {
+          const err = new Error('Insufficient funds.');
           err.status = 400;
           throw err;
         }
-
-        // Deduct from sender
-        const senderNewBalance = currentBalance - numAmount;
-        await tx.bankAccount.update({
-          where: { id: account.id },
-          data: { balance: senderNewBalance },
-        });
+        const senderAccount = await tx.bankAccount.findUnique({ where: { id: account.id } });
+        const senderNewBalance = Number(senderAccount.balance);
 
         const senderTx = await tx.transaction.create({
           data: {
@@ -201,15 +211,10 @@ class TransactionService {
 
         // If recipient is another internal registered user, credit their primary account atomically
         if (recipientUserId) {
-          const recipientPrimaryAccount = await tx.bankAccount.findFirst({
-            where: { user_id: recipientUserId, is_primary: true, status: 'ACTIVE' },
-          });
-
-          if (recipientPrimaryAccount) {
-            await tx.bankAccount.update({
+          await tx.bankAccount.update({
               where: { id: recipientPrimaryAccount.id },
-              data: { balance: Number(recipientPrimaryAccount.balance) + numAmount },
-            });
+              data: { balance: { increment: numAmount } },
+          });
 
             const senderUser = await tx.user.findUnique({
               where: { id: userId },
@@ -225,10 +230,9 @@ class TransactionService {
                 description: `Received transfer from ${senderUser?.full_name || 'iCash user'}`,
                 recipient_name: senderUser?.full_name || null,
                 status: 'COMPLETED',
-                reference_number: `TX_REC_${Date.now()}_${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
+                reference_number: `TX_REC_${crypto.randomUUID()}`,
               },
             });
-          }
         }
 
         await tx.securityEvent.create({
@@ -382,7 +386,7 @@ class TransactionService {
     }
 
     // Generate cryptographically secure 6-digit OTP
-    const rawOtp = String(Math.floor(100000 + Math.random() * 900000));
+    const rawOtp = String(crypto.randomInt(100000, 1000000));
     const otpHash = await hashValue(rawOtp);
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes strict
 
@@ -408,7 +412,7 @@ class TransactionService {
 
     // Simulated SMS dispatch to account holder
     console.log(
-      `[SMS GATEWAY] 🚨 EMERGENCY WITHDRAWAL OTP: ${rawOtp} dispatched to Account Holder ${accountHolder.phone} for ₹${numAmount} requested by ${cleanAuthName}. Valid for 5 mins.`
+      `[SMS GATEWAY] Emergency withdrawal OTP dispatched to account holder ${TransactionService.maskPhone(accountHolder.phone)} for ₹${numAmount}. Valid for 5 mins.`
     );
 
     await SecurityService.recordEvent({
@@ -430,9 +434,9 @@ class TransactionService {
       amount: numAmount,
       expiresInSeconds: 300,
       expiresAt,
-      // devOtp and otp returned for demo / instant testing flow
-      otp: rawOtp,
-      devOtp: rawOtp,
+      ...(process.env.NODE_ENV === 'test' || process.env.ALLOW_DEV_OTP === 'true'
+        ? { otp: rawOtp, devOtp: rawOtp }
+        : {}),
       message: `A One-Time Password (OTP) has been dispatched to the account holder's registered mobile number (${TransactionService.maskPhone(accountHolder.phone)}). You have 5 minutes to complete verification.`,
     };
   }
@@ -519,18 +523,33 @@ class TransactionService {
 
     // Atomically release funds and generate audit transaction record
     return await prisma.$transaction(async (tx) => {
-      const updatedDelegation = await tx.delegatedWithdrawal.update({
-        where: { id: delegation.id },
-        data: {
-          status: 'USED',
+      // Claim is a compare-and-set: concurrent OTP submissions can consume
+      // the delegation only once.
+      const claimed = await tx.delegatedWithdrawal.updateMany({
+        where: {
+          id: delegation.id,
+          status: 'PENDING',
+          expires_at: { gt: new Date() },
         },
+        data: { status: 'USED' },
       });
+      if (claimed.count !== 1) {
+        const err = new Error('This withdrawal request has already been completed.');
+        err.status = 400;
+        throw err;
+      }
 
-      const newBalance = Number(primaryAccount.balance) - amount;
-      await tx.bankAccount.update({
-        where: { id: primaryAccount.id },
-        data: { balance: newBalance },
+      const debited = await tx.bankAccount.updateMany({
+        where: { id: primaryAccount.id, status: 'ACTIVE', balance: { gte: amount } },
+        data: { balance: { decrement: amount } },
       });
+      if (debited.count !== 1) {
+        const err = new Error("Account holder's balance is insufficient.");
+        err.status = 400;
+        throw err;
+      }
+      const updatedAccount = await tx.bankAccount.findUnique({ where: { id: primaryAccount.id } });
+      const newBalance = Number(updatedAccount.balance);
 
       const transaction = await tx.transaction.create({
         data: {

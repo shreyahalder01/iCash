@@ -105,27 +105,6 @@
               </div>
             </div>
 
-            <!-- Instant Portal Access for Demo / Rapid Testing -->
-            <div style="margin-top: 14px; background: rgba(45, 212, 191, 0.06); border: 1px dashed rgba(45, 212, 191, 0.35); border-radius: 12px; padding: 12px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <span style="font-size: 11px; font-weight: 600; color: var(--primary); font-family: var(--font-mono); text-transform: uppercase;">⚡ 1-Click Demo Portal Access</span>
-                <button class="mini-btn" style="padding: 4px 10px; font-size: 11px; background: var(--primary); color: #000; font-weight: 600;" onclick="quickDemoLogin('4821', '4821')">
-                  Enter Portal &rarr;
-                </button>
-              </div>
-              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                <button class="mini-btn" style="font-size: 10.5px; padding: 3px 8px;" onclick="quickDemoLogin('4821', '4821')">
-                  👤 Sidd Paul (4821)
-                </button>
-                <button class="mini-btn" style="font-size: 10.5px; padding: 3px 8px;" onclick="quickDemoLogin('9999', '9999')">
-                  🛡️ Admin (9999)
-                </button>
-                <button class="mini-btn" style="font-size: 10.5px; padding: 3px 8px;" onclick="quickDemoLogin('7712', '7712')">
-                  👴 Ramesh (Senior)
-                </button>
-              </div>
-            </div>
-
             <div style="border-top: 1px solid var(--border); padding-top: 14px; margin-top: 14px;">
               <button
                 class="mini-btn"
@@ -283,7 +262,7 @@
                       <input
                         class="reg-ec-phone"
                         type="tel"
-                        placeholder="9876543210"
+                        placeholder="10-digit mobile number"
                         inputmode="numeric"
                         maxlength="10"
                         autocomplete="tel"
@@ -345,7 +324,7 @@
           <div class="eyebrow" id="otp-eyebrow">Step 2 of 3 · Mobile OTP</div>
           <h2>Verify Mobile Number</h2>
           <p class="lead">
-            A 6-digit security code was sent to <strong id="otp-mobile-display">+91 ••••••4821</strong>
+            A 6-digit security code was sent to <strong id="otp-mobile-display">your registered mobile number</strong>
           </p>
 
           <div id="otp-sms-banner" style="display: none; background: rgba(45, 212, 191, 0.1); border: 1px solid var(--primary); border-radius: 8px; padding: 10px; margin-bottom: 16px; font-size: 13px; text-align: center;">
@@ -438,20 +417,6 @@
               autocomplete="off"
             />
             <div id="aadhaar-login-status" style="margin-top: 8px"></div>
-          </div>
-
-          <!-- Quick Fill Demo Profiles -->
-          <div style="display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; align-items: center;">
-            <span style="font-size: 10.5px; color: var(--text-faint);">Demo Aadhaar:</span>
-            <button type="button" class="mini-btn" style="font-size: 10px; padding: 2px 7px;" onclick="document.getElementById('login-aadhaar-last4').value='4821'; verifyAadhaarLogin();">
-              4821 (Sidd)
-            </button>
-            <button type="button" class="mini-btn" style="font-size: 10px; padding: 2px 7px;" onclick="document.getElementById('login-aadhaar-last4').value='9999'; verifyAadhaarLogin();">
-              9999 (Admin)
-            </button>
-            <button type="button" class="mini-btn" style="font-size: 10px; padding: 2px 7px;" onclick="document.getElementById('login-aadhaar-last4').value='8888'; verifyAadhaarLogin();">
-              8888 (Merchant)
-            </button>
           </div>
 
           <div class="btn-row">
@@ -582,17 +547,6 @@
                 autocomplete="current-password"
               />
             </div>
-            
-            <div style="display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; align-items: center;">
-              <span style="font-size: 10.5px; color: var(--text-faint);">Demo Fill:</span>
-              <button type="button" class="mini-btn" style="font-size: 10px; padding: 2px 7px;" onclick="document.getElementById('pin-login-aadhaar').value='4821'; document.getElementById('pin-login-pin').value='4821'; attemptPinDirectLogin();">
-                Sidd Paul (4821 / 4821)
-              </button>
-              <button type="button" class="mini-btn" style="font-size: 10px; padding: 2px 7px;" onclick="document.getElementById('pin-login-aadhaar').value='9999'; document.getElementById('pin-login-pin').value='9999'; attemptPinDirectLogin();">
-                Admin (9999 / 9999)
-              </button>
-            </div>
-
             <div class="modal-msg" id="pin-login-msg"></div>
             <div class="btn-row">
               <button type="button" class="btn btn-ghost" onclick="goTo('screen-welcome')">Back</button>
@@ -870,9 +824,9 @@
                     <div class="balance-footer-meta">
                       <div class="balance-acc-badge">
                         <span>🏛️</span>
-                        <strong id="dash-primary-bank-label">iCash Federal Digital Bank</strong>
+                        <strong id="dash-primary-bank-label">Bank account</strong>
                         <span style="color: var(--text-faint)" id="dash-primary-acc-mask"
-                          >•••• 6926</span
+                          >Account number unavailable</span
                         >
                       </div>
                       <button
@@ -944,10 +898,6 @@
                     <button class="action-tile-btn primary-action" onclick="openModal('send')">
                       <span class="tile-icon">↗</span>
                       <span>Transfer</span>
-                    </button>
-                    <button class="action-tile-btn" onclick="addDemoFunds()">
-                      <span class="tile-icon">✨</span>
-                      <span>Deposit</span>
                     </button>
                     <button class="action-tile-btn" onclick="openModal('withdraw')">
                       <span class="tile-icon">↓</span>

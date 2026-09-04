@@ -218,9 +218,6 @@ const api = {
     };
     return request('/api/transactions', { method: 'POST', body: payload });
   },
-  topUpDemoFunds: (amount = 5000) =>
-    request('/api/transactions/topup', { method: 'POST', body: { amount } }),
-
   // Emergency Contact & Authorized Representative Cash Withdrawal
   requestEmergencyWithdrawal: (data) =>
     request('/api/transactions/emergency-withdrawal/request', { method: 'POST', body: data }),

@@ -83,6 +83,7 @@ class AuthController {
       const token = require('../utils/token').signToken({
         userId: req.user.id,
         role: req.user.role,
+        sessionReference: req.sessionReference,
       });
       res.cookie(COOKIE_NAME, token, getCookieOptions());
       res.json({

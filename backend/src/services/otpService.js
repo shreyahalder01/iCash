@@ -3,6 +3,7 @@
  * Handles one-time password generation, expiration, cooldown, and verification.
  */
 const { sendOtpSms, isDevMode, PROVIDER } = require('./smsProvider');
+const crypto = require('crypto');
 
 const OTP_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const RESEND_COOLDOWN_MS = 30 * 1000; // 30 seconds
@@ -15,7 +16,7 @@ function key(purpose, mobile) {
 }
 
 function generateCode() {
-  return String(Math.floor(100000 + Math.random() * 900000));
+  return String(crypto.randomInt(100000, 1000000));
 }
 
 async function issueOtp(purpose, mobile) {
@@ -37,7 +38,9 @@ async function issueOtp(purpose, mobile) {
     code,
     expiresAt,
     devMode: isDevMode(),
-    devCode: code,
+    ...(process.env.NODE_ENV === 'test' || process.env.ALLOW_DEV_OTP === 'true'
+      ? { devCode: code }
+      : {}),
   };
 }
 
@@ -46,8 +49,8 @@ function verifyOtp(purpose, mobile, code) {
   const k = key(purpose, mobile);
   const record = store.get(k);
 
-  // Allow universal test PIN 123456 or exact code
-  if (cleanCode === '123456') {
+  // Keep the test bypass strictly test-only; never accept a universal OTP in production.
+  if (process.env.NODE_ENV === 'test' && cleanCode === '123456') {
     if (record) store.delete(k);
     return { ok: true };
   }
@@ -55,7 +58,7 @@ function verifyOtp(purpose, mobile, code) {
   if (!record) {
     // If purpose-specific key not found, check any active OTP for this mobile
     for (const [keyStr, entry] of store.entries()) {
-      if (keyStr.endsWith(`:${mobile}`) && (entry.code === cleanCode || cleanCode === '123456')) {
+      if (keyStr.endsWith(`:${mobile}`) && entry.code === cleanCode) {
         store.delete(keyStr);
         return { ok: true };
       }

@@ -1,4 +1,5 @@
 const prisma = require('../prisma');
+const crypto = require('crypto');
 
 class AccountService {
   /**
@@ -33,7 +34,7 @@ class AccountService {
   static async createAccount(userId, data) {
     const { bankName, accountType = 'SAVINGS', initialBalance = 0, isPrimary = false } = data;
 
-    const accountMasked = `•••• ${Math.floor(1000 + Math.random() * 9000)}`;
+    const accountMasked = `•••• ${crypto.randomInt(1000, 10000)}`;
     const accountRef = `ACC_${userId.slice(0, 6).toUpperCase()}_${Date.now()}`;
 
     return await prisma.$transaction(async (tx) => {

@@ -822,51 +822,13 @@ function showMatch(user, isNew) {
   goTo('screen-match');
 }
 
-// Quick 1-click Demo & Guest Portal Login
-async function quickDemoLogin(aadhaarLast4 = '4821', pin = '4821') {
-  try {
-    showAlertToast('Authenticating demo banking portal session…', false);
-    const lookup = await window.iCashApi.loginAadhaar({ aadhaarLast4 });
-    if (lookup.ok && lookup.users && lookup.users.length > 0) {
-      const targetUser = lookup.users[0];
-      const authRes = await window.iCashApi.loginPin({ userId: targetUser.id, pin });
-      if (authRes.ok && authRes.user) {
-        currentUser = authRes.user;
-        showAlertToast(`✓ Authenticated as ${currentUser.name}`, false);
-        enterDashboard();
-        return;
-      }
-    }
-  } catch (e) {
-    console.warn('[Quick Demo Auth] API login note:', e.message);
-  }
-
-  // Fallback demo user if API is initializing
-  currentUser = {
-    id: 'demo-sidd-paul',
-    name: 'Sidd Paul',
-    phone: '9876543210',
-    aadhaarLast4: aadhaarLast4 || '4821',
-    role: 'USER',
-    isSenior: false,
-  };
-  showAlertToast('✓ Demo portal session active', false);
-  enterDashboard();
-}
-
 // ============================================================
 // DASHBOARD & FINANCIAL DATA ENGINE
 // ============================================================
 function enterDashboard() {
   if (!currentUser) {
-    currentUser = {
-      id: 'demo-sidd-paul',
-      name: 'Sidd Paul',
-      phone: '9876543210',
-      aadhaarLast4: '4821',
-      role: 'USER',
-      isSenior: false,
-    };
+    goTo('screen-welcome');
+    return;
   }
   goTo('screen-dashboard');
   switchView('dashboard');
@@ -884,9 +846,13 @@ async function loadDashboardData() {
   const avatarEl = document.getElementById('top-avatar');
   if (avatarEl) avatarEl.textContent = initials(currentUser.name || 'CU');
   const phoneEl = document.getElementById('dash-masked-phone');
-  if (phoneEl) phoneEl.textContent = `Mobile: +91 ${currentUser.phone || '9876543210'}`;
+  if (phoneEl) phoneEl.textContent = currentUser.phone ? `Mobile: +91 ${currentUser.phone}` : 'Mobile: unavailable';
   const aadhaarEl = document.getElementById('dash-masked-aadhaar');
-  if (aadhaarEl) aadhaarEl.textContent = `Aadhaar: •••• ${currentUser.aadhaarLast4 || '4821'}`;
+  if (aadhaarEl) {
+    aadhaarEl.textContent = currentUser.aadhaarLast4
+      ? `Aadhaar: •••• ${currentUser.aadhaarLast4}`
+      : 'Aadhaar: unavailable';
+  }
 
   const seniorTagEl = document.getElementById('dash-senior-tag');
   if (seniorTagEl) {
@@ -896,56 +862,19 @@ async function loadDashboardData() {
   // Fetch real Accounts & Transactions
   try {
     const accRes = await window.iCashApi.getAccounts();
-    currentAccounts = (accRes && accRes.accounts && accRes.accounts.length > 0)
-      ? accRes.accounts
-      : [
-          {
-            id: 'acc_primary_savings',
-            bankName: 'iCash Federal Digital Bank',
-            accountNumberMasked: `•••• ${currentUser.aadhaarLast4 || '4821'}`,
-            accountType: 'SAVINGS',
-            balance: 25000,
-            isPrimary: true,
-            status: 'ACTIVE',
-          },
-          {
-            id: 'acc_virtual_wallet',
-            bankName: 'iCash Virtual Debit Wallet',
-            accountNumberMasked: '•••• 0912',
-            accountType: 'VIRTUAL',
-            balance: 5000,
-            isPrimary: false,
-            status: 'ACTIVE',
-          },
-        ];
+    currentAccounts = (accRes && Array.isArray(accRes.accounts)) ? accRes.accounts : [];
 
     const primaryAcc = currentAccounts.find((a) => a.isPrimary) || currentAccounts[0];
+    if (!primaryAcc) {
+      throw new Error('No active banking account is available.');
+    }
     renderBalanceHero(primaryAcc);
     renderAccountsGrid(currentAccounts);
 
     const txRes = await window.iCashApi.getTransactions();
-    currentTransactions = (txRes && txRes.transactions && txRes.transactions.length > 0)
+    currentTransactions = (txRes && Array.isArray(txRes.transactions))
       ? txRes.transactions
-      : [
-          {
-            id: 'TX_DEMO_01',
-            referenceNumber: 'TX_ICASH_1001',
-            description: 'Account opened · e-KYC demo funds credited',
-            amount: 25000,
-            type: 'DEPOSIT',
-            status: 'COMPLETED',
-            createdAt: new Date().toISOString(),
-          },
-          {
-            id: 'TX_DEMO_02',
-            referenceNumber: 'TX_ICASH_1002',
-            description: 'Metro Mart POS Grocery Store',
-            amount: 1450,
-            type: 'PAYMENT',
-            status: 'COMPLETED',
-            createdAt: new Date(Date.now() - 3600000).toISOString(),
-          },
-        ];
+      : [];
     filteredTransactions = [...currentTransactions];
 
     renderInsightCards(primaryAcc.balance, currentTransactions, currentAccounts.length);
@@ -960,8 +889,8 @@ function renderBalanceHero(primaryAcc) {
   const bankLabel = document.getElementById('dash-primary-bank-label');
   const accMask = document.getElementById('dash-primary-acc-mask');
 
-  bankLabel.textContent = primaryAcc.bankName || 'iCash Federal Digital Bank';
-  accMask.textContent = primaryAcc.accountNumberMasked || '•••• 6926';
+  bankLabel.textContent = primaryAcc.bankName || 'Bank account';
+  accMask.textContent = primaryAcc.accountNumberMasked || 'Account number unavailable';
 
   if (isBalanceHidden) {
     balEl.textContent = '₹ ••••••';
@@ -1269,20 +1198,6 @@ function confirmSend() {
     'P2P Transfer Authorization',
     `Authorize transfer of ${fmtMoney(amt)} to ${name}`
   );
-}
-
-async function addDemoFunds() {
-  try {
-    await window.iCashApi.createTransaction({
-      type: 'DEPOSIT',
-      amount: 5000,
-      description: 'Online Digital Deposit / Cash Top-up',
-    });
-    showAlertToast('✨ ₹5,000 deposited successfully to your primary account.');
-    loadDashboardData();
-  } catch (err) {
-    showAlertToast(err.message || 'Deposit failed.', true);
-  }
 }
 
 // ============================================================

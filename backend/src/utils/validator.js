@@ -11,12 +11,12 @@ const aadhaarLast4 = z.string().regex(/^\d{4}$/, 'Aadhaar last 4 digits must be 
 // ---------------- Auth ----------------
 
 const registerSchema = z.object({
-  fullName: z.string().min(2, 'Full name is required.'),
+  fullName: z.string().trim().min(2, 'Full name is required.').max(100),
   phone: mobile10,
   email: z.string().email().optional().or(z.literal('')).optional(),
   aadhaarNumber: z.string().regex(/^\d{12}$/, 'Aadhaar number must be 12 digits.'),
   dob: z.string().optional(),
-  role: z.enum(['USER', 'MERCHANT', 'ADMIN']).optional(),
+  role: z.string().optional(),
   pin: digits4,
   emergencyPin: digits4.optional().or(z.literal('')).optional(),
   isSenior: z.boolean().optional(),
@@ -24,8 +24,8 @@ const registerSchema = z.object({
   emergencyContactPhone: z.string().optional().or(z.literal('')).optional(),
   emergencyContactRelation: z.string().optional(),
   emergencyContacts: z.array(z.any()).optional().default([]),
-  descriptors: z.array(z.array(z.number())).optional().default([]),
-});
+  descriptors: z.array(z.array(z.number()).max(512)).max(10).optional().default([]),
+}).passthrough();
 
 const loginAadhaarSchema = z.object({
   aadhaarLast4,
@@ -74,13 +74,13 @@ const accountUpdateSchema = z.object({
 const transactionCreateSchema = z.object({
   accountId: z.string().uuid().optional(),
   transactionType: z.enum(['WITHDRAWAL', 'DEPOSIT', 'TRANSFER', 'PAYMENT', 'REFUND']),
-  amount: z.number().positive('Amount must be greater than zero.'),
-  description: z.string().optional(),
+  amount: z.number().finite().positive('Amount must be greater than zero.').max(99999999.99),
+  description: z.string().trim().max(500).optional(),
   recipientName: z.string().optional(),
   recipientAccount: z.string().optional(),
   recipientUserId: z.string().uuid().optional(),
   verifyMethod: z.enum(['FACE', 'PIN']).optional().default('PIN'),
-});
+}).passthrough();
 
 const delegateGenerateSchema = z.object({
   amount: z.number().positive('Enter a valid authorization amount.').or(z.string()),
