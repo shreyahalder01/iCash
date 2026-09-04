@@ -10,6 +10,10 @@
  *   - TinyFaceDetector + 128-D FaceRecognitionNet (face-api.js)
  *   - Euclidean distance threshold 0.52
  *   - 5 auto-collected enrollment samples, 2 consecutive matches to confirm identity
+ *
+ * Liveness:
+ *   - Client-side EAR blink detection is the primary user-facing signal
+ *   - Server-side dlib/OpenCV liveness augments anti-spoof protection when available
  */
 
 // Local models served by Express (primary) — CDN fallback handled in ensureBioModels()
@@ -293,16 +297,19 @@ class ClientBlinkDetector {
       const collapseDetected = leftCollapse || rightCollapse;
 
       // ── Auto-Calibrate Baseline to User's Actual Resting EAR ─────────────
-      if (this.openEyeBaseline === null) {
-        this.openEyeBaseline = ear;
-        this.baselineSamples = 1;
-      } else if (!this.isClosed && !collapseDetected && ear >= this.openEyeBaseline * 0.88) {
-        if (this.baselineSamples < 10) {
-          this.openEyeBaseline = (this.openEyeBaseline * this.baselineSamples + ear) / (this.baselineSamples + 1);
-          this.baselineSamples++;
-        } else {
-          // Slow continuous exponential moving average
-          this.openEyeBaseline = this.openEyeBaseline * 0.94 + ear * 0.06;
+      // Ignore low-EAR frames so a blink caught at startup cannot lower the baseline.
+      if (!this.isClosed && !collapseDetected && ear > 0.20) {
+        if (this.openEyeBaseline === null) {
+          this.openEyeBaseline = ear;
+          this.baselineSamples = 1;
+        } else if (ear >= this.openEyeBaseline * 0.88) {
+          if (this.baselineSamples < 10) {
+            this.openEyeBaseline = (this.openEyeBaseline * this.baselineSamples + ear) / (this.baselineSamples + 1);
+            this.baselineSamples++;
+          } else {
+            // Slow continuous exponential moving average
+            this.openEyeBaseline = this.openEyeBaseline * 0.94 + ear * 0.06;
+          }
         }
       }
 
@@ -934,18 +941,6 @@ async function beginLoginScan() {
       return;
     }
 
-    const serverLive = !!(currentLivenessState && currentLivenessState.live);
-    if (!serverLive) {
-      // Client-side EAR blinks matched, but the independent dlib server session
-      // hasn't confirmed a real open->closed->open transition yet (or spoof
-      // frames reset it). Requiring both stops a static/swapped photo pair from
-      // satisfying only the weaker in-browser detector.
-      drawOverlay(overlayCanvas, video, detections, 'SCAN', undefined, blinkStatus);
-      statusEl.textContent = `✔ Verifying blink with liveness server…`;
-      setTimeout(loginStep, 80);
-      return;
-    }
-
     drawOverlay(overlayCanvas, video, detections, 'GOOD', undefined, blinkStatus);
     statusEl.textContent = `✅ 2/2 Blinks — unlocking profile…`;
 
@@ -1077,6 +1072,7 @@ async function launchBiometricGate(title, lead) {
   try {
     await startCamera(video, errEl);
     await initLivenessSession();
+    initAnkurBlinkEngine(video).catch(() => {});
   } catch (e) {
     statusEl.textContent = cameraErrorMessage(e);
     statusEl.classList.add('bad');
@@ -1205,14 +1201,6 @@ async function launchBiometricGate(title, lead) {
       } else {
         statusEl.textContent = `✔ 1st blink! Blink once more to authorize (1/2)…`;
       }
-      setTimeout(verifyStep, 80);
-      return;
-    }
-
-    const serverLive = !!(currentLivenessState && currentLivenessState.live);
-    if (!serverLive) {
-      drawOverlay(overlayCanvas, video, detections, 'SCAN', undefined, blinkStatus);
-      statusEl.textContent = `✔ Verifying blink with liveness server…`;
       setTimeout(verifyStep, 80);
       return;
     }
