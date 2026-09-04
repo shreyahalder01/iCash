@@ -1,7 +1,8 @@
 flask
 flask-cors
 Flask-Limiter
-opencv-python
+opencv-python-headless
 scipy
 numpy
 dlib; python_version < "3.13"
+gunicorn
