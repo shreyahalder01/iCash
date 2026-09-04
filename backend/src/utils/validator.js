@@ -1,14 +1,13 @@
 /**
  * Zod request validation schemas.
- * Used by middleware/validateMiddleware.js via validateRequest(schema).
  */
 const { z } = require('zod');
 
 const mobile10 = z.string().regex(/^\d{10}$/, 'Mobile number must be exactly 10 digits.');
 const digits4 = z.string().regex(/^\d{4}$/, 'Must be exactly 4 digits.');
 const aadhaarLast4 = z.string().regex(/^\d{4}$/, 'Aadhaar last 4 digits must be numeric.');
-
-// ---------------- Auth ----------------
+const descriptor = z.number().finite();
+const faceDescriptor = z.array(descriptor).length(128, 'Face descriptor must contain exactly 128 numeric values.');
 
 const registerSchema = z.object({
   fullName: z.string().trim().min(2, 'Full name is required.').max(100),
@@ -20,143 +19,97 @@ const registerSchema = z.object({
   pin: digits4,
   emergencyPin: digits4.optional().or(z.literal('')).optional(),
   isSenior: z.boolean().optional(),
-  emergencyContactName: z.string().optional(),
-  emergencyContactPhone: z.string().optional().or(z.literal('')).optional(),
-  emergencyContactRelation: z.string().optional(),
-  emergencyContacts: z.array(z.any()).optional().default([]),
-  descriptors: z.array(z.array(z.number()).max(512)).max(10).optional().default([]),
+  emergencyContactName: z.string().trim().max(100).optional(),
+  emergencyContactPhone: z.string().trim().max(20).optional().or(z.literal('')).optional(),
+  emergencyContactRelation: z.string().trim().max(50).optional(),
+  emergencyContacts: z.array(z.object({
+    name: z.string().trim().min(2).max(100),
+    phone: z.string().trim().min(8).max(20),
+    relation: z.string().trim().max(50).optional(),
+    idType: z.string().trim().max(50).optional().nullable(),
+    idNumber: z.string().trim().max(100).optional().nullable(),
+  })).max(5).optional().default([]),
+  descriptors: z.array(faceDescriptor).max(10).optional().default([]),
 }).passthrough();
 
-const loginAadhaarSchema = z.object({
-  aadhaarLast4,
-});
-
-const loginPinSchema = z.object({
-  userId: z.string().uuid('Invalid user identifier.'),
-  pin: digits4,
-});
-
-// Confirm account deletion by providing current PIN
-const confirmDeleteSchema = z.object({
-  pin: digits4,
-});
-
-// ---------------- Biometric ----------------
+const loginAadhaarSchema = z.object({ aadhaarLast4 });
+const loginPinSchema = z.object({ userId: z.string().uuid('Invalid user identifier.'), pin: digits4 });
+const confirmDeleteSchema = z.object({ pin: digits4 });
 
 const biometricEnrollSchema = z.object({
-  descriptors: z
-    .array(z.array(z.number()))
-    .min(1, 'At least one face descriptor sample is required.'),
+  descriptors: z.array(faceDescriptor).min(1, 'At least one face descriptor sample is required.').max(10),
 });
 
 const biometricVerifySchema = z.object({
-  liveDescriptor: z.array(z.number()).min(1, 'A live face descriptor is required.'),
+  liveDescriptor: faceDescriptor,
   userId: z.string().uuid().optional(),
 });
 
-// ---------------- Accounts ----------------
-
 const accountCreateSchema = z.object({
-  bankName: z.string().min(2, 'Bank name is required.'),
+  bankName: z.string().trim().min(2).max(100),
   accountType: z.enum(['SAVINGS', 'CURRENT', 'VIRTUAL']).optional().default('SAVINGS'),
-  initialBalance: z.number().nonnegative().optional().default(0),
+  initialBalance: z.number().finite().nonnegative().max(99999999.99).optional().default(0),
   isPrimary: z.boolean().optional().default(false),
 });
 
 const accountUpdateSchema = z.object({
-  bankName: z.string().min(2).optional(),
+  bankName: z.string().trim().min(2).max(100).optional(),
   isPrimary: z.boolean().optional(),
   status: z.enum(['ACTIVE', 'FROZEN', 'CLOSED']).optional(),
 });
-
-// ---------------- Transactions ----------------
 
 const transactionCreateSchema = z.object({
   accountId: z.string().uuid().optional(),
   transactionType: z.enum(['WITHDRAWAL', 'DEPOSIT', 'TRANSFER', 'PAYMENT', 'REFUND']),
   amount: z.number().finite().positive('Amount must be greater than zero.').max(99999999.99),
   description: z.string().trim().max(500).optional(),
-  recipientName: z.string().optional(),
-  recipientAccount: z.string().optional(),
+  recipientName: z.string().trim().max(100).optional(),
+  recipientAccount: z.string().trim().max(100).optional(),
   recipientUserId: z.string().uuid().optional(),
   verifyMethod: z.enum(['FACE', 'PIN']).optional().default('PIN'),
   idempotencyKey: z.string().trim().min(1).max(255).optional(),
 }).passthrough();
 
-const delegateGenerateSchema = z.object({
-  amount: z.number().positive('Enter a valid authorization amount.').or(z.string()),
-});
-
-const delegateClaimSchema = z.object({
-  seniorName: z.string().min(2, "Senior citizen's full name is required."),
-  otp: z.string().regex(/^\d{6}$/, 'OTP must be 6 digits.'),
-});
+const delegateGenerateSchema = z.object({ amount: z.number().finite().positive('Enter a valid authorization amount.').max(99999999.99).or(z.string().regex(/^\d+(\.\d{1,2})?$/)) });
+const delegateClaimSchema = z.object({ seniorName: z.string().trim().min(2).max(100), otp: z.string().regex(/^\d{6}$/, 'OTP must be 6 digits.') });
 
 const emergencyWithdrawalRequestSchema = z.object({
-  accountIdentifier: z.string().min(2, 'Account identifier is required.'),
-  authorizedName: z.string().min(2, 'Authorized person name is required.'),
-  authorizedPhone: z.string().min(8, 'Authorized person phone number is required.'),
-  authorizedIdType: z.string().optional(),
-  authorizedIdNumber: z.string().optional(),
-  amount: z.number().positive('Amount must be positive.').or(z.string()),
-  reason: z.string().optional(),
+  accountIdentifier: z.string().trim().min(2).max(120),
+  authorizedName: z.string().trim().min(2).max(100),
+  authorizedPhone: z.string().trim().min(8).max(20),
+  authorizedIdType: z.string().trim().max(50).optional(),
+  authorizedIdNumber: z.string().trim().max(100).optional(),
+  amount: z.number().finite().positive().max(99999999.99).or(z.string().regex(/^\d+(\.\d{1,2})?$/)),
+  reason: z.string().trim().max(500).optional(),
 });
 
-const emergencyWithdrawalVerifySchema = z.object({
-  requestId: z.string().min(1, 'Request identifier is required.'),
-  otp: z.string().regex(/^\d{6}$/, 'OTP must be 6 digits.'),
-});
+const emergencyWithdrawalVerifySchema = z.object({ requestId: z.string().min(1).max(100), otp: z.string().regex(/^\d{6}$/, 'OTP must be 6 digits.') });
 
 const emergencyContactsUpdateSchema = z.object({
-  contacts: z.array(
-    z.object({
-      name: z.string().min(2, 'Contact name is required.'),
-      phone: z.string().min(8, 'Contact phone is required.'),
-      relation: z.string().optional(),
-      idType: z.string().optional().nullable(),
-      idNumber: z.string().optional().nullable(),
-    })
-  ),
+  contacts: z.array(z.object({
+    name: z.string().trim().min(2).max(100),
+    phone: z.string().trim().min(8).max(20),
+    relation: z.string().trim().max(50).optional(),
+    idType: z.string().trim().max(50).optional().nullable(),
+    idNumber: z.string().trim().max(100).optional().nullable(),
+  })).max(5),
 });
-
-// ---------------- Complaints ----------------
 
 const complaintCreateSchema = z.object({
   transactionId: z.string().uuid().optional(),
-  subject: z.string().min(3, 'Subject is required.'),
-  description: z.string().min(5, 'Please describe the issue in more detail.'),
+  subject: z.string().trim().min(3).max(150),
+  description: z.string().trim().min(5).max(2000),
 });
 
-const complaintResolveSchema = z.object({
-  status: z.enum(['OPEN', 'IN_PROGRESS', 'RESOLVED', 'REJECTED']),
-  adminResponse: z.string().optional(),
-});
-
-// ---------------- Merchant ----------------
-
-const merchantPaymentRequestSchema = z.object({
-  amount: z.number().positive('Amount must be greater than zero.'),
-  description: z.string().optional(),
-});
-
-const merchantRefundSchema = z.object({
-  transactionId: z.string().uuid(),
-  reason: z.string().min(3, 'A refund reason is required.'),
-});
-
-// ---------------- Admin ----------------
-
-const userStatusUpdateSchema = z.object({
-  status: z.enum(['ACTIVE', 'LOCKED', 'SUSPENDED']),
-});
-
-// ---------------- Security ----------------
-
+const complaintResolveSchema = z.object({ status: z.enum(['OPEN', 'IN_PROGRESS', 'RESOLVED', 'REJECTED']), adminResponse: z.string().trim().max(2000).optional() });
+const merchantPaymentRequestSchema = z.object({ amount: z.number().finite().positive().max(99999999.99), description: z.string().trim().max(500).optional() });
+const merchantRefundSchema = z.object({ transactionId: z.string().uuid(), reason: z.string().trim().min(3).max(500) });
+const userStatusUpdateSchema = z.object({ status: z.enum(['ACTIVE', 'LOCKED', 'SUSPENDED']) });
 const securityEventSchema = z.object({
-  eventType: z.string().min(2),
+  eventType: z.string().trim().min(2).max(100),
   severity: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).optional(),
-  description: z.string().min(2),
-  deviceReference: z.string().optional(),
+  description: z.string().trim().min(2).max(1000),
+  deviceReference: z.string().trim().max(500).optional(),
 });
 
 module.exports = {
