@@ -2,6 +2,7 @@ const prisma = require('../prisma');
 const SecurityService = require('./securityService');
 const { hashValue, compareValue } = require('../utils/hash');
 const crypto = require('crypto');
+const SmartExpenseService = require('./smartExpenseService');
 
 class TransactionService {
   /**
@@ -40,6 +41,9 @@ class TransactionService {
       recipientName: t.recipient_name,
       recipientAccount: t.recipient_account,
       createdAt: t.created_at,
+      category: t.category,
+      categoryConfidence: t.category_confidence == null ? null : Number(t.category_confidence),
+      categoryUserCorrected: t.category_user_corrected,
     }));
   }
 
@@ -78,6 +82,9 @@ class TransactionService {
       recipientName: tx.recipient_name,
       recipientAccount: tx.recipient_account,
       createdAt: tx.created_at,
+      category: tx.category,
+      categoryConfidence: tx.category_confidence == null ? null : Number(tx.category_confidence),
+      categoryUserCorrected: tx.category_user_corrected,
       complaints: tx.complaints,
     };
   }
@@ -98,6 +105,7 @@ class TransactionService {
       idempotencyKey,
     } = payload;
     const numAmount = Number(amount);
+    const category = SmartExpenseService.categorize(description, transactionType);
 
     if (transactionType === 'DEPOSIT' && !options.allowDeposit) {
       const err = new Error('Deposits must be initiated through a verified payment workflow.');
@@ -187,6 +195,8 @@ class TransactionService {
             description: description || 'ATM cash withdrawal (biometric verified)',
             status: 'COMPLETED',
             reference_number: refNumber,
+            category: category.category,
+            category_confidence: category.confidence,
             ...(idempotencyKey ? { idempotency_key: String(idempotencyKey) } : {}),
           },
         });
@@ -243,6 +253,8 @@ class TransactionService {
             recipient_account: recipientAccount || null,
             status: 'COMPLETED',
             reference_number: refNumber,
+            category: category.category,
+            category_confidence: category.confidence,
           },
         });
 
@@ -268,6 +280,8 @@ class TransactionService {
                 recipient_name: senderUser?.full_name || null,
                 status: 'COMPLETED',
                 reference_number: `TX_REC_${crypto.randomUUID()}`,
+                category: SmartExpenseService.categorize(`Received transfer from ${senderUser?.full_name || 'iCash user'}`, 'DEPOSIT').category,
+                category_confidence: 0.98,
               },
             });
         }
@@ -306,6 +320,8 @@ class TransactionService {
             description: description || 'Account top-up / deposit',
             status: 'COMPLETED',
             reference_number: refNumber,
+            category: category.category,
+            category_confidence: category.confidence,
             ...(idempotencyKey ? { idempotency_key: String(idempotencyKey) } : {}),
           },
         });
@@ -638,6 +654,8 @@ class TransactionService {
           recipient_account: authorizedPhone,
           status: 'COMPLETED',
           reference_number: `TX_EMERGENCY_${Date.now()}`,
+          category: 'CASH',
+          category_confidence: 0.98,
         },
       });
 

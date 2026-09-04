@@ -72,6 +72,18 @@ enum ConversationRole {
   ASSISTANT
 }
 
+enum SplitMethod {
+  EQUAL
+  PERCENTAGE
+  CUSTOM
+}
+
+enum SplitPaymentStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
 model User {
   id                      String     @id @default(uuid())
   full_name               String
@@ -96,19 +108,99 @@ model User {
   updated_at              DateTime   @updatedAt
   last_login_at           DateTime?
 
-  biometric_profile BiometricProfile?
-  accounts          BankAccount[]
-  transactions      Transaction[]
-  sessions          LoginSession[]
-  security_events   SecurityEvent[]
-  complaints        Complaint[]
-  delegations       DelegatedWithdrawal[]
-  merchant_profile  MerchantProfile?
-  ai_conversations  AIConversation[]
+  biometric_profile      BiometricProfile?
+  accounts               BankAccount[]
+  transactions           Transaction[]
+  sessions               LoginSession[]
+  security_events        SecurityEvent[]
+  complaints             Complaint[]
+  delegations            DelegatedWithdrawal[]
+  merchant_profile       MerchantProfile?
+  ai_conversations       AIConversation[]
+  notifications          Notification[]
+  created_expense_groups ExpenseGroup[]        @relation("GroupCreator")
+  group_memberships      GroupMember[]
+  split_expenses_paid    SplitExpense[]        @relation("ExpensePayer")
+  split_shares           SplitExpenseShare[]
+  split_payments_from    SplitPayment[]        @relation("PaymentPayer")
+  split_payments_to      SplitPayment[]        @relation("PaymentPayee")
+  receipts               Receipt[]
+  challenge_progress     ChallengeProgress[]
 
   @@index([phone])
   @@index([aadhaar_last4])
   @@index([role])
+}
+
+model ExpenseGroup {
+  id         String         @id @default(uuid())
+  name       String
+  created_by String
+  created_at DateTime       @default(now())
+  updated_at DateTime       @updatedAt
+  creator    User           @relation("GroupCreator", fields: [created_by], references: [id], onDelete: Cascade)
+  members    GroupMember[]
+  expenses   SplitExpense[]
+
+  @@index([created_by])
+}
+
+model GroupMember {
+  id        String       @id @default(uuid())
+  group_id  String
+  user_id   String
+  joined_at DateTime     @default(now())
+  group     ExpenseGroup @relation(fields: [group_id], references: [id], onDelete: Cascade)
+  user      User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([group_id, user_id])
+  @@index([user_id])
+}
+
+model SplitExpense {
+  id           String              @id @default(uuid())
+  group_id     String
+  paid_by      String
+  description  String
+  total_amount Decimal             @db.Decimal(12, 2)
+  split_method SplitMethod
+  created_at   DateTime            @default(now())
+  group        ExpenseGroup        @relation(fields: [group_id], references: [id], onDelete: Cascade)
+  payer        User                @relation("ExpensePayer", fields: [paid_by], references: [id], onDelete: Cascade)
+  shares       SplitExpenseShare[]
+  payments     SplitPayment[]
+
+  @@index([group_id, created_at])
+}
+
+model SplitExpenseShare {
+  id         String       @id @default(uuid())
+  expense_id String
+  user_id    String
+  amount     Decimal      @db.Decimal(12, 2)
+  percentage Decimal?     @db.Decimal(7, 4)
+  expense    SplitExpense @relation(fields: [expense_id], references: [id], onDelete: Cascade)
+  user       User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([expense_id, user_id])
+  @@index([user_id])
+}
+
+model SplitPayment {
+  id         String             @id @default(uuid())
+  expense_id String
+  payer_id   String
+  payee_id   String
+  amount     Decimal            @db.Decimal(12, 2)
+  status     SplitPaymentStatus @default(PENDING)
+  paid_at    DateTime?
+  created_at DateTime           @default(now())
+  expense    SplitExpense       @relation(fields: [expense_id], references: [id], onDelete: Cascade)
+  payer      User               @relation("PaymentPayer", fields: [payer_id], references: [id], onDelete: Cascade)
+  payee      User               @relation("PaymentPayee", fields: [payee_id], references: [id], onDelete: Cascade)
+
+  @@index([payer_id, status])
+  @@index([payee_id, status])
 }
 
 model MerchantProfile {
@@ -173,29 +265,49 @@ model BankAccount {
 }
 
 model Transaction {
-  id                String            @id @default(uuid())
-  user_id           String
-  account_id        String
-  transaction_type  TransactionType
-  amount            Decimal           @db.Decimal(12, 2)
-  currency          String            @default("INR")
-  description       String
-  status            TransactionStatus @default(COMPLETED)
-  reference_number  String            @unique
-  idempotency_key   String?           @unique // Client-supplied key to prevent double-spend on retries
-  recipient_name    String?
-  recipient_account String?
-  created_at        DateTime          @default(now())
+  id                      String            @id @default(uuid())
+  user_id                 String
+  account_id              String
+  transaction_type        TransactionType
+  amount                  Decimal           @db.Decimal(12, 2)
+  currency                String            @default("INR")
+  description             String
+  status                  TransactionStatus @default(COMPLETED)
+  reference_number        String            @unique
+  idempotency_key         String?           @unique // Client-supplied key to prevent double-spend on retries
+  recipient_name          String?
+  recipient_account       String?
+  created_at              DateTime          @default(now())
+  category                String?
+  category_confidence     Decimal?          @db.Decimal(5, 4)
+  category_user_corrected Boolean           @default(false)
 
-  user       User                  @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  account    BankAccount           @relation(fields: [account_id], references: [id], onDelete: Cascade)
-  complaints Complaint[]
-  embedding  TransactionEmbedding?
+  user           User                  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  account        BankAccount           @relation(fields: [account_id], references: [id], onDelete: Cascade)
+  complaints     Complaint[]
+  embedding      TransactionEmbedding?
+  fraud_analysis FraudAnalysis?
 
   @@index([user_id])
   @@index([account_id])
   @@index([created_at])
   @@index([idempotency_key])
+}
+
+model FraudAnalysis {
+  id             String   @id @default(uuid())
+  transaction_id String   @unique
+  risk_score     Decimal  @db.Decimal(5, 4)
+  risk_level     Severity @default(LOW)
+  indicators     Json?
+  model_version  String   @default("rules-v1")
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  transaction Transaction @relation(fields: [transaction_id], references: [id], onDelete: Cascade)
+
+  @@index([risk_level])
+  @@index([created_at])
 }
 
 model AIConversation {
@@ -307,4 +419,77 @@ model OtpRecord {
   @@unique([purpose, mobile])
   @@index([mobile])
   @@index([expires_at])
+}
+
+model Notification {
+  id         String   @id @default(uuid())
+  user_id    String
+  type       String   @default("INFO")
+  title      String
+  message    String
+  read       Boolean  @default(false)
+  metadata   Json?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, read, created_at])
+}
+
+model Receipt {
+  id           String    @id @default(uuid())
+  user_id      String
+  merchant     String?
+  receipt_date DateTime?
+  total        Decimal?  @db.Decimal(12, 2)
+  tax          Decimal?  @db.Decimal(12, 2)
+  image_path   String
+  confidence   Decimal?  @db.Decimal(5, 4)
+  created_at   DateTime  @default(now())
+
+  user  User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  items ReceiptItem[]
+
+  @@index([user_id, created_at])
+}
+
+model ReceiptItem {
+  id         String   @id @default(uuid())
+  receipt_id String
+  name       String
+  quantity   Decimal? @db.Decimal(10, 2)
+  amount     Decimal  @db.Decimal(12, 2)
+
+  receipt Receipt @relation(fields: [receipt_id], references: [id], onDelete: Cascade)
+
+  @@index([receipt_id])
+}
+
+model SavingChallenge {
+  id            String              @id @default(uuid())
+  name          String
+  description   String?
+  target_amount Decimal?            @db.Decimal(12, 2)
+  duration_days Int
+  active        Boolean             @default(true)
+  created_at    DateTime            @default(now())
+  progress      ChallengeProgress[]
+}
+
+model ChallengeProgress {
+  id             String    @id @default(uuid())
+  challenge_id   String
+  user_id        String
+  current_amount Decimal   @default(0) @db.Decimal(12, 2)
+  streak         Int       @default(0)
+  xp             Int       @default(0)
+  completed_at   DateTime?
+  joined_at      DateTime  @default(now())
+
+  challenge SavingChallenge @relation(fields: [challenge_id], references: [id], onDelete: Cascade)
+  user      User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([challenge_id, user_id])
+  @@index([user_id])
 }

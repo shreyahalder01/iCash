@@ -253,6 +253,20 @@ npm test
 
 The chat request body is `{ "message": "Why did I spend so much this month?" }`. Conversation records and transaction context are strictly scoped to the authenticated user.
 
+### Intelligent Finance APIs (`/api/v2`)
+
+- `PATCH /api/v2/transactions/:id/category` — correct an automatically assigned category.
+- `GET /api/v2/fraud/:transactionId` — retrieve a user-scoped fraud risk analysis.
+- `GET /api/v2/analytics/forecast` — project balance and daily cash flow.
+- `GET /api/v2/health/score` — return a 0–100 financial health score, grade, and insights.
+- `POST /api/v2/receipt/scan` — upload a JPEG/PNG/WEBP/TIFF receipt as `receipt` multipart data.
+- `POST /api/v2/splits/groups` and related `/api/v2/splits` routes — create groups, split expenses, optimize debts, and settle payments.
+- `GET /api/v2/merchant/dashboard` and `/api/v2/merchant/analytics` — merchant revenue and customer metrics.
+- `GET /api/v2/savings/challenges`, `POST /api/v2/savings/challenges/:id/join`, and `GET /api/v2/savings/progress` — savings challenges and progress.
+- `GET /api/v2/notifications` — authenticated notification inbox with read-state endpoints.
+
+All v2 endpoints use the existing HTTP-only session authentication and preserve the original `/api` routes.
+
 ### Liveness Detection Microservice (`http://localhost:5001`)
 
 | Method | Endpoint           | Description                                      |

@@ -69,6 +69,9 @@ const transactionCreateSchema = z.object({
   verifyMethod: z.enum(['FACE', 'PIN']).optional().default('PIN'),
   idempotencyKey: z.string().trim().min(1).max(255).optional(),
 }).passthrough();
+const categoryCorrectionSchema = z.object({
+  category: z.string().trim().min(2).max(40),
+});
 
 const delegateGenerateSchema = z.object({ amount: z.number().finite().positive('Enter a valid authorization amount.').max(99999999.99).or(z.string().regex(/^\d+(\.\d{1,2})?$/)) });
 const delegateClaimSchema = z.object({ seniorName: z.string().trim().min(2).max(100), otp: z.string().regex(/^\d{6}$/, 'OTP must be 6 digits.') });
@@ -125,6 +128,7 @@ module.exports = {
   accountCreateSchema,
   accountUpdateSchema,
   transactionCreateSchema,
+  categoryCorrectionSchema,
   delegateGenerateSchema,
   delegateClaimSchema,
   emergencyWithdrawalRequestSchema,

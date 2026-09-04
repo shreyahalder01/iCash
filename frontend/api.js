@@ -87,8 +87,9 @@ async function request(endpoint, options = {}) {
   const base = await detectApiBase();
   const url = `${base}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
 
+  const isFormData = configBodyIsFormData(options.body);
   const headers = {
-    'Content-Type': 'application/json',
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...(options.headers || {}),
   };
 
@@ -100,6 +101,10 @@ async function request(endpoint, options = {}) {
 
   if (config.body && typeof config.body === 'object' && !(config.body instanceof FormData)) {
     config.body = JSON.stringify(config.body);
+  }
+
+  function configBodyIsFormData(body) {
+    return typeof FormData !== 'undefined' && body instanceof FormData;
   }
 
   let response;
@@ -255,6 +260,34 @@ const api = {
   getMerchantTransactions: () => request('/api/merchant/transactions', { method: 'GET' }),
   getMerchantSettlements: () => request('/api/merchant/settlements', { method: 'GET' }),
   processRefund: (data) => request('/api/merchant/refunds', { method: 'POST', body: data }),
+  getMerchantDashboard: () => request('/api/v2/merchant/dashboard', { method: 'GET' }),
+  getMerchantAnalytics: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/api/v2/merchant/analytics${query ? `?${query}` : ''}`, { method: 'GET' });
+  },
+
+  // AI-powered finance features (v2)
+  scanReceipt: (formData) => request('/api/v2/receipt/scan', { method: 'POST', body: formData }),
+  updateTransactionCategory: (id, category) =>
+    request(`/api/v2/transactions/${id}/category`, { method: 'PATCH', body: { category } }),
+  getFraudAnalysis: (id) => request(`/api/v2/fraud/${id}`, { method: 'GET' }),
+  getForecast: () => request('/api/v2/analytics/forecast', { method: 'GET' }),
+  getHealthScore: () => request('/api/v2/health/score', { method: 'GET' }),
+  createExpenseGroup: (data) => request('/api/v2/splits/groups', { method: 'POST', body: data }),
+  addSplitExpense: (data) => request('/api/v2/splits/expenses', { method: 'POST', body: data }),
+  getOutstandingBalances: (groupId) =>
+    request(`/api/v2/splits/groups/${groupId}/balances`, { method: 'GET' }),
+  settleSplitDebt: (paymentId) =>
+    request(`/api/v2/splits/payments/${paymentId}/pay`, { method: 'POST', body: {} }),
+  getNotifications: () => request('/api/v2/notifications', { method: 'GET' }),
+  markNotificationRead: (id) =>
+    request(`/api/v2/notifications/${id}/read`, { method: 'PATCH', body: {} }),
+  getSavingChallenges: () => request('/api/v2/savings/challenges', { method: 'GET' }),
+  joinSavingChallenge: (id) =>
+    request(`/api/v2/savings/challenges/${id}/join`, { method: 'POST', body: {} }),
+  getSavingProgress: () => request('/api/v2/savings/progress', { method: 'GET' }),
+  claimSavingReward: (progressId) =>
+    request(`/api/v2/savings/progress/${progressId}/claim`, { method: 'POST', body: {} }),
 
   // Real-Time Liveness Server (Flask + OpenCV + dlib)
   liveness: {

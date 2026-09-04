@@ -1,0 +1,26 @@
+CREATE TYPE "SplitMethod" AS ENUM ('EQUAL', 'PERCENTAGE', 'CUSTOM');
+CREATE TYPE "SplitPaymentStatus" AS ENUM ('PENDING', 'PAID', 'CANCELLED');
+
+CREATE TABLE "ExpenseGroup" ("id" TEXT NOT NULL, "name" TEXT NOT NULL, "created_by" TEXT NOT NULL, "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updated_at" TIMESTAMP(3) NOT NULL, CONSTRAINT "ExpenseGroup_pkey" PRIMARY KEY ("id"));
+CREATE TABLE "GroupMember" ("id" TEXT NOT NULL, "group_id" TEXT NOT NULL, "user_id" TEXT NOT NULL, "joined_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "GroupMember_pkey" PRIMARY KEY ("id"));
+CREATE TABLE "SplitExpense" ("id" TEXT NOT NULL, "group_id" TEXT NOT NULL, "paid_by" TEXT NOT NULL, "description" TEXT NOT NULL, "total_amount" DECIMAL(12,2) NOT NULL, "split_method" "SplitMethod" NOT NULL, "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "SplitExpense_pkey" PRIMARY KEY ("id"));
+CREATE TABLE "SplitExpenseShare" ("id" TEXT NOT NULL, "expense_id" TEXT NOT NULL, "user_id" TEXT NOT NULL, "amount" DECIMAL(12,2) NOT NULL, "percentage" DECIMAL(7,4), CONSTRAINT "SplitExpenseShare_pkey" PRIMARY KEY ("id"));
+CREATE TABLE "SplitPayment" ("id" TEXT NOT NULL, "expense_id" TEXT NOT NULL, "payer_id" TEXT NOT NULL, "payee_id" TEXT NOT NULL, "amount" DECIMAL(12,2) NOT NULL, "status" "SplitPaymentStatus" NOT NULL DEFAULT 'PENDING', "paid_at" TIMESTAMP(3), "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "SplitPayment_pkey" PRIMARY KEY ("id"));
+CREATE UNIQUE INDEX "GroupMember_group_id_user_id_key" ON "GroupMember"("group_id","user_id");
+CREATE UNIQUE INDEX "SplitExpenseShare_expense_id_user_id_key" ON "SplitExpenseShare"("expense_id","user_id");
+CREATE INDEX "ExpenseGroup_created_by_idx" ON "ExpenseGroup"("created_by");
+CREATE INDEX "GroupMember_user_id_idx" ON "GroupMember"("user_id");
+CREATE INDEX "SplitExpense_group_id_created_at_idx" ON "SplitExpense"("group_id","created_at");
+CREATE INDEX "SplitExpenseShare_user_id_idx" ON "SplitExpenseShare"("user_id");
+CREATE INDEX "SplitPayment_payer_id_status_idx" ON "SplitPayment"("payer_id","status");
+CREATE INDEX "SplitPayment_payee_id_status_idx" ON "SplitPayment"("payee_id","status");
+ALTER TABLE "ExpenseGroup" ADD CONSTRAINT "ExpenseGroup_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "GroupMember" ADD CONSTRAINT "GroupMember_group_id_fkey" FOREIGN KEY ("group_id") REFERENCES "ExpenseGroup"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "GroupMember" ADD CONSTRAINT "GroupMember_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "SplitExpense" ADD CONSTRAINT "SplitExpense_group_id_fkey" FOREIGN KEY ("group_id") REFERENCES "ExpenseGroup"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "SplitExpense" ADD CONSTRAINT "SplitExpense_paid_by_fkey" FOREIGN KEY ("paid_by") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "SplitExpenseShare" ADD CONSTRAINT "SplitExpenseShare_expense_id_fkey" FOREIGN KEY ("expense_id") REFERENCES "SplitExpense"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "SplitExpenseShare" ADD CONSTRAINT "SplitExpenseShare_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "SplitPayment" ADD CONSTRAINT "SplitPayment_expense_id_fkey" FOREIGN KEY ("expense_id") REFERENCES "SplitExpense"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "SplitPayment" ADD CONSTRAINT "SplitPayment_payer_id_fkey" FOREIGN KEY ("payer_id") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "SplitPayment" ADD CONSTRAINT "SplitPayment_payee_id_fkey" FOREIGN KEY ("payee_id") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

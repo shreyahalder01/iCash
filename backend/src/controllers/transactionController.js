@@ -1,4 +1,5 @@
 const TransactionService = require('../services/transactionService');
+const SmartExpenseService = require('../services/smartExpenseService');
 
 class TransactionController {
   static async getTransactions(req, res, next) {
@@ -43,6 +44,21 @@ class TransactionController {
     } catch (err) {
       next(err);
     }
+  }
+
+  static async correctCategory(req, res, next) {
+    try {
+      const transaction = await SmartExpenseService.correctCategory(req.user.id, req.params.id, req.body.category);
+      res.json({
+        ok: true,
+        transaction: {
+          id: transaction.id,
+          category: transaction.category,
+          categoryConfidence: Number(transaction.category_confidence),
+          categoryUserCorrected: transaction.category_user_corrected,
+        },
+      });
+    } catch (err) { next(err); }
   }
 
   static async topUpDemoFunds(req, res, next) {

@@ -11,6 +11,7 @@ const {
   emergencyWithdrawalRequestSchema,
   emergencyWithdrawalVerifySchema,
   emergencyContactsUpdateSchema,
+  categoryCorrectionSchema,
 } = require('../utils/validator');
 
 // ── Public Routes for Authorized Representative & Emergency Cash ────────────
@@ -52,6 +53,7 @@ router.post(
   TransactionController.createTransaction
 );
 router.post('/topup', transactionLimiter, TransactionController.topUpDemoFunds);
+router.patch('/:id/category', validateRequest(categoryCorrectionSchema), TransactionController.correctCategory);
 
 // Emergency contacts management
 router.post(
