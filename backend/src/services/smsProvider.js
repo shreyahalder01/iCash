@@ -76,6 +76,9 @@ const providers = {
 };
 
 async function sendOtpSms(mobile, code) {
+  if (process.env.NODE_ENV === 'production' && PROVIDER === 'console') {
+    throw new Error('Console SMS delivery is disabled in production.');
+  }
   const send = providers[PROVIDER];
   if (!send) throw new Error(`Unknown SMS_PROVIDER "${PROVIDER}"`);
   return send(mobile, code);

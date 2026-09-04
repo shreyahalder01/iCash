@@ -23,8 +23,7 @@ router.post('/send', authLimiter, async (req, res) => {
       ok: true,
       expiresAt: result.expiresAt,
       devMode: result.devMode,
-      code: result.code,
-      devCode: result.code,
+      ...(result.devCode ? { devCode: result.devCode } : {}),
     });
   } catch (err) {
     if (err.code === 'COOLDOWN') {
@@ -37,7 +36,7 @@ router.post('/send', authLimiter, async (req, res) => {
   }
 });
 
-router.post('/verify', authLimiter, (req, res) => {
+router.post('/verify', authLimiter, async (req, res) => {
   const { mobile, purpose, code } = req.body || {};
   if (!isValidMobile(mobile))
     return res.status(400).json({ ok: false, error: 'Mobile must be a 10-digit number.' });
@@ -45,7 +44,7 @@ router.post('/verify', authLimiter, (req, res) => {
     return res.status(400).json({ ok: false, error: 'Purpose must be "register" or "login".' });
   if (!code) return res.status(400).json({ ok: false, error: 'Code is required.' });
 
-  const result = verifyOtp(purpose, mobile, code);
+  const result = await verifyOtp(purpose, mobile, code);
   if (!result.ok) return res.status(400).json(result);
   res.json({ ok: true });
 });

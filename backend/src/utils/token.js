@@ -49,6 +49,7 @@ function getClearCookieOptions() {
     secure: isProd,
     sameSite: 'lax',
     path: '/',
+    maxAge: 0, // Force immediate expiry in browsers that respect maxAge
   };
 }
 

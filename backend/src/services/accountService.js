@@ -34,6 +34,12 @@ class AccountService {
   static async createAccount(userId, data) {
     const { bankName, accountType = 'SAVINGS', initialBalance = 0, isPrimary = false } = data;
 
+    if (Number(initialBalance) !== 0) {
+      const err = new Error('New accounts must be funded through a verified deposit or payment workflow.');
+      err.status = 400;
+      throw err;
+    }
+
     const accountMasked = `•••• ${crypto.randomInt(1000, 10000)}`;
     const accountRef = `ACC_${userId.slice(0, 6).toUpperCase()}_${Date.now()}`;
 
@@ -53,25 +59,11 @@ class AccountService {
           account_number_masked: accountMasked,
           account_reference: accountRef,
           account_type: accountType,
-          balance: initialBalance,
+          balance: 0,
           is_primary: isPrimary,
           status: 'ACTIVE',
         },
       });
-
-      if (initialBalance > 0) {
-        await tx.transaction.create({
-          data: {
-            user_id: userId,
-            account_id: account.id,
-            transaction_type: 'DEPOSIT',
-            amount: initialBalance,
-            description: `Initial funding for linked ${bankName} account`,
-            status: 'COMPLETED',
-            reference_number: `TX_INIT_${Date.now()}`,
-          },
-        });
-      }
 
       return account;
     });

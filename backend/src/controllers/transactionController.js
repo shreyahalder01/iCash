@@ -33,7 +33,7 @@ class TransactionController {
   static async createTransaction(req, res, next) {
     try {
       const result = await TransactionService.processTransaction(req.user.id, req.body, req);
-      res.status(201).json({
+      res.status(result.idempotent ? 200 : 201).json({
         ok: true,
         message: 'Transaction completed successfully.',
         transaction: result.transaction,
@@ -50,7 +50,21 @@ class TransactionController {
       if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEMO_TOPUP !== 'true') {
         return res.status(404).json({ ok: false, error: 'NotFound', message: 'Endpoint not found.' });
       }
-      const amount = Number(req.body.amount) || 5000;
+
+      const MAX_TOPUP = 10000;
+      const rawAmount = Number(req.body.amount);
+      if (isNaN(rawAmount) || rawAmount <= 0) {
+        return res.status(400).json({ ok: false, error: 'ValidationError', message: 'Amount must be a positive number.' });
+      }
+      const amount = Math.min(rawAmount, MAX_TOPUP);
+      if (rawAmount > MAX_TOPUP) {
+        return res.status(400).json({
+          ok: false,
+          error: 'ValidationError',
+          message: `Demo top-up is capped at ₹${MAX_TOPUP.toLocaleString('en-IN')} per request.`,
+        });
+      }
+
       const result = await TransactionService.processTransaction(
         req.user.id,
         {
@@ -58,7 +72,8 @@ class TransactionController {
           amount,
           description: 'Instant demo funds top-up',
         },
-        req
+        req,
+        { allowDeposit: true }
       );
       res.json({
         ok: true,

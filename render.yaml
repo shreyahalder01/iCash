@@ -13,7 +13,7 @@ services:
       - key: CORS_ORIGIN
         value: https://icash.onrender.com
       - key: SMS_PROVIDER
-        value: console
+        value: twilio
       - key: BIOMETRIC_PROVIDER
         value: demo
       - key: ALLOW_DEMO_TOPUP

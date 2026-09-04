@@ -87,20 +87,15 @@ async function request(endpoint, options = {}) {
   const base = await detectApiBase();
   const url = `${base}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
 
-  // Get stored token if any
-  const storedToken =
-    typeof localStorage !== 'undefined' ? localStorage.getItem('icash_token') : null;
-
   const headers = {
     'Content-Type': 'application/json',
-    ...(storedToken ? { Authorization: `Bearer ${storedToken}` } : {}),
     ...(options.headers || {}),
   };
 
   const config = {
     ...options,
     headers,
-    credentials: 'include', // Always include HTTP-only cookies as well
+    credentials: 'include', // Rely exclusively on HTTP-only session cookie for auth
   };
 
   if (config.body && typeof config.body === 'object' && !(config.body instanceof FormData)) {
@@ -144,20 +139,19 @@ async function request(endpoint, options = {}) {
     throw error;
   }
 
-  // Automatically save token on successful login or register
-  if (response.ok && data && data.token && typeof localStorage !== 'undefined') {
-    localStorage.setItem('icash_token', data.token);
-  }
+  // Token is managed exclusively by the HTTP-only session cookie set by the server.
+  // Never store JWTs in localStorage — localStorage is XSS-accessible and bypasses
+  // the security guarantee of httpOnly cookies.
 
-  // Clear token on logout
-  if (endpoint.includes('/logout') && typeof localStorage !== 'undefined') {
+  // Clear any stale legacy token that may have been stored by older versions
+  if (typeof localStorage !== 'undefined' && localStorage.getItem('icash_token')) {
     localStorage.removeItem('icash_token');
   }
 
   if (!response.ok) {
-    if (response.status === 401 && typeof localStorage !== 'undefined') {
-      // Clear potentially invalid token
-      localStorage.removeItem('icash_token');
+    if (response.status === 401) {
+      // Session expired — the HTTP-only cookie will be cleared by the server's Set-Cookie header.
+      // No localStorage token to clear.
     }
     const errorMsg =
       data.message ||
@@ -264,10 +258,17 @@ const api = {
 
   // Real-Time Liveness Server (Flask + OpenCV + dlib)
   liveness: {
-    baseUrl: 'http://127.0.0.1:5001',
-    start: async () => {
+    // URL is configurable via window.ICASH_CONFIG.LIVENESS_URL or falls back to localhost.
+    // In production, set window.ICASH_CONFIG.LIVENESS_URL to the deployed liveness server URL.
+    get baseUrl() {
+      if (typeof window !== 'undefined' && window.ICASH_CONFIG?.LIVENESS_URL) {
+        return window.ICASH_CONFIG.LIVENESS_URL.replace(/\/+$/, '');
+      }
+      return 'http://127.0.0.1:5001';
+    },
+    start: async function() {
       try {
-        const res = await fetch('http://127.0.0.1:5001/liveness/start', {
+        const res = await fetch(`${this.baseUrl}/liveness/start`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -276,9 +277,9 @@ const api = {
         return null;
       }
     },
-    sendFrame: async (sessionId, base64Image) => {
+    sendFrame: async function(sessionId, base64Image) {
       try {
-        const res = await fetch('http://127.0.0.1:5001/liveness/frame', {
+        const res = await fetch(`${this.baseUrl}/liveness/frame`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ session_id: sessionId, image: base64Image }),
@@ -288,19 +289,19 @@ const api = {
         return null;
       }
     },
-    status: async (sessionId) => {
+    status: async function(sessionId) {
       try {
         const res = await fetch(
-          `http://127.0.0.1:5001/liveness/status?session_id=${encodeURIComponent(sessionId)}`
+          `${this.baseUrl}/liveness/status?session_id=${encodeURIComponent(sessionId)}`
         );
         return await res.json();
       } catch (e) {
         return null;
       }
     },
-    reset: async (sessionId) => {
+    reset: async function(sessionId) {
       try {
-        await fetch('http://127.0.0.1:5001/liveness/reset', {
+        await fetch(`${this.baseUrl}/liveness/reset`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ session_id: sessionId }),

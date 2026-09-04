@@ -22,8 +22,20 @@ router.post(
   BiometricController.enroll
 );
 
-// Fetch stored descriptors for a given userId (used by client-side matcher).
-// Accessible during login (no session) — only returns descriptors, no PII.
-router.get('/profile/:userId', BiometricController.getProfile);
+// Fetch stored descriptors for the AUTHENTICATED user only.
+// Requires a valid session to prevent face vector harvesting.
+router.get('/profile/:userId', authenticate, (req, res, next) => {
+  // Enforce that users can only fetch their own biometric profile.
+  // Admin access is intentionally omitted here since descriptors are
+  // biometric raw data and must never be exposed to a third party.
+  if (req.params.userId !== req.user.id) {
+    return res.status(403).json({
+      ok: false,
+      error: 'Forbidden',
+      message: 'You may only access your own biometric profile.',
+    });
+  }
+  BiometricController.getProfile(req, res, next);
+});
 
 module.exports = router;

@@ -22,8 +22,7 @@ class MerchantController {
             user_id: req.user.id,
             business_name: `${req.user.full_name}'s Enterprise`,
             settlement_acct: req.user.accounts[0]?.account_number_masked || '•••• 8888',
-            settled_balance: 145000.0,
-            pending_balance: 12500.0,
+            // settled_balance and pending_balance default to 0.00 per schema — no fake seeding
           },
           include: {
             payment_requests: true,

@@ -9,9 +9,9 @@ services:
       - PORT=4000
       - NODE_ENV=production
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/icash?schema=public
-      - JWT_SECRET=icash-super-secure-production-jwt-secret-key-2026
-      - SESSION_SECRET=icash-session-cookie-encryption-secret-2026
-      - CORS_ORIGIN=*
+      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in the environment}
+      - SESSION_SECRET=${SESSION_SECRET:?Set SESSION_SECRET in the environment}
+      - CORS_ORIGIN=${CORS_ORIGIN:?Set CORS_ORIGIN in the environment}
       - SMS_PROVIDER=console
       - BIOMETRIC_PROVIDER=demo
     depends_on:
@@ -24,7 +24,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the environment}
       POSTGRES_DB: icash
     ports:
       - "5432:5432"

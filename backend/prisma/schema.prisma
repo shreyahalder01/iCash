@@ -71,6 +71,7 @@ model User {
   id                      String                @id @default(uuid())
   full_name               String
   email                   String?               @unique
+  email_verified          Boolean               @default(false)
   phone                   String                @unique
   aadhaar_reference       String                @unique
   aadhaar_last4           String
@@ -175,6 +176,7 @@ model Transaction {
   description       String
   status            TransactionStatus @default(COMPLETED)
   reference_number  String            @unique
+  idempotency_key   String?           @unique // Client-supplied key to prevent double-spend on retries
   recipient_name    String?
   recipient_account String?
   created_at        DateTime          @default(now())
@@ -186,6 +188,7 @@ model Transaction {
   @@index([user_id])
   @@index([account_id])
   @@index([created_at])
+  @@index([idempotency_key])
 }
 
 model LoginSession {
@@ -242,16 +245,34 @@ model Complaint {
 }
 
 model DelegatedWithdrawal {
-  id         String   @id @default(uuid())
-  user_id    String
-  amount     Decimal  @db.Decimal(12, 2)
-  otp_hash   String
-  status     String   @default("PENDING") // PENDING, USED, EXPIRED
-  expires_at DateTime
-  created_at DateTime @default(now())
+  id             String   @id @default(uuid())
+  user_id        String
+  amount         Decimal  @db.Decimal(12, 2)
+  otp_hash       String
+  status         String   @default("PENDING") // PENDING, USED, EXPIRED, LOCKED
+  attempt_count  Int      @default(0)          // Brute-force protection: locked after 5 failed attempts
+  expires_at     DateTime
+  created_at     DateTime @default(now())
 
-  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user           User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([user_id])
   @@index([status])
+}
+
+// Persistent OTP storage — production-safe alternative to in-memory Map.
+// Survives server restarts and works across horizontal scale-out.
+model OtpRecord {
+  id          String   @id @default(uuid())
+  purpose     String   // 'register' | 'login'
+  mobile      String
+  code_hash   String   // bcrypt hash of OTP code
+  attempts    Int      @default(0)
+  expires_at  DateTime
+  used        Boolean  @default(false)
+  created_at  DateTime @default(now())
+
+  @@unique([purpose, mobile])
+  @@index([mobile])
+  @@index([expires_at])
 }

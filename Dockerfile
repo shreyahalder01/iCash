@@ -16,7 +16,7 @@ RUN npx prisma generate --schema=backend/prisma/schema.prisma
 COPY . .
 
 # Build assets
-RUN npm run build || true
+RUN npm run build
 
 # Production runner stage
 FROM node:20-alpine AS runner

@@ -90,8 +90,16 @@ async function authenticate(req, res, next) {
       });
     }
 
-    // Attach user (without sensitive password hashes) to request object
-    req.user = user;
+    // Attach user to request — strip all sensitive credential fields first.
+    // Never expose password_hash, emergency_pin_hash, or raw aadhaar_reference
+    // to controllers, even accidentally via JSON serialization.
+    const {
+      password_hash: _ph,
+      emergency_pin_hash: _eph,
+      aadhaar_reference: _ar,
+      ...safeUser
+    } = user;
+    req.user = safeUser;
     next();
   } catch (err) {
     console.error('Auth middleware error:', err);

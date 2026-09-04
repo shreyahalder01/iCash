@@ -26,10 +26,27 @@ import numpy as np
 import dlib
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from scipy.spatial import distance as dist
 
 app = Flask(__name__)
-CORS(app)
+
+# ── CORS — restrict to configured origins, not wildcard ──────────────────────
+_allowed_origins_raw = os.environ.get(
+    'LIVENESS_ALLOWED_ORIGINS',
+    'http://localhost:4000,http://127.0.0.1:4000,http://localhost:4001,http://127.0.0.1:4001,http://localhost:3000'
+)
+ALLOWED_ORIGINS = [o.strip() for o in _allowed_origins_raw.split(',') if o.strip()]
+CORS(app, origins=ALLOWED_ORIGINS, supports_credentials=False)
+
+# ── Rate Limiting ──────────────────────────────────────────────────────
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=['200 per minute'],
+    storage_uri='memory://',
+)
 
 # ── Configuration & Constants ───────────────────────────────────────────────
 
@@ -161,8 +178,9 @@ def detect_anti_spoof(frame, face_rect, coords):
             return False, 0.15, "flat_geometry_spoof"
 
         return True, round(float(min(1.0, lap_var / 100.0)), 2), "live_human"
-    except Exception as e:
-        return True, 0.5, "fallback"
+    except Exception:
+        # Never treat an analysis failure as proof of liveness.
+        return False, 0.0, "analysis_error"
 
 
 def decode_base64_image(data_url):
@@ -205,6 +223,7 @@ def health():
 
 
 @app.route("/liveness/start", methods=["POST"])
+@limiter.limit("10 per minute")  # Max 10 new liveness sessions per IP per minute
 def liveness_start():
     cleanup_old_sessions()
     session_id = str(uuid.uuid4())
@@ -229,6 +248,7 @@ def liveness_start():
 
 
 @app.route("/liveness/frame", methods=["POST"])
+@limiter.limit("300 per minute")  # Max 5 fps × 60 s = 300 frames per minute per IP
 def liveness_frame():
     data       = request.get_json(silent=True) or {}
     session_id = data.get("session_id")

@@ -4,35 +4,46 @@ const SecurityService = require('../services/securityService');
 class AdminController {
   static async getAllUsers(req, res, next) {
     try {
-      const users = await prisma.user.findMany({
-        orderBy: { created_at: 'desc' },
-        select: {
-          id: true,
-          full_name: true,
-          phone: true,
-          email: true,
-          aadhaar_last4: true,
-          role: true,
-          status: true,
-          failed_login_attempts: true,
-          locked_until: true,
-          is_senior: true,
-          created_at: true,
-          last_login_at: true,
-          accounts: {
-            select: {
-              id: true,
-              bank_name: true,
-              account_number_masked: true,
-              balance: true,
-              is_primary: true,
+      const take = Math.min(Number(req.query.limit) || 50, 200);
+      const skip = Number(req.query.offset) || 0;
+
+      const [users, total] = await Promise.all([
+        prisma.user.findMany({
+          orderBy: { created_at: 'desc' },
+          take,
+          skip,
+          select: {
+            id: true,
+            full_name: true,
+            phone: true,
+            email: true,
+            aadhaar_last4: true,
+            role: true,
+            status: true,
+            failed_login_attempts: true,
+            locked_until: true,
+            is_senior: true,
+            created_at: true,
+            last_login_at: true,
+            accounts: {
+              select: {
+                id: true,
+                bank_name: true,
+                account_number_masked: true,
+                balance: true,
+                is_primary: true,
+              },
             },
           },
-        },
-      });
+        }),
+        prisma.user.count(),
+      ]);
 
       res.json({
         ok: true,
+        total,
+        limit: take,
+        offset: skip,
         users: users.map((u) => ({
           ...u,
           totalBalance: u.accounts.reduce((sum, a) => sum + Number(a.balance), 0),
@@ -113,17 +124,27 @@ class AdminController {
 
   static async getAllTransactions(req, res, next) {
     try {
-      const transactions = await prisma.transaction.findMany({
-        orderBy: { created_at: 'desc' },
-        take: 100,
-        include: {
-          user: { select: { full_name: true, phone: true, aadhaar_last4: true } },
-          account: { select: { bank_name: true, account_number_masked: true } },
-        },
-      });
+      const take = Math.min(Number(req.query.limit) || 50, 200);
+      const skip = Number(req.query.offset) || 0;
+
+      const [transactions, total] = await Promise.all([
+        prisma.transaction.findMany({
+          orderBy: { created_at: 'desc' },
+          take,
+          skip,
+          include: {
+            user: { select: { full_name: true, phone: true, aadhaar_last4: true } },
+            account: { select: { bank_name: true, account_number_masked: true } },
+          },
+        }),
+        prisma.transaction.count(),
+      ]);
 
       res.json({
         ok: true,
+        total,
+        limit: take,
+        offset: skip,
         transactions,
       });
     } catch (err) {
@@ -172,6 +193,13 @@ class AdminController {
   static async resolveComplaint(req, res, next) {
     try {
       const { status, adminResponse } = req.body;
+
+      // Check existence before update to return a clean 404 instead of a raw Prisma P2025 error
+      const existing = await prisma.complaint.findUnique({ where: { id: req.params.id } });
+      if (!existing) {
+        return res.status(404).json({ ok: false, message: 'Complaint not found.' });
+      }
+
       const complaint = await prisma.complaint.update({
         where: { id: req.params.id },
         data: {

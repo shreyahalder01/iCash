@@ -80,6 +80,7 @@ const transactionCreateSchema = z.object({
   recipientAccount: z.string().optional(),
   recipientUserId: z.string().uuid().optional(),
   verifyMethod: z.enum(['FACE', 'PIN']).optional().default('PIN'),
+  idempotencyKey: z.string().trim().min(1).max(255).optional(),
 }).passthrough();
 
 const delegateGenerateSchema = z.object({

@@ -8,6 +8,7 @@ try {
 }
 
 const express = require('express');
+const crypto = require('crypto');
 const helmet = require('helmet');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
@@ -95,6 +96,12 @@ app.use((req, res, next) => {
   );
   res.removeHeader('Server');
   res.removeHeader('X-Powered-By');
+
+  // Request ID / Correlation ID tracing
+  const requestId = req.headers['x-request-id'] || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
+  req.id = requestId;
+  res.setHeader('X-Request-ID', requestId);
+
   next();
 });
 

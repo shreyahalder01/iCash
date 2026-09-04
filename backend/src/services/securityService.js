@@ -39,7 +39,7 @@ class SecurityService {
    */
   static async handleFailedLogin(user, req) {
     if (!user) return;
-    const ip = req.ip || req.connection.remoteAddress;
+    const ip = req.ip || req.socket?.remoteAddress;
     const newCount = user.failed_login_attempts + 1;
     let isLocked = false;
     let lockedUntil = null;
@@ -76,7 +76,7 @@ class SecurityService {
    * Reset failed attempts upon successful login.
    */
   static async handleSuccessfulLogin(user, req) {
-    const ip = req.ip || req.connection.remoteAddress;
+    const ip = req.ip || req.socket?.remoteAddress;
 
     await prisma.user.update({
       where: { id: user.id },
@@ -100,7 +100,7 @@ class SecurityService {
    * Handle emergency duress PIN entry.
    */
   static async handleDuressAlert(user, req) {
-    const ip = req.ip || req.connection.remoteAddress;
+    const ip = req.ip || req.socket?.remoteAddress;
 
     await this.recordEvent({
       userId: user.id,
@@ -116,7 +116,7 @@ class SecurityService {
    * Handle multiple face detection anomaly.
    */
   static async handleMultipleFacesDetected(userId, req) {
-    const ip = req.ip || req.connection.remoteAddress;
+    const ip = req.ip || req.socket?.remoteAddress;
 
     await this.recordEvent({
       userId: userId || null,

@@ -22,8 +22,10 @@ class AuthService {
       emergencyContactName,
       emergencyContactPhone,
       descriptors,
+      // role from client is used ONLY for merchant profile creation below.
+      // The DB always stores 'USER' — never trust client-supplied role for privilege escalation.
+      role: clientRole,
     } = data;
-    const role = 'USER';
 
     // Check if phone already registered
     const existingPhone = await prisma.user.findUnique({
@@ -88,12 +90,9 @@ class AuthService {
     }
 
     const primaryContact = normalizedContacts[0] || null;
-    const contactsData =
-      normalizedContacts.length > 1
-        ? JSON.stringify(normalizedContacts)
-        : primaryContact
-          ? primaryContact.name
-          : null;
+    // Always store as JSON array — never as a bare name string.
+    // This eliminates the dual-format fragility that was spread across 4 files.
+    const contactsData = normalizedContacts.length > 0 ? JSON.stringify(normalizedContacts) : null;
 
     // Atomic creation of user, default bank account, and biometric profile
     const result = await prisma.$transaction(async (tx) => {
@@ -162,7 +161,8 @@ class AuthService {
       });
 
       // If registered as MERCHANT, create Merchant Profile
-      if (role === 'MERCHANT') {
+      // (clientRole is only used here for profile creation, never for DB role field)
+      if (clientRole === 'MERCHANT') {
         await tx.merchantProfile.create({
           data: {
             user_id: user.id,

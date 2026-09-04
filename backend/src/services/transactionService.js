@@ -85,7 +85,7 @@ class TransactionService {
   /**
    * Process financial transaction atomically using PostgreSQL transaction block.
    */
-  static async processTransaction(userId, payload, req) {
+  static async processTransaction(userId, payload, req, options = {}) {
     const {
       accountId,
       transactionType,
@@ -95,8 +95,15 @@ class TransactionService {
       recipientAccount,
       recipientUserId,
       verifyMethod,
+      idempotencyKey,
     } = payload;
     const numAmount = Number(amount);
+
+    if (transactionType === 'DEPOSIT' && !options.allowDeposit) {
+      const err = new Error('Deposits must be initiated through a verified payment workflow.');
+      err.status = 403;
+      throw err;
+    }
 
     if (isNaN(numAmount) || numAmount <= 0) {
       const err = new Error('Invalid transaction amount.');
@@ -104,7 +111,36 @@ class TransactionService {
       throw err;
     }
 
-    return await prisma.$transaction(async (tx) => {
+    // ── Idempotency check: prevent double-spend on network retries ──────────
+    if (idempotencyKey) {
+      const existing = await prisma.transaction.findUnique({
+        where: { idempotency_key: String(idempotencyKey) },
+        include: { account: { select: { balance: true, account_number_masked: true } } },
+      });
+      if (existing) {
+        if (existing.user_id !== userId) {
+          const err = new Error('This idempotency key is already in use.');
+          err.status = 409;
+          throw err;
+        }
+        return {
+          transaction: existing,
+          newBalance: Number(existing.account.balance),
+          accountMasked: existing.account.account_number_masked,
+          idempotent: true,
+        };
+      }
+    }
+
+    // ── Self-transfer guard ──────────────────────────────────────────────────
+    if (transactionType === 'TRANSFER' && recipientUserId && recipientUserId === userId) {
+      const err = new Error('Self-transfer is not permitted.');
+      err.status = 400;
+      throw err;
+    }
+
+    try {
+      return await prisma.$transaction(async (tx) => {
       // 1. Fetch user's target account (or primary account if none specified)
       let account;
       if (accountId) {
@@ -151,6 +187,7 @@ class TransactionService {
             description: description || 'ATM cash withdrawal (biometric verified)',
             status: 'COMPLETED',
             reference_number: refNumber,
+            ...(idempotencyKey ? { idempotency_key: String(idempotencyKey) } : {}),
           },
         });
 
@@ -176,7 +213,7 @@ class TransactionService {
           recipientPrimaryAccount = await tx.bankAccount.findFirst({
             where: { user_id: recipientUserId, is_primary: true, status: 'ACTIVE' },
           });
-          if (!recipientPrimaryAccount || recipientUserId === userId) {
+          if (!recipientPrimaryAccount) {
             const err = new Error('A valid active recipient account is required.');
             err.status = 400;
             throw err;
@@ -252,11 +289,13 @@ class TransactionService {
           accountMasked: account.account_number_masked,
         };
       } else if (transactionType === 'DEPOSIT') {
-        const newBalance = currentBalance + numAmount;
+        // Use DB-level increment to avoid JavaScript floating-point precision errors.
         await tx.bankAccount.update({
           where: { id: account.id },
-          data: { balance: newBalance },
+          data: { balance: { increment: numAmount } },
         });
+        const depositedAccount = await tx.bankAccount.findUnique({ where: { id: account.id } });
+        const newBalance = Number(depositedAccount.balance);
 
         const createdTx = await tx.transaction.create({
           data: {
@@ -267,6 +306,7 @@ class TransactionService {
             description: description || 'Account top-up / deposit',
             status: 'COMPLETED',
             reference_number: refNumber,
+            ...(idempotencyKey ? { idempotency_key: String(idempotencyKey) } : {}),
           },
         });
 
@@ -277,8 +317,27 @@ class TransactionService {
         };
       }
 
-      throw new Error(`Unsupported transaction type: ${transactionType}`);
-    });
+        throw new Error(`Unsupported transaction type: ${transactionType}`);
+      });
+    } catch (err) {
+      // A concurrent retry may win the unique idempotency-key insert. Treat it
+      // as the same completed request instead of surfacing a conflict.
+      if (idempotencyKey && err.code === 'P2002') {
+        const existing = await prisma.transaction.findUnique({
+          where: { idempotency_key: String(idempotencyKey) },
+          include: { account: { select: { balance: true, account_number_masked: true } } },
+        });
+        if (existing && existing.user_id === userId) {
+          return {
+            transaction: existing,
+            newBalance: Number(existing.account.balance),
+            accountMasked: existing.account.account_number_masked,
+            idempotent: true,
+          };
+        }
+      }
+      throw err;
+    }
   }
 
   /**
@@ -379,11 +438,13 @@ class TransactionService {
     }
 
     const primaryAccount = accountHolder.accounts[0];
-    if (!primaryAccount || Number(primaryAccount.balance) < numAmount) {
-      const err = new Error("Account holder's available balance is insufficient for this withdrawal.");
+    if (!primaryAccount) {
+      const err = new Error("Account holder has no active primary account.");
       err.status = 400;
       throw err;
     }
+    // NOTE: Balance sufficiency is enforced atomically inside the $transaction block
+    // to prevent TOCTOU race conditions. Do not add a balance check here.
 
     // Generate cryptographically secure 6-digit OTP
     const rawOtp = String(crypto.randomInt(100000, 1000000));
@@ -498,16 +559,29 @@ class TransactionService {
 
     const isMatch = await compareValue(String(otp).trim(), storedOtpHash);
     if (!isMatch) {
+      // ── Brute-force protection: lock after 5 failed OTP attempts ──────────
+      const newAttemptCount = (delegation.attempt_count || 0) + 1;
+      const shouldLock = newAttemptCount >= 5;
+      await prisma.delegatedWithdrawal.update({
+        where: { id: delegation.id },
+        data: {
+          attempt_count: newAttemptCount,
+          status: shouldLock ? 'LOCKED' : delegation.status,
+        },
+      });
       await SecurityService.recordEvent({
         userId: delegation.user_id,
         eventType: 'EMERGENCY_WITHDRAWAL_OTP_FAILED',
         severity: 'HIGH',
-        description: `Failed OTP attempt entered for emergency withdrawal request ${delegation.id} by ${authorizedName}.`,
+        description: `Failed OTP attempt #${newAttemptCount} for emergency withdrawal ${delegation.id} by ${authorizedName}.${shouldLock ? ' Request LOCKED after 5 failures.' : ''}`,
         ipAddress: req?.ip,
         deviceReference: req?.headers['user-agent'],
       });
-      const err = new Error('Incorrect One-Time Password. Please check the OTP sent to the account holder and try again.');
-      err.status = 400;
+      const errMsg = shouldLock
+        ? 'This withdrawal request has been locked after too many failed attempts. Please initiate a new request.'
+        : `Incorrect One-Time Password. ${5 - newAttemptCount} attempt(s) remaining before lockout.`;
+      const err = new Error(errMsg);
+      err.status = shouldLock ? 403 : 400;
       throw err;
     }
 
@@ -515,11 +589,12 @@ class TransactionService {
     const primaryAccount = accountHolder.accounts[0];
     const amount = Number(delegation.amount);
 
-    if (!primaryAccount || Number(primaryAccount.balance) < amount) {
-      const err = new Error("Account holder's balance is insufficient.");
+    if (!primaryAccount) {
+      const err = new Error("Account holder has no active primary account.");
       err.status = 400;
       throw err;
     }
+    // Balance is verified atomically inside the $transaction block (TOCTOU-safe).
 
     // Atomically release funds and generate audit transaction record
     return await prisma.$transaction(async (tx) => {
@@ -530,6 +605,7 @@ class TransactionService {
           id: delegation.id,
           status: 'PENDING',
           expires_at: { gt: new Date() },
+          attempt_count: { lt: 5 }, // Cannot claim a locked delegation
         },
         data: { status: 'USED' },
       });
@@ -652,12 +728,8 @@ class TransactionService {
       }));
 
     const primary = normalized[0] || null;
-    const contactsData =
-      normalized.length > 1
-        ? JSON.stringify(normalized)
-        : primary
-          ? primary.name
-          : null;
+    // Always store as JSON array for consistency — never as a bare name string.
+    const contactsData = normalized.length > 0 ? JSON.stringify(normalized) : null;
 
     const updated = await prisma.user.update({
       where: { id: userId },
