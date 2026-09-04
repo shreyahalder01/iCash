@@ -24,3 +24,14 @@ services:
         generateValue: true
       - key: SESSION_SECRET
         generateValue: true
+
+  - type: web
+    name: icash-liveness
+    env: python
+    rootDir: liveness_server
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120 app:app
+    envVars:
+      - key: LIVENESS_ALLOWED_ORIGINS
+        value: https://icash.onrender.com
