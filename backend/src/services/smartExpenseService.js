@@ -6,9 +6,16 @@ const RULES = [
   ['SHOPPING', /\b(shop|shopping|amazon|flipkart|clothing|retail)\b/i],
   ['BILLS', /\b(bill|electricity|water|internet|mobile|rent|utility|recharge)\b/i],
   ['HEALTHCARE', /\b(pharmacy|medical|hospital|doctor|health)\b/i],
+  ['EDUCATION', /\b(school|college|university|course|tuition|education|udemy|coursera)\b/i],
   ['ENTERTAINMENT', /\b(movie|cinema|netflix|spotify|game|entertainment)\b/i],
   ['TRAVEL', /\b(hotel|flight|travel|airbnb|booking)\b/i],
+  ['INVESTMENT', /\b(invest|investment|mutual fund|sip|stock|shares|brokerage)\b/i],
 ];
+
+const CATEGORIES = new Set([
+  'FOOD', 'TRANSPORT', 'SHOPPING', 'HEALTHCARE', 'EDUCATION',
+  'ENTERTAINMENT', 'BILLS', 'TRAVEL', 'INVESTMENT', 'OTHER',
+]);
 
 function categorize(description, type) {
   const text = String(description || '');
@@ -27,8 +34,8 @@ class SmartExpenseService {
 
   static async correctCategory(userId, transactionId, category) {
     const normalized = String(category || '').trim().toUpperCase();
-    if (!/^[A-Z][A-Z0-9 _-]{1,39}$/.test(normalized)) {
-      const error = new Error('Category must contain 2-40 letters, numbers, spaces, _ or -.');
+    if (!CATEGORIES.has(normalized)) {
+      const error = new Error(`Category must be one of: ${Array.from(CATEGORIES).join(', ')}.`);
       error.status = 400;
       throw error;
     }

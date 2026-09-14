@@ -123,6 +123,9 @@ async function main() {
     data: {
       full_name: 'Sidd Paul',
       email: 'sidd.paul@demo.icash.bank',
+      email_verified: false,
+      email_verification_token: '123456',
+      email_verification_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       phone: '9876543210',
       aadhaar_reference: 'AADHAAR_SIDD_4821',
       aadhaar_last4: '4821',

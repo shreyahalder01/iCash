@@ -15,25 +15,7 @@ const cookieParser = require('cookie-parser');
 
 const { errorHandler, notFoundHandler } = require('./middleware/errorMiddleware');
 const { generalApiLimiter } = require('./middleware/rateLimitMiddleware');
-
-const authRoutes = require('./routes/authRoutes');
-const otpRoutes = require('./routes/otpRoutes');
-const biometricRoutes = require('./routes/biometricRoutes');
-const accountRoutes = require('./routes/accountRoutes');
-const transactionRoutes = require('./routes/transactionRoutes');
-const securityRoutes = require('./routes/securityRoutes');
-const complaintRoutes = require('./routes/complaintRoutes');
-const adminRoutes = require('./routes/adminRoutes');
-const merchantRoutes = require('./routes/merchantRoutes');
-const aiRoutes = require('./routes/aiRoutes');
-const analyticsRoutes = require('./routes/analyticsRoutes');
-const healthRoutes = require('./routes/healthRoutes');
-const notificationRoutes = require('./routes/notificationRoutes');
-const splitRoutes = require('./routes/splitRoutes');
-const fraudRoutes = require('./routes/fraudRoutes');
-const receiptRoutes = require('./routes/receiptRoutes');
-const savingsRoutes = require('./routes/savingsRoutes');
-const merchantAnalyticsRoutes = require('./routes/merchantAnalyticsRoutes');
+const { registerRoutes } = require('./routes');
 
 const app = express();
 const PORT = Number(process.env.PORT) || 4000;
@@ -219,25 +201,7 @@ app.get('/api/health', async (req, res) => {
   });
 });
 
-app.use('/api/auth', authRoutes);
-app.use('/api/otp', otpRoutes);
-app.use('/api/biometric', biometricRoutes);
-app.use('/api/accounts', accountRoutes);
-app.use('/api/transactions', transactionRoutes);
-app.use('/api/v2/transactions', transactionRoutes);
-app.use('/api/v2/fraud', fraudRoutes);
-app.use('/api/security', securityRoutes);
-app.use('/api/complaints', complaintRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/merchant', merchantRoutes);
-app.use('/api/v2/ai', aiRoutes);
-app.use('/api/v2/analytics', analyticsRoutes);
-app.use('/api/v2/health', healthRoutes);
-app.use('/api/v2/notifications', notificationRoutes);
-app.use('/api/v2/splits', splitRoutes);
-app.use('/api/v2/receipt', receiptRoutes);
-app.use('/api/v2/savings', savingsRoutes);
-app.use('/api/v2/merchant', merchantAnalyticsRoutes);
+registerRoutes(app);
 
 // Any unmatched /api/* route is a genuine 404, not the SPA fallback.
 app.use('/api', notFoundHandler);

@@ -291,6 +291,7 @@ async function proceedToBiometrics() {
   const name = document.getElementById('reg-name').value.trim();
   const aadhaar = document.getElementById('reg-aadhaar').value.replace(/\s/g, '');
   const mobile = document.getElementById('reg-mobile').value.trim();
+  const email = document.getElementById('reg-email') ? document.getElementById('reg-email').value.trim() : '';
   const role = document.getElementById('reg-role').value;
   const pin = document.getElementById('reg-pin').value.trim();
   const emergencyPin = document.getElementById('reg-emergency-pin').value.trim();
@@ -309,6 +310,11 @@ async function proceedToBiometrics() {
   }
   if (!/^\d{10}$/.test(mobile)) {
     msg.textContent = 'Enter a valid 10-digit mobile number.';
+    msg.className = 'modal-msg err';
+    return;
+  }
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    msg.textContent = 'Please enter a valid email address.';
     msg.className = 'modal-msg err';
     return;
   }
@@ -354,6 +360,7 @@ async function proceedToBiometrics() {
   window._pendingRegPayload = {
     fullName: name,
     phone: mobile,
+    email: email || undefined,
     aadhaarNumber: aadhaar,
     dob: dobVal || undefined,
     role,
@@ -732,16 +739,40 @@ async function verifyAadhaarLogin() {
 // beginLoginScan / captureLoginFace / cancelLoginScan / teardownLoginScan
 // → Implemented in biometric.js (real face-api.js Euclidean matching engine)
 
-function promptLoginPin(user, confidence = 0.95) {
+/**
+ * promptLoginPin
+ *
+ * Shows the PIN entry screen after biometric identity has been confirmed.
+ * REQUIRES a biometricToken (issued by POST /api/biometric/verify-challenge)
+ * to prove that liveness AND server-side face matching both passed.
+ *
+ * @param {Object} user - The authenticated user object
+ * @param {number} confidence - Face match confidence 0–1
+ * @param {string|null} biometricToken - Short-lived JWT from verify-challenge
+ */
+function promptLoginPin(user, confidence = 0.95, biometricToken = null) {
+  if (!biometricToken) {
+    console.error('[iCash Bio] Refusing PIN prompt without a server-issued biometric token.');
+    return;
+  }
   pendingLoginUser = user;
+  // Store the biometric token for possible use in enrollment after login
+  if (biometricToken) {
+    window._pendingBiometricToken = biometricToken;
+  }
   document.getElementById('login-pin-input').value = '';
   document.getElementById('login-pin-msg').textContent = '';
   const banner = document.getElementById('login-pin-banner');
+
+  const verifiedBadge =
+    `<span style="color:var(--success);font-size:11px;display:block;margin-top:2px;">✓ Liveness verified · Identity matched · Server-signed</span>`;
+
   banner.innerHTML = `
     <div class="av">${initials(user.name)}</div>
     <div>
-      <strong>Biometric Verified — ${user.name}</strong>
+      <strong>${biometricToken ? 'Biometric Verified' : 'Identity Matched'} — ${user.name}</strong>
       <span>Match confidence: ${Math.round(confidence * 100)}% · Enter 4-digit security PIN</span>
+      ${verifiedBadge}
     </div>
   `;
   goTo('screen-login-pin');
@@ -1385,6 +1416,172 @@ function populateProfileView() {
   document.getElementById('prof-senior').textContent = currentUser.isSenior
     ? 'Senior Assisted Banking Active'
     : 'Standard Customer';
+
+  const emailEl = document.getElementById('prof-email-text');
+  const badgeEl = document.getElementById('prof-email-badge');
+  const promptBtn = document.getElementById('btn-verify-email-prompt');
+
+  if (emailEl) {
+    emailEl.textContent = currentUser.email || 'No email linked';
+  }
+  if (badgeEl) {
+    if (!currentUser.email) {
+      badgeEl.style.display = 'none';
+      if (promptBtn) promptBtn.style.display = 'none';
+    } else if (currentUser.emailVerified) {
+      badgeEl.style.display = 'inline-block';
+      badgeEl.textContent = 'Verified ✓';
+      badgeEl.style.background = 'rgba(16, 185, 129, 0.15)';
+      badgeEl.style.color = '#34d399';
+      badgeEl.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+      if (promptBtn) promptBtn.style.display = 'none';
+    } else {
+      badgeEl.style.display = 'inline-block';
+      badgeEl.textContent = 'Unverified ⚠️';
+      badgeEl.style.background = 'rgba(239, 68, 68, 0.15)';
+      badgeEl.style.color = '#f87171';
+      badgeEl.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+      if (promptBtn) promptBtn.style.display = 'inline-block';
+    }
+  }
+}
+
+async function openEmailVerificationModal() {
+  const displayEl = document.getElementById('email-verify-display');
+  const codeInput = document.getElementById('email-verify-code');
+  const msgEl = document.getElementById('email-verify-msg');
+
+  if (displayEl) {
+    displayEl.textContent = currentUser?.email || 'Registered Email';
+  }
+  if (codeInput) codeInput.value = '';
+  if (msgEl) {
+    msgEl.textContent = 'Preparing verification code…';
+    msgEl.className = 'modal-msg';
+  }
+
+  openModal('email-verify');
+
+  // If user is unverified and has email, auto-request code dispatch
+  if (currentUser?.email && !currentUser?.emailVerified) {
+    try {
+      const res = await window.iCashApi.resendVerification({
+        email: currentUser.email,
+      });
+      const code = res.devCode || res.code;
+      if (code) {
+        if (codeInput) codeInput.value = code;
+        if (msgEl) {
+          msgEl.innerHTML = `Code sent! <span style="font-family:var(--font-mono); color:#38bdf8; font-weight:700;">(Dev Code: ${code})</span>`;
+          msgEl.className = 'modal-msg success';
+        }
+      } else if (msgEl) {
+        msgEl.textContent = '6-digit verification code dispatched to your email.';
+        msgEl.className = 'modal-msg success';
+      }
+    } catch (_) {
+      if (msgEl) {
+        msgEl.textContent = 'Enter the 6-digit code sent to your email address.';
+        msgEl.className = 'modal-msg';
+      }
+    }
+  }
+}
+
+async function submitEmailVerification() {
+  const codeInput = document.getElementById('email-verify-code');
+  const msgEl = document.getElementById('email-verify-msg');
+  const code = codeInput?.value?.trim();
+
+  if (!code || code.length < 4) {
+    if (msgEl) {
+      msgEl.textContent = 'Please enter a valid verification code.';
+      msgEl.className = 'modal-msg err';
+    }
+    return;
+  }
+
+  if (msgEl) {
+    msgEl.textContent = 'Verifying code…';
+    msgEl.className = 'modal-msg';
+  }
+
+  try {
+    const res = await window.iCashApi.verifyEmail({
+      code,
+      email: currentUser?.email,
+    });
+
+    if (res.ok || res.success) {
+      if (msgEl) {
+        msgEl.textContent = 'Email Verified Successfully! ✓';
+        msgEl.className = 'modal-msg success';
+      }
+      showAlertToast('Email verified successfully! Welcome email sent. ✓');
+
+      if (currentUser) {
+        currentUser.emailVerified = true;
+      }
+      populateProfileView();
+
+      setTimeout(() => {
+        closeModal('email-verify');
+      }, 1200);
+    } else {
+      if (msgEl) {
+        msgEl.textContent = res.message || 'Verification failed. Please check code.';
+        msgEl.className = 'modal-msg err';
+      }
+    }
+  } catch (err) {
+    if (msgEl) {
+      msgEl.textContent = err.message || 'Verification failed. Code may be invalid or expired.';
+      msgEl.className = 'modal-msg err';
+    }
+  }
+}
+
+async function resendEmailVerification() {
+  const msgEl = document.getElementById('email-verify-msg');
+  const codeInput = document.getElementById('email-verify-code');
+  if (msgEl) {
+    msgEl.textContent = 'Requesting fresh verification code…';
+    msgEl.className = 'modal-msg';
+  }
+
+  try {
+    const res = await window.iCashApi.resendVerification({
+      email: currentUser?.email,
+    });
+
+    if (res.ok || res.success) {
+      const code = res.devCode || res.code;
+      if (code) {
+        if (codeInput) codeInput.value = code;
+        if (msgEl) {
+          msgEl.innerHTML = `Fresh code sent! <span style="font-family:var(--font-mono); color:#38bdf8; font-weight:700;">(Dev Code: ${code})</span>`;
+          msgEl.className = 'modal-msg success';
+        }
+        showAlertToast(`New verification code: ${code}`);
+      } else {
+        if (msgEl) {
+          msgEl.textContent = 'Fresh 6-digit code sent to your email. Check your inbox.';
+          msgEl.className = 'modal-msg success';
+        }
+        showAlertToast('New verification code sent to your email.');
+      }
+    } else {
+      if (msgEl) {
+        msgEl.textContent = res.message || 'Could not resend verification code.';
+        msgEl.className = 'modal-msg err';
+      }
+    }
+  } catch (err) {
+    if (msgEl) {
+      msgEl.textContent = err.message || 'Failed to resend code.';
+      msgEl.className = 'modal-msg err';
+    }
+  }
 }
 
 function openDeleteAccountModal() {

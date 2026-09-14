@@ -163,6 +163,15 @@
               />
             </div>
             <div class="field">
+              <label>Email Address (for verification &amp; instant alerts)</label>
+              <input
+                id="reg-email"
+                type="email"
+                placeholder="e.g. user@icash.bank"
+                autocomplete="email"
+              />
+            </div>
+            <div class="field">
               <label>Date of Birth</label>
               <input id="reg-dob" type="date" onchange="handleDobChange()" />
               <p
@@ -1470,6 +1479,14 @@
                       <span class="drawer-field-val" id="prof-phone">—</span>
                     </div>
                     <div class="drawer-field-row">
+                      <span class="drawer-field-label">Email Address</span>
+                      <span class="drawer-field-val" id="prof-email" style="display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap;">
+                        <span id="prof-email-text">—</span>
+                        <span id="prof-email-badge" style="font-size: 10px; padding: 2px 7px; border-radius: 9999px; background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);">Unverified</span>
+                        <button id="btn-verify-email-prompt" type="button" class="mini-btn" style="font-size: 10px; padding: 2px 8px; display: none;" onclick="openEmailVerificationModal()">Verify</button>
+                      </span>
+                    </div>
+                    <div class="drawer-field-row">
                       <span class="drawer-field-label">Aadhaar Last 4</span>
                       <span class="drawer-field-val" id="prof-aadhaar">•••• ----</span>
                     </div>
@@ -2013,6 +2030,46 @@
           </div>
           <div class="modal-msg" id="complaint-msg"></div>
           <button type="submit" class="btn btn-primary">Submit Grievance Ticket</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- EMAIL VERIFICATION MODAL (zahid-afridi/EmailVerfication) -->
+    <div class="modal-backdrop" id="modal-email-verify">
+      <div class="modal" style="max-width: 440px">
+        <button class="close-x" onclick="closeModal('email-verify')">&#10005;</button>
+        <div class="eyebrow">Identity Security</div>
+        <h2>Verify Email Address</h2>
+        <p class="lead" id="email-verify-lead">
+          Enter the 6-digit verification code dispatched to your registered email address.
+        </p>
+
+        <div style="background: rgba(14, 165, 233, 0.08); border: 1px solid rgba(14, 165, 233, 0.25); border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; text-align: center;">
+          <span style="font-size: 11px; color: var(--text-faint); text-transform: uppercase;">Sending to</span>
+          <div id="email-verify-display" style="font-weight: 600; color: #38bdf8; font-family: var(--font-mono); font-size: 14px; margin-top: 2px;">—</div>
+        </div>
+
+        <form id="form-email-verify" onsubmit="event.preventDefault(); submitEmailVerification();">
+          <div class="field">
+            <label>6-Digit Verification Code</label>
+            <input
+              id="email-verify-code"
+              type="text"
+              inputmode="numeric"
+              maxlength="6"
+              placeholder="••••••"
+              style="text-align: center; letter-spacing: 8px; font-size: 22px; font-weight: 700; font-family: var(--font-mono);"
+              autocomplete="one-time-code"
+              required
+            />
+          </div>
+
+          <div class="modal-msg" id="email-verify-msg"></div>
+
+          <div style="display: flex; gap: 10px; margin-top: 16px;">
+            <button type="button" class="btn btn-ghost" style="flex: 1" onclick="resendEmailVerification()">Resend Code</button>
+            <button type="submit" class="btn btn-primary" style="flex: 1">Verify Email</button>
+          </div>
         </form>
       </div>
     </div>

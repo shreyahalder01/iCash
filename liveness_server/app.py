@@ -48,16 +48,18 @@ limiter = Limiter(
     storage_uri="memory://",
 )
 
-REQUIRED_BLINKS = 2
-SESSION_TIMEOUT_SECONDS = 90
-MIN_CLOSED_FRAMES = 2
-MIN_BLINK_MS = 100
-MAX_BLINK_MS = 900
-BLINK_DEBOUNCE_MS = 300
-EAR_CLOSE_RATIO = 0.72
-EAR_OPEN_RATIO = 0.90
-EAR_CLOSE_FLOOR = 0.16
-EAR_OPEN_FLOOR = 0.22
+REQUIRED_BLINKS         = 2
+SESSION_TIMEOUT_SECONDS  = 180   # 3 min — matches challenge TTL
+MIN_CLOSED_FRAMES       = 2
+MIN_BLINK_MS            = 100
+MAX_BLINK_MS            = 900
+BLINK_DEBOUNCE_MS       = 300
+EAR_CLOSE_RATIO         = 0.72
+EAR_OPEN_RATIO          = 0.90
+EAR_CLOSE_FLOOR         = 0.16
+EAR_OPEN_FLOOR          = 0.22
+# Eyes closed > 60 frames = suspicious (closed-eye photo spoofing)
+MAX_CONSECUTIVE_CLOSED  = 60
 
 MODEL_DIR = os.path.dirname(os.path.abspath(__file__))
 PREDICTOR_PATH = os.path.join(MODEL_DIR, "shape_predictor_68_face_landmarks.dat")
@@ -132,20 +134,25 @@ def presentation_attack_check(frame, face, coords):
         return False, "analysis_error"
 
 
-def new_session():
+def new_session(challenge_type=None):
+    required_blinks = 1 if challenge_type == "BLINK_ONCE" else 2
     return {
-        "last_seen": time.time(),
-        "blink_count": 0,
-        "eye_state": "open",
-        "closed_frames": 0,
-        "blink_started": 0.0,
-        "last_blink": 0.0,
-        "baseline": 0.30,
-        "baseline_samples": 0,
-        "live": False,
-        "spoof_detected": False,
-        "spoof_reason": None,
-        "ear_history": deque(maxlen=30),
+        "last_seen":          time.time(),
+        "blink_count":        0,
+        "eye_state":          "open",
+        "closed_frames":      0,
+        "blink_started":      0.0,
+        "last_blink":         0.0,
+        "baseline":           0.30,
+        "baseline_samples":   0,
+        "live":               False,
+        "consumed":           False,   # one-time flag — set by /liveness/consume
+        "spoof_detected":     False,
+        "spoof_reason":       None,
+        "ear_history":        deque(maxlen=30),
+        "challenge_type":     challenge_type or "BLINK_TWICE",
+        "required_blinks":    required_blinks,
+        "exactly_one_face":   False,
     }
 
 
@@ -163,33 +170,49 @@ def health():
 @limiter.limit("10 per minute")
 def start():
     cleanup_sessions()
-    sid = str(uuid.uuid4())
-    sessions[sid] = new_session()
-    return jsonify({"session_id": sid, "required_blinks": REQUIRED_BLINKS, "engine": "dlib-68-landmarks-v4"})
+    payload        = request.get_json(silent=True) or {}
+    challenge_type = payload.get("challenge_type", "BLINK_TWICE")
+    if challenge_type not in {"BLINK_ONCE", "BLINK_TWICE"}:
+        return jsonify({"error": "unsupported_challenge"}), 400
+    sid            = str(uuid.uuid4())
+    sessions[sid]  = new_session(challenge_type)
+    return jsonify({
+        "session_id":      sid,
+        "required_blinks": sessions[sid]["required_blinks"],
+        "challenge_type":  challenge_type,
+        "engine":          "dlib-68-landmarks-v5",
+    })
 
 
 @app.post("/liveness/frame")
 @limiter.limit("300 per minute")
 def frame():
     payload = request.get_json(silent=True) or {}
-    sid = payload.get("session_id")
+    sid     = payload.get("session_id")
     if not sid or sid not in sessions:
         return jsonify({"error": "invalid_session"}), 400
     image = decode_image(payload.get("image"))
     if image is None:
         return jsonify({"error": "bad_image"}), 400
-
     s = sessions[sid]
+    if s.get("consumed"):
+        return jsonify({"error": "session_consumed"}), 400
+
     s["last_seen"] = time.time()
     gray = cv2.equalizeHist(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY))
     faces = detector(gray, 0)
 
     if len(faces) == 0:
-        return jsonify({"face_found": False, "multiple_faces": False, "live": False, "blink_count": s["blink_count"]})
+        s["exactly_one_face"] = False
+        s["live"] = False
+        return jsonify({"face_found": False, "multiple_faces": False, "live": False, "blink_count": s["blink_count"], "exactly_one_face": False})
     if len(faces) != 1:
-        return jsonify({"face_found": True, "multiple_faces": True, "live": False, "blink_count": s["blink_count"]})
+        s["exactly_one_face"] = False
+        s["live"] = False
+        return jsonify({"face_found": True, "multiple_faces": True, "live": False, "blink_count": s["blink_count"], "exactly_one_face": False})
 
     face = faces[0]
+    s["exactly_one_face"] = True
     shape = predictor(gray, face)
     coords = [(shape.part(i).x, shape.part(i).y) for i in range(68)]
     left = [coords[i] for i in LEFT_EYE_IDX]
@@ -213,33 +236,38 @@ def frame():
     both_open = left_ear >= open_threshold and right_ear >= open_threshold
     now = time.time()
 
-    # A blink is a real temporal event, not a property of one frame:
-    # OPEN -> CLOSED for >=2 frames -> OPEN. This blocks still photos.
+    # A blink is a real temporal event: OPEN -> CLOSED(>=MIN_CLOSED_FRAMES) -> OPEN.
+    # A still photograph cannot satisfy this because EAR never changes over time.
     if s["eye_state"] == "open":
         if both_closed:
-            s["eye_state"] = "closed"
+            s["eye_state"]     = "closed"
             s["closed_frames"] = 1
             s["blink_started"] = now
     else:
         if both_closed:
             s["closed_frames"] += 1
+            # Eyes closed for an abnormally long time — probable closed-eye photo spoof
+            if s["closed_frames"] > MAX_CONSECUTIVE_CLOSED:
+                s["spoof_detected"] = True
+                s["spoof_reason"]   = "eyes_closed_too_long"
+                s["live"]           = False
         elif both_open:
             duration_ms = (now - s["blink_started"]) * 1000.0
-            valid = MIN_BLINK_MS <= duration_ms <= MAX_BLINK_MS and s["closed_frames"] >= MIN_CLOSED_FRAMES
+            valid    = MIN_BLINK_MS <= duration_ms <= MAX_BLINK_MS and s["closed_frames"] >= MIN_CLOSED_FRAMES
             debounce = (now - s["last_blink"]) * 1000.0 >= BLINK_DEBOUNCE_MS
             if valid and debounce:
                 s["blink_count"] += 1
-                s["last_blink"] = now
-            s["eye_state"] = "open"
+                s["last_blink"]   = now
+            s["eye_state"]     = "open"
             s["closed_frames"] = 0
-        # Intermediate eye states stay closed; they cannot create a blink.
+        # Intermediate eye states: eye partially open/closed — do not count as blink.
 
     pad_ok, pad_reason = presentation_attack_check(image, face, coords)
     if not pad_ok:
         s["spoof_detected"] = True
         s["spoof_reason"] = pad_reason
         s["live"] = False
-    elif not s["spoof_detected"] and s["blink_count"] >= REQUIRED_BLINKS:
+    elif not s["spoof_detected"] and s["blink_count"] >= s["required_blinks"] and s["exactly_one_face"]:
         s["live"] = True
 
     return jsonify({
@@ -253,7 +281,8 @@ def frame():
         "live": s["live"],
         "spoof_detected": s["spoof_detected"],
         "spoof_reason": s["spoof_reason"],
-        "required_blinks": REQUIRED_BLINKS,
+        "required_blinks": s["required_blinks"],
+        "exactly_one_face": s["exactly_one_face"],
     })
 
 
@@ -263,13 +292,61 @@ def status():
     if not sid or sid not in sessions:
         return jsonify({"error": "invalid_session"}), 400
     s = sessions[sid]
-    return jsonify({"live": s["live"], "blink_count": s["blink_count"], "required_blinks": REQUIRED_BLINKS})
+    return jsonify({
+        "live":            s["live"],
+        "blink_count":     s["blink_count"],
+        "required_blinks": s["required_blinks"],
+        "consumed":        s.get("consumed", False),
+        "exactly_one_face": s["exactly_one_face"],
+    })
+
+
+@app.post("/liveness/verify")
+@limiter.limit("60 per minute")
+def verify():
+    """
+    Server-to-server endpoint called by the Node backend to confirm liveness.
+    The browser never calls this directly — it requires no CORS preflight for
+    same-machine Node->Python calls.
+    Returns the authoritative live/spoof state for a session_id.
+    """
+    payload = request.get_json(silent=True) or {}
+    sid     = payload.get("session_id")
+    if not sid or sid not in sessions:
+        return jsonify({"error": "invalid_session", "live": False}), 404
+    s = sessions[sid]
+    if s.get("consumed"):
+        return jsonify({"error": "session_consumed", "live": False}), 400
+    return jsonify({
+        "live":            s["live"],
+        "blink_count":     s["blink_count"],
+        "required_blinks": s["required_blinks"],
+        "spoof_detected":  s["spoof_detected"],
+        "spoof_reason":    s["spoof_reason"],
+        "challenge_type":  s.get("challenge_type"),
+        "exactly_one_face": s["exactly_one_face"],
+    })
+
+
+@app.post("/liveness/consume")
+@limiter.limit("60 per minute")
+def consume():
+    """
+    Mark a liveness session as consumed (one-time use).
+    Called by Node backend after issuing a biometricToken so the session
+    cannot be reused in a subsequent verify-challenge request.
+    """
+    payload = request.get_json(silent=True) or {}
+    sid     = payload.get("session_id")
+    if sid and sid in sessions:
+        sessions[sid]["consumed"] = True
+    return jsonify({"ok": True})
 
 
 @app.post("/liveness/reset")
 def reset():
     payload = request.get_json(silent=True) or {}
-    sid = payload.get("session_id")
+    sid     = payload.get("session_id")
     if sid:
         sessions.pop(sid, None)
     return jsonify({"ok": True})

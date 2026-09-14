@@ -185,16 +185,47 @@ const api = {
   // Delete own account (requires PIN confirmation)
   deleteMe: (data) => request('/api/auth/me', { method: 'DELETE', body: data }),
 
+  // Email Verification (zahid-afridi/EmailVerfication)
+  verifyEmail: (data) => request('/api/auth/verify-email', { method: 'POST', body: data }),
+  resendVerification: (data) => request('/api/auth/resend-verification', { method: 'POST', body: data }),
+  getVerificationStatus: () => request('/api/auth/verification-status', { method: 'GET' }),
+
   // OTP
   sendOtp: (mobile, purpose) =>
     request('/api/otp/send', { method: 'POST', body: { mobile, purpose } }),
   verifyOtp: (mobile, purpose, code) =>
     request('/api/otp/verify', { method: 'POST', body: { mobile, purpose, code } }),
 
-  // Biometric
-  enrollBiometric: (data) => request('/api/biometric/enroll', { method: 'POST', body: data }),
-  verifyBiometric: (data) => request('/api/biometric/verify', { method: 'POST', body: data }),
-  getBiometricProfile: (userId) => request(`/api/biometric/profile/${userId}`, { method: 'GET' }),
+  // Biometric — Secure challenge-based flow (v2)
+  //
+  // SECURITY DESIGN:
+  //   issueChallenge  → GET a server-randomized challenge (nonce, type, expiry)
+  //   verifyChallenge → POST completed proof; server validates liveness + face match server-side
+  //                     Returns biometricToken on success. NO descriptor returned to browser.
+  //   enrollmentStatus → GET enrollment status ONLY (no face vectors returned)
+  //
+  // Legacy:
+  //   enrollBiometric  → POST descriptors + biometricToken (requires liveness proof)
+  //   verifyBiometric  → disabled legacy endpoint; face matching alone never authorizes
+  //   getBiometricProfile → REMOVED; use enrollmentStatus (descriptors never leave server)
+
+  issueChallenge: (data = {}) =>
+    request('/api/biometric/challenge', { method: 'POST', body: data }),
+
+  verifyChallenge: (data) =>
+    request('/api/biometric/verify-challenge', { method: 'POST', body: data }),
+
+  enrollBiometric: (data) =>
+    request('/api/biometric/enroll', { method: 'POST', body: data }),
+
+  // Returns { ok, enrolled, provider } — NEVER returns face_descriptors
+  enrollmentStatus: (userId) =>
+    request(`/api/biometric/profile/${userId}`, { method: 'GET' }),
+
+  // Alias kept for code that referenced getBiometricProfile — returns status only, NOT descriptors
+  getBiometricProfile: (userId) =>
+    request(`/api/biometric/profile/${userId}`, { method: 'GET' }),
+
 
   // Accounts
   getAccounts: () => request('/api/accounts', { method: 'GET' }),
@@ -300,11 +331,12 @@ const api = {
       return 'http://127.0.0.1:5001';
     },
 
-    start: async function() {
+    start: async function(challengeType) {
       try {
         const res = await fetch(`${this.baseUrl}/liveness/start`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ challenge_type: challengeType || 'BLINK_TWICE' }),
         });
         return await res.json();
       } catch (e) {

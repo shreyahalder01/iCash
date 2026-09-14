@@ -4,9 +4,19 @@ const { COOKIE_NAME, getCookieOptions, getClearCookieOptions, signToken } = requ
 class AuthController {
   static async register(req, res, next) {
     try {
-      const { user, token } = await AuthService.registerUser(req.body, req);
+      const { user, token, verificationCode } = await AuthService.registerUser(req.body, req);
       res.cookie(COOKIE_NAME, token, getCookieOptions());
-      res.status(201).json({ ok: true, message: 'Registration completed successfully.', user });
+      res.cookie('token', token, getCookieOptions());
+      res.status(201).json({
+        ok: true,
+        success: true,
+        message: 'Registration completed successfully.',
+        user,
+        token,
+        ...(process.env.NODE_ENV !== 'production' || process.env.ALLOW_DEV_OTP === 'true'
+          ? { devCode: verificationCode, code: verificationCode }
+          : {}),
+      });
     } catch (err) {
       next(err);
     }
@@ -82,6 +92,44 @@ class AuthController {
       await AuthService.deleteUserAccount(req.user && req.user.id, req.body?.pin, req);
       res.clearCookie(COOKIE_NAME, getClearCookieOptions());
       res.json({ ok: true, message: 'Your account has been permanently deleted.' });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async verifyEmail(req, res, next) {
+    try {
+      const code = req.body?.code || req.body?.verificationCode;
+      const email = req.body?.email;
+      const userId = req.user?.id;
+      const result = await AuthService.verifyEmail({ code, email, userId });
+      res.status(200).json(result);
+    } catch (err) {
+      if (err.status === 400 || err.message === 'Invalid or Expired Code' || err.message === 'Verification code is required') {
+        return res.status(400).json({ success: false, ok: false, message: err.message });
+      }
+      next(err);
+    }
+  }
+
+  static async resendVerification(req, res, next) {
+    try {
+      const email = req.body?.email;
+      const userId = req.user?.id;
+      const result = await AuthService.resendVerificationEmail({ email, userId });
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async getVerificationStatus(req, res, next) {
+    try {
+      res.json({
+        ok: true,
+        email: req.user?.email || null,
+        emailVerified: Boolean(req.user?.email_verified),
+      });
     } catch (err) {
       next(err);
     }

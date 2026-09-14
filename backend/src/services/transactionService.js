@@ -148,7 +148,7 @@ class TransactionService {
     }
 
     try {
-      return await prisma.$transaction(async (tx) => {
+      const result = await prisma.$transaction(async (tx) => {
       // 1. Fetch user's target account (or primary account if none specified)
       let account;
       if (accountId) {
@@ -335,6 +335,13 @@ class TransactionService {
 
         throw new Error(`Unsupported transaction type: ${transactionType}`);
       });
+      // Fraud analysis is persisted for every user-created transaction so the
+      // risk endpoint is immediately available without a second client call.
+      if (result.transaction?.id) {
+        const FraudService = require('./fraudService');
+        await FraudService.analyze(userId, result.transaction.id);
+      }
+      return result;
     } catch (err) {
       // A concurrent retry may win the unique idempotency-key insert. Treat it
       // as the same completed request instead of surfacing a conflict.

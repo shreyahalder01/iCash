@@ -69,7 +69,15 @@ A high-security, full-stack biometric digital banking platform built with **Node
 - **Senior Assisted Banking**: Registered senior citizens can delegate withdrawal privileges to designated relatives using dynamic 5-minute time-bound OTPs.
 - **Permanent Account Deletion ("Delete Account")**: Self-service danger zone feature in Settings & Profile requiring 4-digit PIN re-verification to perform a permanent cascading deletion of personal records and balances.
 
-### 4. ☁️ Appwrite Cloud SDK Integration
+### 4. 📧 Email Verification System (zahid-afridi/EmailVerfication)
+
+- **Registration Code Delivery**: Generates a secure 6-digit numeric verification token with a 24-hour expiration window upon user registration.
+- **Dual API Compatibility**: Supports base route `/auth` (direct 1-to-1 compatibility with `zahid-afridi/EmailVerfication`) as well as standard enterprise `/api/auth`.
+- **Nodemailer Transport & Dev Mock**: Automated SMTP delivery with instant fallback to visible console dispatch in local/test development.
+- **HTML Email Templates**: Sleek, responsive HTML email templates for initial code dispatch (`Verification_Email_Template`) and successful verification celebration (`Welcome_Email_Template`).
+- **Interactive Verification UI**: Profile drawer interactive badge and 6-digit code modal with automatic code dispatch, instant verification, and resend support.
+
+### 5. ☁️ Appwrite Cloud SDK Integration
 
 - Integrated `appwrite` SDK (`frontend/lib/appwrite.js`) connected to Appwrite Cloud (`https://sfo.cloud.appwrite.io/v1`, Project ID: `6a89af3a00114ef8b001`).
 - Automatic client verification ping (`client.ping()`) upon app launch.
@@ -167,7 +175,7 @@ npx prisma migrate deploy --schema=backend/prisma/schema.prisma
 To enable hosted AI responses for the Financial Copilot, configure:
 
 ```bash
-OPENAI_API_KEY=your-key
+OPENAI_API_KEY=your_openai_api_key_here
 OPENAI_MODEL=gpt-4o-mini
 ```
 
@@ -218,12 +226,15 @@ npm test
 
 | Method   | Endpoint                  | Description                                       | Auth      |
 | :------- | :------------------------ | :------------------------------------------------ | :-------- |
-| `POST`   | `/api/auth/register`      | Register new user with masked Aadhaar             | Public    |
-| `POST`   | `/api/auth/login-aadhaar` | Lookup account by last 4 digits of Aadhaar        | Public    |
-| `POST`   | `/api/auth/login-pin`     | Login with PIN (Standard or Duress Emergency PIN) | Public    |
-| `POST`   | `/api/auth/logout`        | Terminate session and clear HTTP-only cookies     | Protected |
-| `GET`    | `/api/auth/me`            | Fetch authenticated profile and linked accounts   | Protected |
-| `DELETE` | `/api/auth/me`            | Permanently delete account (Requires 4-digit PIN) | Protected |
+| `POST`   | `/api/auth/register` (or `/auth/register`)       | Register user (Full KYC or `{name, email, password}`) | Public    |
+| `POST`   | `/api/auth/verify-email` (or `/auth/verifyEmail`)| Verify email address with 6-digit code `{code}`       | Public / Auth |
+| `POST`   | `/api/auth/resend-verification`                  | Resend 6-digit email verification code                | Public / Auth |
+| `GET`    | `/api/auth/verification-status`                  | Check current email verification status               | Protected |
+| `POST`   | `/api/auth/login-aadhaar`                        | Lookup account by last 4 digits of Aadhaar            | Public    |
+| `POST`   | `/api/auth/login-pin`                            | Login with PIN (Standard or Duress Emergency PIN)     | Public    |
+| `POST`   | `/api/auth/logout`                               | Terminate session and clear HTTP-only cookies         | Protected |
+| `GET`    | `/api/auth/me`                                   | Fetch authenticated profile and linked accounts       | Protected |
+| `DELETE` | `/api/auth/me`                                   | Permanently delete account (Requires 4-digit PIN)     | Protected |
 
 ### Accounts (`/api/accounts`)
 
@@ -246,10 +257,10 @@ npm test
 
 ### AI Financial Copilot (`/api/v2/ai`)
 
-| Method | Endpoint | Description | Auth |
-| :----- | :------- | :---------- | :--- |
-| `POST` | `/api/v2/ai/chat` | Ask a transaction-grounded finance question | Protected |
-| `GET` | `/api/v2/ai/history` | Read the authenticated user's Copilot history | Protected |
+| Method | Endpoint             | Description                                   | Auth      |
+| :----- | :------------------- | :-------------------------------------------- | :-------- |
+| `POST` | `/api/v2/ai/chat`    | Ask a transaction-grounded finance question   | Protected |
+| `GET`  | `/api/v2/ai/history` | Read the authenticated user's Copilot history | Protected |
 
 The chat request body is `{ "message": "Why did I spend so much this month?" }`. Conversation records and transaction context are strictly scoped to the authenticated user.
 
@@ -264,8 +275,14 @@ The chat request body is `{ "message": "Why did I spend so much this month?" }`.
 - `GET /api/v2/merchant/dashboard` and `/api/v2/merchant/analytics` — merchant revenue and customer metrics.
 - `GET /api/v2/savings/challenges`, `POST /api/v2/savings/challenges/:id/join`, and `GET /api/v2/savings/progress` — savings challenges and progress.
 - `GET /api/v2/notifications` — authenticated notification inbox with read-state endpoints.
+- `GET /api/v2/subscriptions/detect` — detect recurring payments from the user's transaction history.
+- `GET /api/v2/subscriptions` — list persisted subscription reminders.
 
 All v2 endpoints use the existing HTTP-only session authentication and preserve the original `/api` routes.
+
+Fraud scores are returned on a documented 0–100 scale with `LOW`, `MEDIUM`, `HIGH`, or
+`CRITICAL` risk levels. New Prisma migrations include reward badges, subscription reminders,
+and the score precision update; apply them with `npx prisma migrate deploy` in production.
 
 ### Liveness Detection Microservice (`http://localhost:5001`)
 

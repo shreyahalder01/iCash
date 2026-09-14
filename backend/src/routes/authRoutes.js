@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const AuthController = require('../controllers/authController');
-const { authenticate } = require('../middleware/authMiddleware');
+const { authenticate, optionalAuthenticate } = require('../middleware/authMiddleware');
 const { validateRequest } = require('../middleware/validateMiddleware');
 const { authLimiter } = require('../middleware/rateLimitMiddleware');
 const {
@@ -24,5 +24,11 @@ router.get('/me', authenticate, AuthController.getMe);
 router.post('/refresh', authenticate, AuthController.refresh);
 // Delete own account (requires current PIN confirmation)
 router.delete('/me', authenticate, validateRequest(confirmDeleteSchema), AuthController.deleteMe);
+
+// Email Verification endpoints matching zahid-afridi/EmailVerfication
+router.post('/verify-email', optionalAuthenticate, AuthController.verifyEmail);
+router.post('/verifyEmail', optionalAuthenticate, AuthController.verifyEmail);
+router.post('/resend-verification', optionalAuthenticate, AuthController.resendVerification);
+router.get('/verification-status', authenticate, AuthController.getVerificationStatus);
 
 module.exports = router;

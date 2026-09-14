@@ -111,6 +111,49 @@ async function authenticate(req, res, next) {
   }
 }
 
+/**
+ * Optional authentication middleware that extracts user info if a valid JWT is present,
+ * but does not reject the request if unauthenticated.
+ */
+async function optionalAuthenticate(req, res, next) {
+  try {
+    let token = null;
+    if (req.cookies && req.cookies[COOKIE_NAME]) {
+      token = req.cookies[COOKIE_NAME];
+    } else if (req.cookies && req.cookies.token) {
+      token = req.cookies.token;
+    } else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+
+    if (!token) return next();
+
+    const decoded = verifyToken(token);
+    if (!decoded || !decoded.userId) return next();
+
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      include: {
+        accounts: {
+          where: { status: 'ACTIVE' },
+        },
+      },
+    });
+
+    if (user && user.status === 'ACTIVE') {
+      const {
+        password_hash: _ph,
+        emergency_pin_hash: _eph,
+        aadhaar_reference: _ar,
+        ...safeUser
+      } = user;
+      req.user = safeUser;
+    }
+  } catch (_) {}
+  next();
+}
+
 module.exports = {
   authenticate,
+  optionalAuthenticate,
 };

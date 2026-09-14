@@ -10,13 +10,15 @@ const descriptor = z.number().finite();
 const faceDescriptor = z.array(descriptor).length(128, 'Face descriptor must contain exactly 128 numeric values.');
 
 const registerSchema = z.object({
-  fullName: z.string().trim().min(2, 'Full name is required.').max(100),
-  phone: mobile10,
+  fullName: z.string().trim().min(2, 'Full name is required.').max(100).optional(),
+  name: z.string().trim().min(2).max(100).optional(),
+  phone: mobile10.optional(),
   email: z.string().email().optional().or(z.literal('')).optional(),
-  aadhaarNumber: z.string().regex(/^\d{12}$/, 'Aadhaar number must be 12 digits.'),
+  password: z.string().min(4).optional(),
+  aadhaarNumber: z.string().regex(/^\d{12}$/, 'Aadhaar number must be 12 digits.').optional(),
   dob: z.string().optional(),
   role: z.string().optional(),
-  pin: digits4,
+  pin: digits4.optional(),
   emergencyPin: digits4.optional().or(z.literal('')).optional(),
   isSenior: z.boolean().optional(),
   emergencyContactName: z.string().trim().max(100).optional(),
@@ -30,7 +32,10 @@ const registerSchema = z.object({
     idNumber: z.string().trim().max(100).optional().nullable(),
   })).max(5).optional().default([]),
   descriptors: z.array(faceDescriptor).max(10).optional().default([]),
-}).passthrough();
+}).passthrough().refine(data => Boolean(data.fullName || data.name), {
+  message: 'Full name or name is required.',
+  path: ['fullName'],
+});
 
 const loginAadhaarSchema = z.object({ aadhaarLast4 });
 const loginPinSchema = z.object({ userId: z.string().uuid('Invalid user identifier.'), pin: digits4 });
@@ -38,12 +43,34 @@ const confirmDeleteSchema = z.object({ pin: digits4 });
 
 const biometricEnrollSchema = z.object({
   descriptors: z.array(faceDescriptor).min(1, 'At least one face descriptor sample is required.').max(10),
+  biometricToken: z.string().min(10, 'A valid biometric session token is required for enrollment.'),
 });
 
 const biometricVerifySchema = z.object({
   liveDescriptor: faceDescriptor,
   userId: z.string().uuid().optional(),
 });
+
+// New challenge-based verification schema (replaces plain verifySchema for secure auth)
+const biometricChallengeSchema = z.object({
+  // Optional user ID hint to speed up lookup (server does not trust it for auth)
+  userIdHint: z.string().uuid().optional(),
+});
+
+const biometricVerifyChallengeSchema = z.object({
+  challengeId:      z.string().uuid('Invalid challenge ID.'),
+  nonce:            z.string().regex(/^[0-9a-f]{64}$/, 'Invalid nonce format.'),
+  liveDescriptor:   faceDescriptor,
+  userId:           z.string().uuid().optional(),
+  livenessSessionId: z.string().min(10).max(200).optional(), // Python liveness server session_id
+  // Temporal proof: array of {timestamp, earLeft, earRight} captured during blink/head movement
+  challengeProof: z.array(z.object({
+    timestamp:  z.number().int().positive(),
+    earLeft:    z.number().min(0).max(1),
+    earRight:   z.number().min(0).max(1),
+    yaw:        z.number().optional(), // head-pose yaw for head-turn challenges
+  })).min(1).max(120).optional(),
+}).passthrough();
 
 const accountCreateSchema = z.object({
   bankName: z.string().trim().min(2).max(100),
@@ -125,6 +152,8 @@ module.exports = {
   confirmDeleteSchema,
   biometricEnrollSchema,
   biometricVerifySchema,
+  biometricChallengeSchema,
+  biometricVerifyChallengeSchema,
   accountCreateSchema,
   accountUpdateSchema,
   transactionCreateSchema,
