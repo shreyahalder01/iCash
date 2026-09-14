@@ -255,14 +255,21 @@ class ClientBlinkDetector {
     this.currentEar      = 0.28;
     this.lastBlinkTime   = 0;
     this._mpPredicting   = false;
+    this._lastMpPollAt   = 0;
   }
 
   update(landmarks, video) {
     const now = Date.now();
 
-    // Async poll Ankur Kedia's MediaPipe model in background if video is provided
-    if (video && _ankurBlinkReady && _ankurBlinkLib && !this._mpPredicting) {
+    // Poll Ankur Kedia's MediaPipe model in the background as a backup signal, throttled.
+    // This used to fire on every single update() call (~80-100ms, same cadence as the main
+    // face-api detection loop), which meant two separate ML pipelines were doing full
+    // inference on every frame at once. EAR + eyelid-collapse below already come "for free"
+    // from the face-api landmarks, so MediaPipe only needs to run a few times a second as a
+    // secondary check, not in lockstep with the primary loop.
+    if (video && _ankurBlinkReady && _ankurBlinkLib && !this._mpPredicting && (now - this._lastMpPollAt) >= 200) {
       this._mpPredicting = true;
+      this._lastMpPollAt = now;
       _ankurBlinkLib.getBlinkPrediction().then((pred) => {
         this._mpPredicting = false;
         if (pred && (pred.blink || pred.wink || pred.left || pred.right)) {
@@ -432,17 +439,34 @@ async function initLivenessSession(challengeType) {
   }
 }
 
+let _livenessFrameInFlight = false;
+let _lastLivenessFrameAt = 0;
+const LIVENESS_FRAME_MIN_INTERVAL_MS = 400; // liveness scoring doesn't need a fresh frame every single detection tick
+
 async function streamLivenessFrame(video) {
   if (!activeLivenessSessionId || !window.iCashApi || !window.iCashApi.liveness)
     return currentLivenessState;
+  // Back-pressure guard: previously this fired a fresh base64 encode + network POST on
+  // every ~80-100ms detection tick with no check for an in-flight request, so on any real
+  // network latency the requests queued up and starved the camera/render loop, which is
+  // what showed up as "laggy camera". Now we skip the tick instead of stacking requests.
+  const now = Date.now();
+  if (_livenessFrameInFlight || now - _lastLivenessFrameAt < LIVENESS_FRAME_MIN_INTERVAL_MS) {
+    return currentLivenessState;
+  }
   const frameBase64 = grabVideoFrameBase64(video);
   if (!frameBase64) return currentLivenessState;
+  _livenessFrameInFlight = true;
+  _lastLivenessFrameAt = now;
   try {
     const res = await window.iCashApi.liveness.sendFrame(activeLivenessSessionId, frameBase64);
     if (res && !res.error) {
       currentLivenessState = res;
     }
-  } catch (e) {}
+  } catch (e) {
+  } finally {
+    _livenessFrameInFlight = false;
+  }
   return currentLivenessState;
 }
 
@@ -481,12 +505,17 @@ function drawOverlay(canvas, video, detections, state, progress, blinkInfo) {
     if (state === 'BAD') color = '#EF4444'; // red = mismatch
     if (state === 'MULTI') color = '#F59E0B'; // amber = multiple people
 
-    // Glow box
+    // Glow box — shadowBlur is one of the more expensive canvas ops and this is redrawn
+    // every single frame, so only pay for the glow on the states that actually need to pop
+    // (confirmation/error/multi-face), not on the continuous "SCAN" state that's on-screen
+    // for most of the interaction.
     ctx.save();
     ctx.strokeStyle = color;
     ctx.lineWidth = 2.5;
-    ctx.shadowBlur = 12;
-    ctx.shadowColor = color;
+    if (state === 'GOOD' || state === 'BAD' || state === 'MULTI') {
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = color;
+    }
     ctx.strokeRect(box.x, box.y, box.width, box.height);
     ctx.restore();
 
