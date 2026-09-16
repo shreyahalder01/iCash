@@ -69,18 +69,13 @@ A high-security, full-stack biometric digital banking platform built with **Node
 - **Senior Assisted Banking**: Registered senior citizens can delegate withdrawal privileges to designated relatives using dynamic 5-minute time-bound OTPs.
 - **Permanent Account Deletion ("Delete Account")**: Self-service danger zone feature in Settings & Profile requiring 4-digit PIN re-verification to perform a permanent cascading deletion of personal records and balances.
 
-### 4. 📧 Email Verification System (zahid-afridi/EmailVerfication)
+### 4. 📧 Email Verification System 
 
 - **Registration Code Delivery**: Generates a secure 6-digit numeric verification token with a 24-hour expiration window upon user registration.
 - **Dual API Compatibility**: Supports base route `/auth` (direct 1-to-1 compatibility with `zahid-afridi/EmailVerfication`) as well as standard enterprise `/api/auth`.
 - **Nodemailer Transport & Dev Mock**: Automated SMTP delivery with instant fallback to visible console dispatch in local/test development.
 - **HTML Email Templates**: Sleek, responsive HTML email templates for initial code dispatch (`Verification_Email_Template`) and successful verification celebration (`Welcome_Email_Template`).
 - **Interactive Verification UI**: Profile drawer interactive badge and 6-digit code modal with automatic code dispatch, instant verification, and resend support.
-
-### 5. ☁️ Appwrite Cloud SDK Integration
-
-- Integrated `appwrite` SDK (`frontend/lib/appwrite.js`) connected to Appwrite Cloud (`https://sfo.cloud.appwrite.io/v1`, Project ID: `6a89af3a00114ef8b001`).
-- Automatic client verification ping (`client.ping()`) upon app launch.
 
 ---
 
