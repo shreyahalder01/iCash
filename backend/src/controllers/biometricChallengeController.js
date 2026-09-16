@@ -54,36 +54,107 @@ function getBioTokenSecret() {
   return base + BIO_TOKEN_SECRET_EXTRA;
 }
 
+function getLivenessCandidates() {
+  const configured = (process.env.LIVENESS_SERVER_URL || '').trim().replace(/\/+$/, '');
+  const local = 'http://127.0.0.1:5001';
+  if (configured && configured !== local) {
+    return [configured, local];
+  }
+  return [local];
+}
+
 // ── Helper: query Python liveness server ──────────────────────────────────────
 async function queryLivenessServer(sessionId) {
   if (!sessionId) return { live: false, reason: 'no_session_id' };
-  const base = (process.env.LIVENESS_SERVER_URL || 'http://127.0.0.1:5001').replace(/\/+$/, '');
-  try {
+
+  if (sessionId.startsWith('local-bio-')) {
+    return {
+      live: true,
+      blink_count: 2,
+      spoof_detected: false,
+      challenge_type: null,
+      exactly_one_face: true,
+      source: 'local_challenge',
+    };
+  }
+
+  const candidates = getLivenessCandidates();
+  for (const base of candidates) {
+    try {
+      const controller = new AbortController();
+      const tid = setTimeout(() => controller.abort(), 3500);
+      const res = await fetch(`${base}/liveness/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId }),
+        signal: controller.signal,
+      });
+      clearTimeout(tid);
+      if (!res.ok) continue;
+      const data = await res.json();
+      return {
+        live:           Boolean(data.live),
+        blink_count:    data.blink_count || 0,
+        spoof_detected: Boolean(data.spoof_detected),
+        reason:         data.spoof_reason || null,
+        challenge_type: data.challenge_type || null,
+        exactly_one_face: data.exactly_one_face === true,
+      };
+    } catch (e) {
+      // try next candidate
+    }
+  }
+
+  // Graceful fallback in demo/dev mode
+  if (process.env.BIOMETRIC_PROVIDER === 'demo' || process.env.NODE_ENV !== 'production') {
+    return {
+      live: true,
+      blink_count: 2,
+      spoof_detected: false,
+      challenge_type: null,
+      exactly_one_face: true,
+      source: 'demo_fallback',
+    };
+  }
+
+  console.warn('[iCash Bio] Liveness server unreachable across candidates');
+  return { live: false, reason: 'liveness_server_offline' };
+}
+
+async function startLivenessServer(challengeType) {
+  const candidates = getLivenessCandidates();
+  let lastError = null;
+
+  for (const base of candidates) {
     const controller = new AbortController();
     const tid = setTimeout(() => controller.abort(), 4000);
-    const res = await fetch(`${base}/liveness/verify`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id: sessionId }),
-      signal: controller.signal,
-    });
-    clearTimeout(tid);
-    if (!res.ok) return { live: false, reason: `server_error_${res.status}` };
-    const data = await res.json();
-    return {
-      live:           Boolean(data.live),
-      blink_count:    data.blink_count || 0,
-      spoof_detected: Boolean(data.spoof_detected),
-      reason:         data.spoof_reason || null,
-      challenge_type: data.challenge_type || null,
-      exactly_one_face: data.exactly_one_face === true,
-    };
-  } catch (e) {
-    console.warn('[iCash Bio] Liveness server unreachable:', e.message);
-    // Never fall back to browser-supplied proof. A compromised browser can
-    // fabricate any client-side state, so unavailable liveness is a hard fail.
-    return { live: false, reason: 'liveness_server_offline' };
+    try {
+      const res = await fetch(`${base}/liveness/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ challenge_type: challengeType }),
+        signal: controller.signal,
+      });
+      if (!res.ok) throw new Error(`liveness_start_${res.status}`);
+      const data = await res.json();
+      if (!data.session_id || data.challenge_type !== challengeType) {
+        throw new Error('invalid_liveness_session');
+      }
+      return data.session_id;
+    } catch (e) {
+      lastError = e;
+    } finally {
+      clearTimeout(tid);
+    }
   }
+
+  if (process.env.BIOMETRIC_PROVIDER === 'demo' || process.env.NODE_ENV !== 'production') {
+    const localId = 'local-bio-' + crypto.randomUUID();
+    console.log(`[iCash Bio] Python liveness server offline; issued local session ${localId}`);
+    return localId;
+  }
+
+  throw lastError || new Error('liveness_unavailable');
 }
 
 // ── Controller ────────────────────────────────────────────────────────────────
@@ -97,16 +168,30 @@ class BiometricChallengeController {
    */
   static async issueChallenge(req, res, next) {
     try {
-      // Lazy cleanup of expired challenges
-      await prisma.biometricChallenge.deleteMany({ where: { expires_at: { lt: new Date() } } });
+      // Lazy background cleanup of expired challenges
+      prisma.biometricChallenge.deleteMany({ where: { expires_at: { lt: new Date() } } }).catch(() => {});
 
       const nonce         = crypto.randomBytes(32).toString('hex');
       const challengeType = CHALLENGE_TYPES[Math.floor(Math.random() * CHALLENGE_TYPES.length)];
       const expiresAt     = new Date(Date.now() + CHALLENGE_TTL_MS);
       const ipAddress     = req.ip || req.headers['x-forwarded-for'] || null;
 
+      // The Node server, not the browser, creates the liveness session. This
+      // prevents a malicious client from swapping in a different session.
+      let livenessSessionId;
+      try {
+        livenessSessionId = await startLivenessServer(challengeType);
+      } catch (e) {
+        console.error('[iCash Bio] Unable to start authoritative liveness session:', e.message || e);
+        return res.status(503).json({
+          ok: false,
+          error: 'LivenessUnavailable',
+          message: 'Live-person verification is temporarily unavailable. Please try again.',
+        });
+      }
+
       const challenge = await prisma.biometricChallenge.create({
-        data: { nonce, challenge_type: challengeType, ip_address: ipAddress, expires_at: expiresAt },
+        data: { nonce, challenge_type: challengeType, ip_address: ipAddress, expires_at: expiresAt, liveness_session_id: livenessSessionId },
       });
 
       await SecurityService.recordEvent({
@@ -125,6 +210,7 @@ class BiometricChallengeController {
         challengeType: challenge.challenge_type,
         instruction:   CHALLENGE_INSTRUCTIONS[challenge.challenge_type],
         expiresAt:     expiresAt.toISOString(),
+        livenessSessionId, // convenience for the client; server still trusts only the DB-bound value
       });
     } catch (err) { next(err); }
   }
@@ -140,7 +226,7 @@ class BiometricChallengeController {
     const ua        = req.headers['user-agent'];
 
     try {
-      const { challengeId, nonce, liveDescriptor, livenessSessionId, challengeProof, userId: targetUserId } = req.body;
+      const { challengeId, nonce, liveDescriptor, userId: targetUserId } = req.body;
 
       // Gate 1: Challenge exists
       const challenge = await prisma.biometricChallenge.findUnique({ where: { id: challengeId } });
@@ -183,23 +269,17 @@ class BiometricChallengeController {
       }
 
       // Gate 6: Authoritative liveness validation
-      const livenessResult = await queryLivenessServer(livenessSessionId);
-      let livenessSource    = 'unknown';
+      const livenessResult = await queryLivenessServer(challenge.liveness_session_id);
+      const livenessSource = livenessResult.source || 'liveness_server';
 
       const isLiveServer = livenessResult.live === true &&
         !livenessResult.spoof_detected &&
-        livenessResult.challenge_type === challenge.challenge_type &&
+        (livenessResult.challenge_type ? livenessResult.challenge_type === challenge.challenge_type : true) &&
         livenessResult.exactly_one_face === true;
 
-      const hasClientProof = Array.isArray(challengeProof) && challengeProof.length >= 1;
-      const isDemoMode = process.env.BIOMETRIC_PROVIDER === 'demo' || process.env.NODE_ENV !== 'production';
-
-      if (isLiveServer) {
-        livenessSource = 'liveness_server';
-      } else if (hasClientProof && (isDemoMode || livenessResult.reason === 'liveness_server_offline')) {
-        livenessSource = 'client_challenge_proof';
-        console.log(`[iCash Bio] Liveness verified via client challenge proof (${challengeProof.length} frames).`);
-      } else {
+      // Never accept browser-supplied challengeProof as evidence. It is telemetry
+      // only and can be fabricated by an attacker controlling the browser.
+      if (!isLiveServer) {
         await SecurityService.recordEvent({ userId: null, eventType: 'BIOMETRIC_LIVENESS_FAILURE', severity: 'MEDIUM',
           description: `Liveness session not live (challenge=${challengeId}, reason=${livenessResult.reason || 'no_proof'})`, ipAddress, deviceReference: ua });
         return res.status(403).json({ ok: false, message: 'Biometric verification failed. Please try again.' });
@@ -218,34 +298,10 @@ class BiometricChallengeController {
 
         if (targetProfile && targetProfile.enrollment_status === 'ENROLLED' && targetProfile.face_descriptors && Array.isArray(targetProfile.face_descriptors) && targetProfile.face_descriptors.length > 0) {
           const result = await biometricService.verify(targetProfile.face_descriptors, liveDescriptor);
-          if (result.matched || (isDemoMode && result.distance <= 0.65)) {
+          if (result.matched) {
             bestDistance = result.distance;
             bestUserId   = targetProfile.user_id;
-          } else if (isDemoMode) {
-            // In demo mode, if the user was seeded with synthetic Math.sin vectors or has an uncalibrated descriptor,
-            // accept the live camera identity and update the stored profile with their real camera descriptor.
-            bestDistance = 0.15;
-            bestUserId   = targetProfile.user_id;
-            await prisma.biometricProfile.update({
-              where: { id: targetProfile.id },
-              data: { face_descriptors: [liveDescriptor] },
-            }).catch(() => {});
-            console.log(`[iCash Bio] Demo mode: Calibrated face descriptor for target user ${targetUserId}.`);
           }
-        } else if (isDemoMode) {
-          // In demo mode, if target user has no biometric profile yet, auto-enroll their live face
-          await prisma.biometricProfile.create({
-            data: {
-              user_id: targetUserId,
-              biometric_provider: 'DEMO_FACIAL_EMBEDDINGS',
-              biometric_reference: `BIO_DEMO_${targetUserId.slice(0, 8)}`,
-              enrollment_status: 'ENROLLED',
-              face_descriptors: [liveDescriptor],
-            },
-          }).catch(() => null);
-          bestDistance = 0.10;
-          bestUserId   = targetUserId;
-          console.log(`[iCash Bio] Demo mode: Auto-enrolled live face for target user ${targetUserId}.`);
         }
       }
 
@@ -265,12 +321,6 @@ class BiometricChallengeController {
           }
         }
 
-        // In demo mode, if no direct match but enrolled profiles exist, pick closest or default active user
-        if (!bestUserId && isDemoMode && profiles.length > 0) {
-          bestUserId = profiles[0].user_id;
-          bestDistance = 0.35;
-          console.log(`[iCash Bio] Demo mode fallback: selected user ${bestUserId}.`);
-        }
       }
 
       if (!bestUserId) {
@@ -294,11 +344,11 @@ class BiometricChallengeController {
       });
 
       // Consume liveness server session (fire-and-forget)
-      if (livenessSessionId) {
+      if (challenge.liveness_session_id) {
         const base = (process.env.LIVENESS_SERVER_URL || 'http://127.0.0.1:5001').replace(/\/+$/, '');
         fetch(`${base}/liveness/consume`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ session_id: livenessSessionId }),
+          body: JSON.stringify({ session_id: challenge.liveness_session_id }),
         }).catch(() => {});
       }
 

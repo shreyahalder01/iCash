@@ -908,6 +908,10 @@
                       <span class="tile-icon">↗</span>
                       <span>Transfer</span>
                     </button>
+                    <button class="action-tile-btn" onclick="openModal('deposit')">
+                      <span class="tile-icon">＋</span>
+                      <span>Deposit</span>
+                    </button>
                     <button class="action-tile-btn" onclick="openModal('withdraw')">
                       <span class="tile-icon">↓</span>
                       <span>Withdraw</span>
@@ -1730,7 +1734,7 @@
             id="cmd-input"
             type="search"
             maxlength="150"
-            placeholder="Type a command or search (e.g. transfer, statement, security)..."
+            placeholder="Type a command or search (e.g. deposit, transfer, statement, security)..."
             oninput="handleCommandInput(this.value)"
             autocomplete="off"
           />
@@ -1754,6 +1758,16 @@
             "
           >
             <div class="cmd-left"><span>↗</span><span>Transfer Funds</span></div>
+            <span class="kbd-shortcut">Action</span>
+          </div>
+          <div
+            class="command-item"
+            onclick="
+              openModal('deposit');
+              closeCommandPalette();
+            "
+          >
+            <div class="cmd-left"><span>＋</span><span>Deposit Money</span></div>
             <span class="kbd-shortcut">Action</span>
           </div>
           <div
@@ -1803,6 +1817,43 @@
     <!-- ============================================================
      FINANCIAL ACTION MODALS & BIOMETRIC GATE
      ============================================================ -->
+
+    <!-- DEPOSIT MODAL -->
+    <div class="modal-backdrop" id="modal-deposit">
+      <div class="modal">
+        <button class="close-x" onclick="closeModal('deposit')">&#10005;</button>
+        <div class="eyebrow">Instant Funds Top-Up</div>
+        <h2>Deposit Money</h2>
+        <p class="lead">
+          Add funds instantly to your primary digital account. No biometric authorization is
+          required to receive money.
+        </p>
+        <form id="form-deposit" onsubmit="event.preventDefault(); confirmDeposit();">
+          <div class="chip-row">
+            <div class="chip" onclick="setAmt('deposit', 500)">₹500</div>
+            <div class="chip" onclick="setAmt('deposit', 1000)">₹1,000</div>
+            <div class="chip" onclick="setAmt('deposit', 2500)">₹2,500</div>
+            <div class="chip" onclick="setAmt('deposit', 5000)">₹5,000</div>
+          </div>
+          <div class="field">
+            <label>Amount (₹)</label>
+            <input
+              id="deposit-amt"
+              type="number"
+              inputmode="numeric"
+              maxlength="10"
+              min="1"
+              max="10000"
+              placeholder="0"
+            />
+          </div>
+          <div class="modal-msg" id="deposit-msg"></div>
+          <button type="submit" class="btn btn-primary" style="margin-top: 10px" id="deposit-submit-btn">
+            Deposit Funds
+          </button>
+        </form>
+      </div>
+    </div>
 
     <!-- WITHDRAW MODAL -->
     <div class="modal-backdrop" id="modal-withdraw">
@@ -2067,7 +2118,7 @@
           <div class="modal-msg" id="email-verify-msg"></div>
 
           <div style="display: flex; gap: 10px; margin-top: 16px;">
-            <button type="button" class="btn btn-ghost" style="flex: 1" onclick="resendEmailVerification()">Resend Code</button>
+            <button type="button" id="btn-email-resend" class="btn btn-ghost" style="flex: 1" onclick="resendEmailVerification()">Resend Code</button>
             <button type="submit" class="btn btn-primary" style="flex: 1">Verify Email</button>
           </div>
         </form>

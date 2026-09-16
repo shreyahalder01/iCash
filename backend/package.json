@@ -37,7 +37,8 @@
   },
   "jest": {
     "testEnvironment": "node",
-    "testTimeout": 30000,
-    "globalSetup": "<rootDir>/tests/setup.js"
+    "testTimeout": 60000,
+    "globalSetup": "<rootDir>/tests/setup.js",
+    "testPathIgnorePatterns": ["/node_modules/", "/\\.next/", "/dist/", "/build/"]
   }
 }

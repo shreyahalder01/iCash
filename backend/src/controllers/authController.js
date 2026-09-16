@@ -12,7 +12,6 @@ class AuthController {
         success: true,
         message: 'Registration completed successfully.',
         user,
-        token,
         ...(process.env.NODE_ENV !== 'production' || process.env.ALLOW_DEV_OTP === 'true'
           ? { devCode: verificationCode, code: verificationCode }
           : {}),
@@ -27,6 +26,20 @@ class AuthController {
       const { aadhaarLast4 } = req.body;
       const matchingUsers = await AuthService.findByAadhaarLast4(aadhaarLast4);
       res.json({ ok: true, users: matchingUsers });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async loginBiometric(req, res, next) {
+    try {
+      const userId = req.biometricUserId;
+      if (!userId) {
+        return res.status(403).json({ ok: false, message: 'Biometric authentication is required.' });
+      }
+      const { user, token } = await AuthService.loginWithBiometric(userId, req);
+      res.cookie(COOKIE_NAME, token, getCookieOptions());
+      res.json({ ok: true, message: 'Biometric authentication successful.', user });
     } catch (err) {
       next(err);
     }
@@ -60,7 +73,10 @@ class AuthController {
   static async logout(req, res, next) {
     try {
       if (req.user) await AuthService.logout(req.user.id);
+      // Always clear both current and legacy cookie names, even if the session
+      // has already expired. Logout must be idempotent from the browser.
       res.clearCookie(COOKIE_NAME, getClearCookieOptions());
+      res.clearCookie('token', getClearCookieOptions());
       res.json({ ok: true, message: 'Logged out successfully.' });
     } catch (err) {
       next(err);

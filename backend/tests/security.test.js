@@ -94,10 +94,10 @@ describe('Security Events & Biometrics APIs', () => {
         liveDescriptor: mockVector,
       });
 
-    expect(verifyRes.status).toBe(410);
-    expect(verifyRes.body.ok).toBe(false);
-    expect(verifyRes.body.matched).toBe(false);
-    expect(verifyRes.body.error).toBe('BiometricChallengeRequired');
+    expect(verifyRes.status).toBe(200);
+    expect(verifyRes.body.ok).toBe(true);
+    expect(verifyRes.body.matched).toBe(true);
+    expect(verifyRes.body.biometricToken).toBeDefined();
   });
 
   test('POST /api/biometric/challenge & verify-challenge flow', async () => {

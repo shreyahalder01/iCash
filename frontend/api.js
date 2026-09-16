@@ -31,18 +31,35 @@ function getConfiguredBaseUrl() {
 
 let currentBase = getConfiguredBaseUrl();
 
+// When the backend truly isn't reachable (e.g. it hasn't been started),
+// every single API call — sign out, load dashboard, login, OTP, biometric
+// verify — used to re-run the FULL same-origin + 6-candidate probe from
+// scratch, with several of those fetches carrying no timeout at all. That
+// made ordinary actions like "Sign Out" look hung/broken instead of
+// failing fast with a clear message. We now: (a) bound every probe fetch
+// with a short timeout, and (b) remember "nothing is reachable" for a few
+// seconds so repeated clicks don't each pay the full probing cost again.
+const PROBE_TIMEOUT_MS = 4000;
+const NEGATIVE_CACHE_MS = 2500;
+let lastProbeFailedAt = 0;
+
+function fetchWithTimeout(url, options = {}, timeoutMs = PROBE_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timeoutId));
+}
+
 async function detectApiBase() {
+  if (currentBase === null && Date.now() - lastProbeFailedAt < NEGATIVE_CACHE_MS) {
+    throw new Error('NO_BACKEND_REACHABLE');
+  }
+
   if (currentBase !== null && currentBase !== '') {
     // Check if the configured remote server is healthy
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
-      const res = await fetch(`${currentBase}/api/health`, {
-        cache: 'no-store',
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
+      const res = await fetchWithTimeout(`${currentBase}/api/health`, { cache: 'no-store' }, PROBE_TIMEOUT_MS);
       if (res.ok) {
+        lastProbeFailedAt = 0;
         return currentBase;
       }
     } catch (e) {
@@ -57,9 +74,10 @@ async function detectApiBase() {
     (window.location.protocol === 'http:' || window.location.protocol === 'https:')
   ) {
     try {
-      const res = await fetch('/api/health', { cache: 'no-store' });
+      const res = await fetchWithTimeout('/api/health', { cache: 'no-store' }, PROBE_TIMEOUT_MS);
       if (res.ok) {
         currentBase = '';
+        lastProbeFailedAt = 0;
         return currentBase;
       }
     } catch (e) {
@@ -69,10 +87,12 @@ async function detectApiBase() {
 
   // 2. Try candidate URLs (for file:// protocol or standalone development)
   for (const base of API_BASE_CANDIDATES) {
+    if (!base) continue;
     try {
-      const res = await fetch(`${base}/api/health`, { cache: 'no-store' });
+      const res = await fetchWithTimeout(`${base}/api/health`, { cache: 'no-store' }, PROBE_TIMEOUT_MS);
       if (res.ok) {
         currentBase = base;
+        lastProbeFailedAt = 0;
         return currentBase;
       }
     } catch (e) {
@@ -80,11 +100,26 @@ async function detectApiBase() {
     }
   }
 
+  // Nothing reachable at all
+  lastProbeFailedAt = Date.now();
   return currentBase || '';
 }
 
 async function request(endpoint, options = {}) {
-  const base = await detectApiBase();
+  let base;
+  try {
+    base = await detectApiBase();
+  } catch (e) {
+    // Our own short-lived "nothing reachable" cache throws NO_BACKEND_REACHABLE
+    // instead of re-probing; fall through to the same friendly error the
+    // network-failure path below produces.
+    base = null;
+  }
+  if (base === null) {
+    throw new Error(
+      'Unable to connect to banking backend (http://localhost:4000). Please ensure the backend server is running and accessible.'
+    );
+  }
   const url = `${base}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
 
   const isFormData = configBodyIsFormData(options.body);
@@ -177,6 +212,8 @@ const api = {
   register: (userData) => request('/api/auth/register', { method: 'POST', body: userData }),
   loginAadhaar: (data) => request('/api/auth/login-aadhaar', { method: 'POST', body: data }),
   loginPin: (data) => request('/api/auth/login-pin', { method: 'POST', body: data }),
+  loginBiometric: (biometricToken) =>
+    request('/api/auth/login-biometric', { method: 'POST', body: { biometricToken } }),
   loginEmergencyPin: (data) =>
     request('/api/auth/login-emergency-pin', { method: 'POST', body: data }),
   logout: () => request('/api/auth/logout', { method: 'POST' }),
@@ -215,6 +252,9 @@ const api = {
   verifyChallenge: (data) =>
     request('/api/biometric/verify-challenge', { method: 'POST', body: data }),
 
+  verifyBiometric: (data) =>
+    request('/api/biometric/verify', { method: 'POST', body: data }),
+
   enrollBiometric: (data) =>
     request('/api/biometric/enroll', { method: 'POST', body: data }),
 
@@ -241,6 +281,7 @@ const api = {
     return request(`/api/transactions${query ? '?' + query : ''}`, { method: 'GET' });
   },
   getTransactionById: (id) => request(`/api/transactions/${id}`, { method: 'GET' }),
+  depositMoney: (data) => request('/api/transactions/deposit', { method: 'POST', body: data }),
   createTransaction: (data) => {
     const payload = {
       ...data,
@@ -248,6 +289,9 @@ const api = {
     };
     return request('/api/transactions', { method: 'POST', body: payload });
   },
+  // Instant demo funds top-up (adds money to an account). Backend route:
+  // POST /api/transactions/topup — gated by ALLOW_DEMO_TOPUP in production.
+  topUpFunds: (data) => request('/api/transactions/topup', { method: 'POST', body: data }),
   // Emergency Contact & Authorized Representative Cash Withdrawal
   requestEmergencyWithdrawal: (data) =>
     request('/api/transactions/emergency-withdrawal/request', { method: 'POST', body: data }),
@@ -343,12 +387,22 @@ const api = {
         return null;
       }
     },
-    sendFrame: async function(sessionId, base64Image) {
+    sendFrame: async function(sessionId, base64Image, telemetry = {}) {
       try {
+        const body = {
+          session_id: sessionId,
+          image: base64Image,
+        };
+        if (telemetry && telemetry.ear !== undefined) body.client_ear = telemetry.ear;
+        if (telemetry && telemetry.leftEar !== undefined) body.left_ear = telemetry.leftEar;
+        if (telemetry && telemetry.rightEar !== undefined) body.right_ear = telemetry.rightEar;
+        if (telemetry && telemetry.isClosed !== undefined) body.is_closed = Boolean(telemetry.isClosed);
+        if (telemetry && telemetry.blinkCount !== undefined) body.blink_count = telemetry.blinkCount;
+
         const res = await fetch(`${this.baseUrl}/liveness/frame`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ session_id: sessionId, image: base64Image }),
+          body: JSON.stringify(body),
         });
         return await res.json();
       } catch (e) {

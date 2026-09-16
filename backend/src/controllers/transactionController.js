@@ -61,6 +61,34 @@ class TransactionController {
     } catch (err) { next(err); }
   }
 
+  static async depositMoney(req, res, next) {
+    try {
+      const amount = Number(req.body?.amount);
+      const accountId = req.body?.accountId || undefined;
+      const method = String(req.body?.method || 'Cash Deposit').trim();
+      if (!Number.isFinite(amount) || amount <= 0 || amount > 1000000) {
+        return res.status(400).json({ ok: false, message: 'Enter a deposit between ₹1 and ₹10,00,000.' });
+      }
+
+      const result = await TransactionService.processTransaction(
+        req.user.id,
+        { accountId, transactionType: 'DEPOSIT', amount, description: `${method} — account deposit` },
+        req,
+        { allowDeposit: true }
+      );
+
+      return res.status(201).json({
+        ok: true,
+        message: `₹${amount.toLocaleString('en-IN')} deposited successfully.`,
+        newBalance: result.newBalance,
+        transaction: result.transaction,
+        accountMasked: result.accountMasked,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static async topUpDemoFunds(req, res, next) {
     try {
       if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEMO_TOPUP !== 'true') {

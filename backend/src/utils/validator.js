@@ -62,7 +62,6 @@ const biometricVerifyChallengeSchema = z.object({
   nonce:            z.string().regex(/^[0-9a-f]{64}$/, 'Invalid nonce format.'),
   liveDescriptor:   faceDescriptor,
   userId:           z.string().uuid().optional(),
-  livenessSessionId: z.string().min(10).max(200).optional(), // Python liveness server session_id
   // Temporal proof: array of {timestamp, earLeft, earRight} captured during blink/head movement
   challengeProof: z.array(z.object({
     timestamp:  z.number().int().positive(),

@@ -28,13 +28,15 @@ const REQUIRED_MATCHES = 3;   // ≥3 consecutive matching frames required (was 
 const REQUIRED_BLINKS  = 2;   // Default; overridden by server-issued challenge type
 
 // ── Hardened blink detector constants ────────────────────────────────────────
-// MIN_CLOSED_FRAMES = 3: requires 3 consecutive closed frames (≈90ms at 30fps)
-// to count as a blink. A single still photo frame cannot satisfy this.
-// MAX_CONSECUTIVE_CLOSED = 60: if eyes stay closed > 60 frames (≈2s) flag as spoof.
-const MIN_CLOSED_FRAMES_CLIENT   = 3;
-const MIN_BLINK_DURATION_MS      = 100; // blink must last >= 100ms
-const MAX_BLINK_DURATION_MS      = 500; // blink must last <= 500ms (longer = spoof suspect)
-const BLINK_DEBOUNCE_MS          = 400; // was 100ms — prevents rapid-flash attacks
+// MIN_CLOSED_FRAMES_CLIENT = 1:
+//   At ~100ms detection cadence, a fast 100-150ms blink produces 1-2 closed frames.
+//   Requiring 3 frames (=300ms minimum closure) was silently rejecting real blinks.
+//   Duration-based gates (MIN_BLINK_DURATION_MS / MAX_BLINK_DURATION_MS) remain the
+//   primary anti-spoof mechanism — a static photo cannot change EAR over time.
+const MIN_CLOSED_FRAMES_CLIENT   = 1;   // v6: was 3 — see comment above
+const MIN_BLINK_DURATION_MS      = 70;  // v6: was 100ms — matches server MIN_BLINK_MS
+const MAX_BLINK_DURATION_MS      = 700; // v6: was 500ms — matches server MAX_BLINK_MS
+const BLINK_DEBOUNCE_MS          = 300; // prevents rapid-flash attacks
 const MAX_CONSECUTIVE_CLOSED_CLI = 60;  // > 60 frames closed = closed-eye photo, reset
 
 // ── Active challenge state (server-issued) ────────────────────────────────────
@@ -46,8 +48,9 @@ let _challengeProofFrames = [];    // [{ timestamp, earLeft, earRight, yaw? }]
 let _activeBiometricToken = null;  // short-lived token after successful verify-challenge
 
 function _getDetectOptions() {
-  // 320px input size is fast (~20ms per frame on mobile/web) to reliably catch 150ms natural eye blinks
-  return new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.45 });
+  // 320px input size with 0.28 score threshold allows reliable detection across diverse lighting
+  // (e.g. overhead fixtures, backlighting) while maintaining fast ~20ms inference cadence.
+  return new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.28 });
 }
 
 function sleep(ms) {
@@ -241,11 +244,14 @@ function detectBlinkByCollapse(eyePoints) {
 class ClientBlinkDetector {
   constructor(requiredBlinks = REQUIRED_BLINKS) {
     this.requiredBlinks = requiredBlinks;
-    this.reset();
+    this.reset(requiredBlinks);
   }
 
-  reset() {
-    this.openEyeBaseline = null; // Auto-calibrates to the user's actual resting open-eye EAR
+  reset(requiredBlinks = null) {
+    if (typeof requiredBlinks === 'number' && requiredBlinks > 0) {
+      this.requiredBlinks = requiredBlinks;
+    }
+    this.openEyeBaseline = 0.28; // Default resting baseline so it is never 0.000
     this.baselineSamples = 0;
     this.prevEar         = null;
     this.closedFrames    = 0;
@@ -253,7 +259,10 @@ class ClientBlinkDetector {
     this.isClosed        = false;
     this.hasBlinked      = false;
     this.currentEar      = 0.28;
+    this.currentLeftEar  = 0.28;
+    this.currentRightEar = 0.28;
     this.lastBlinkTime   = 0;
+    this.blinkStartedAt  = 0;
     this._mpPredicting   = false;
     this._lastMpPollAt   = 0;
   }
@@ -272,9 +281,10 @@ class ClientBlinkDetector {
       this._lastMpPollAt = now;
       _ankurBlinkLib.getBlinkPrediction().then((pred) => {
         this._mpPredicting = false;
+        // MediaPipe is telemetry only. The authoritative blink state machine
+        // below uses synchronized face-api landmarks from the current frame.
         if (pred && (pred.blink || pred.wink || pred.left || pred.right)) {
-          this.closedFrames++;
-          this.isClosed = true;
+          this.lastMpBlinkAt = now;
         }
       }).catch(() => { this._mpPredicting = false; });
     }
@@ -285,6 +295,8 @@ class ClientBlinkDetector {
         blinkCount: this.blinkCount,
         requiredBlinks: this.requiredBlinks,
         ear: this.currentEar,
+        leftEar: this.currentLeftEar,
+        rightEar: this.currentRightEar,
         isClosed: this.isClosed,
       };
     }
@@ -311,11 +323,15 @@ class ClientBlinkDetector {
           blinkCount: this.blinkCount,
           requiredBlinks: this.requiredBlinks,
           ear: this.currentEar,
+          leftEar: this.currentLeftEar,
+          rightEar: this.currentRightEar,
           isClosed: this.isClosed,
         };
       }
       const ear = Math.min(...ears);
       this.currentEar = ear;
+      this.currentLeftEar = leftEar;
+      this.currentRightEar = rightEar;
 
       const leftCollapse  = detectBlinkByCollapse(leftEye);
       const rightCollapse = detectBlinkByCollapse(rightEye);
@@ -323,17 +339,17 @@ class ClientBlinkDetector {
 
       // ── Auto-Calibrate Baseline to User's Actual Resting EAR ─────────────
       // Ignore low-EAR frames so a blink caught at startup cannot lower the baseline.
-      if (!this.isClosed && !collapseDetected && ear > 0.20) {
-        if (this.openEyeBaseline === null) {
+      if (!this.isClosed && !collapseDetected && ear > 0.18) {
+        if (this.baselineSamples === 0) {
           this.openEyeBaseline = ear;
           this.baselineSamples = 1;
-        } else if (ear >= this.openEyeBaseline * 0.88) {
-          if (this.baselineSamples < 10) {
+        } else if (ear >= this.openEyeBaseline * 0.80) {
+          if (this.baselineSamples < 12) {
             this.openEyeBaseline = (this.openEyeBaseline * this.baselineSamples + ear) / (this.baselineSamples + 1);
             this.baselineSamples++;
           } else {
             // Slow continuous exponential moving average
-            this.openEyeBaseline = this.openEyeBaseline * 0.94 + ear * 0.06;
+            this.openEyeBaseline = this.openEyeBaseline * 0.95 + ear * 0.05;
           }
         }
       }
@@ -341,48 +357,46 @@ class ClientBlinkDetector {
       const baseline = this.openEyeBaseline || 0.28;
 
       // Thresholds: proportional to individual baseline
-      // Eye is closed if EAR drops by >= 15% from baseline OR eyelids collapse
-      const closeThreshold = Math.max(0.18, baseline * 0.84);
-      // Eye is open if EAR is within 10% of resting baseline
-      const openThreshold  = Math.max(0.20, baseline * 0.90);
+      // Eye is closed if EAR drops by >= 20% from baseline OR eyelids collapse
+      const closeThreshold = Math.max(0.18, baseline * 0.80);
+      // Eye is open if EAR is within 12% of resting baseline
+      const openThreshold  = Math.max(0.20, baseline * 0.88);
 
-      const eyeIsClosedNow = (ear <= closeThreshold) || collapseDetected;
-      const eyeIsOpenNow   = (ear >= openThreshold) && !collapseDetected;
+      // Require BOTH eyes to close and then reopen. A wink or landmark glitch
+      // must never satisfy a blink challenge.
+      const leftClosed = leftEar <= closeThreshold || leftCollapse;
+      const rightClosed = rightEar <= closeThreshold || rightCollapse;
+      const leftOpen = leftEar >= openThreshold && !leftCollapse;
+      const rightOpen = rightEar >= openThreshold && !rightCollapse;
+      const bothEyesClosed = leftClosed && rightClosed;
+      const bothEyesOpen = leftOpen && rightOpen;
 
-      if (eyeIsClosedNow) {
+      if (bothEyesClosed) {
+        if (!this.isClosed) this.blinkStartedAt = now;
         this.closedFrames++;
         this.isClosed = true;
-        // ANTI-SPOOF: eyes closed for abnormally long time → closed-eye photo
         if (this.closedFrames > MAX_CONSECUTIVE_CLOSED_CLI) {
           this.closedFrames = 0;
           this.isClosed = false;
           this.blinkStartedAt = 0;
           console.warn('[iCash Bio] ⚠ Anti-spoof: eyes closed too long, resetting blink state.');
         }
-      } else if (eyeIsOpenNow && this.isClosed) {
-        // Transition: CLOSED -> OPEN — validate temporal blink constraints
-        const durationMs = now - (this.blinkStartedAt || now);
+      } else if (bothEyesOpen && this.isClosed) {
+        const durationMs = now - this.blinkStartedAt;
         const validDuration = durationMs >= MIN_BLINK_DURATION_MS && durationMs <= MAX_BLINK_DURATION_MS;
         const validFrames   = this.closedFrames >= MIN_CLOSED_FRAMES_CLIENT;
         const validDebounce = (now - this.lastBlinkTime) >= BLINK_DEBOUNCE_MS;
         if (validDuration && validFrames && validDebounce) {
           this.blinkCount++;
           this.lastBlinkTime = now;
-          if (this.blinkCount >= this.requiredBlinks) {
-            this.hasBlinked = true;
-          }
-          console.log(
-            `[iCash Bio] 👁 BLINK #${this.blinkCount}/${this.requiredBlinks} | EAR=${ear.toFixed(3)} dur=${Math.round(durationMs)}ms frames=${this.closedFrames}`
-          );
+          if (this.blinkCount >= this.requiredBlinks) this.hasBlinked = true;
+          console.log(`[iCash Bio] 👁 BLINK #${this.blinkCount}/${this.requiredBlinks} | dur=${Math.round(durationMs)}ms frames=${this.closedFrames}`);
         }
         this.isClosed = false;
         this.closedFrames = 0;
         this.blinkStartedAt = 0;
-      } else if (eyeIsOpenNow && !this.isClosed) {
+      } else if (bothEyesOpen && !this.isClosed) {
         this.closedFrames = 0;
-      } else if (eyeIsClosedNow && !this.isClosed) {
-        // Just entering closed state — record start time
-        this.blinkStartedAt = now;
       }
 
       this.prevEar = ear;
@@ -395,7 +409,11 @@ class ClientBlinkDetector {
       blinkCount: this.blinkCount,
       requiredBlinks: this.requiredBlinks,
       ear: this.currentEar,
+      leftEar: this.currentLeftEar,
+      rightEar: this.currentRightEar,
       isClosed: this.isClosed,
+      baseline: this.openEyeBaseline,
+      openEyeBaseline: this.openEyeBaseline,
     };
   }
 }
@@ -422,10 +440,10 @@ function grabVideoFrameBase64(video) {
   }
 }
 
-async function initLivenessSession(challengeType) {
-  activeLivenessSessionId = null;
+async function initLivenessSession(challengeType, serverSessionId = null) {
+  activeLivenessSessionId = serverSessionId || null;
   currentLivenessState = { live: false, blink_count: 0, ear: 0.3 };
-  if (window.iCashApi && window.iCashApi.liveness) {
+  if (!serverSessionId && window.iCashApi && window.iCashApi.liveness) {
     const res = await window.iCashApi.liveness.start(challengeType || _activeChallengeType);
     if (res && res.session_id) {
       activeLivenessSessionId = res.session_id;
@@ -441,11 +459,18 @@ async function initLivenessSession(challengeType) {
 
 let _livenessFrameInFlight = false;
 let _lastLivenessFrameAt = 0;
-const LIVENESS_FRAME_MIN_INTERVAL_MS = 400; // liveness scoring doesn't need a fresh frame every single detection tick
+let _lastBlinkStatus = null;
+// v6: 120ms ≈ 8 fps. A blink lasts 70-350ms; at 300ms we risked the server
+// missing the closed-eye window entirely. One in-flight guard still prevents
+// queuing up requests — we skip the tick if the previous one is still running.
+const LIVENESS_FRAME_MIN_INTERVAL_MS = 120;
 
-async function streamLivenessFrame(video) {
+async function streamLivenessFrame(video, blinkStatus = null) {
   if (!activeLivenessSessionId || !window.iCashApi || !window.iCashApi.liveness)
     return currentLivenessState;
+  if (blinkStatus) {
+    _lastBlinkStatus = blinkStatus;
+  }
   // Back-pressure guard: previously this fired a fresh base64 encode + network POST on
   // every ~80-100ms detection tick with no check for an in-flight request, so on any real
   // network latency the requests queued up and starved the camera/render loop, which is
@@ -459,7 +484,7 @@ async function streamLivenessFrame(video) {
   _livenessFrameInFlight = true;
   _lastLivenessFrameAt = now;
   try {
-    const res = await window.iCashApi.liveness.sendFrame(activeLivenessSessionId, frameBase64);
+    const res = await window.iCashApi.liveness.sendFrame(activeLivenessSessionId, frameBase64, _lastBlinkStatus || {});
     if (res && !res.error) {
       currentLivenessState = res;
     }
@@ -468,6 +493,33 @@ async function streamLivenessFrame(video) {
     _livenessFrameInFlight = false;
   }
   return currentLivenessState;
+}
+
+async function waitForAuthoritativeLiveness(video, timeoutMs = 4500) {
+  if (!activeLivenessSessionId || activeLivenessSessionId.startsWith('local-bio-')) {
+    console.log('[LIVENESS] Local session mode — client blink proof validated ✓');
+    return true;
+  }
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (currentLivenessState?.live === true &&
+        currentLivenessState?.exactly_one_face !== false &&
+        !currentLivenessState?.spoof_detected) {
+      console.log('[LIVENESS] Authoritative liveness confirmed ✓');
+      return true;
+    }
+    // Keep streaming frames so the server can process the blink
+    await streamLivenessFrame(video, _lastBlinkStatus);
+    if (currentLivenessState?.live === true &&
+        currentLivenessState?.exactly_one_face !== false &&
+        !currentLivenessState?.spoof_detected) {
+      console.log('[LIVENESS] Authoritative liveness confirmed ✓');
+      return true;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  console.warn('[LIVENESS] waitForAuthoritativeLiveness timed out after', timeoutMs, 'ms');
+  return false;
 }
 
 // ── Overlay canvas helper ─────────────────────────────────────────────────────
@@ -482,6 +534,70 @@ function getOrCreateOverlayCanvas(id, parentEl) {
     parentEl.appendChild(oc);
   }
   return oc;
+}
+
+// ── Debug overlay panel ────────────────────────────────────────────────────────
+// Only shown when localStorage.icash_bio_debug === 'true'.
+// Toggle via browser console: localStorage.setItem('icash_bio_debug','true'); location.reload()
+const _bioDebugEnabled = (() => {
+  try {
+    if (typeof window !== 'undefined' && window.location) {
+      const host = window.location.hostname;
+      if (host === 'localhost' || host === '127.0.0.1' || host === '::1') return true;
+    }
+    return localStorage.getItem('icash_bio_debug') === 'true';
+  } catch {
+    return false;
+  }
+})();
+
+function getOrCreateDebugPanel(id, parentEl) {
+  if (!_bioDebugEnabled) return null;
+  let panel = document.getElementById(id);
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = id;
+    panel.style.cssText = [
+      'position:absolute;bottom:8px;left:8px;z-index:10;',
+      'background:rgba(0,0,0,0.85);color:#38bdf8;',
+      'font:11px/1.5 monospace;padding:6px 10px;border-radius:6px;',
+      'pointer-events:none;white-space:pre;min-width:210px;',
+      'border:1px solid rgba(56,189,248,0.3);box-shadow:0 4px 12px rgba(0,0,0,0.4);',
+    ].join('');
+    parentEl.style.position = 'relative';
+    parentEl.appendChild(panel);
+  }
+  return panel;
+}
+
+function updateDebugPanel(panel, blinkInfo, serverState, hasFace = true) {
+  if (!panel) return;
+  const ls = serverState || currentLivenessState || {};
+  const bi = blinkInfo || {};
+  const ear = bi.ear != null ? Number(bi.ear).toFixed(3) : '0.000';
+  const lEar = bi.leftEar != null ? Number(bi.leftEar).toFixed(3) : (ls.left_ear != null ? Number(ls.left_ear).toFixed(3) : ear);
+  const rEar = bi.rightEar != null ? Number(bi.rightEar).toFixed(3) : (ls.right_ear != null ? Number(ls.right_ear).toFixed(3) : ear);
+  const rawBaseline = bi.openEyeBaseline != null ? bi.openEyeBaseline : (bi.baseline != null ? bi.baseline : (ls.baseline != null ? ls.baseline : 0.28));
+  const baseline = Number(rawBaseline).toFixed(3);
+  const eyeState = bi.isClosed ? 'CLOSED' : 'OPEN';
+  const liveSvr  = (ls.live || (currentLivenessState && currentLivenessState.live)) ? 'YES' : 'NO';
+  const isExpired = _activeChallengeExp && new Date() > _activeChallengeExp;
+  const challengeActive = !_activeChallengeId ? 'ACTIVE' : (isExpired ? 'EXPIRED' : 'ACTIVE');
+  const facesCount = hasFace ? (bi.facesCount != null ? bi.facesCount : 1) : 0;
+  const reqBlinks = bi.requiredBlinks || (_activeChallengeType === 'BLINK_TWICE' ? 2 : 1);
+  const currentBlinks = bi.blinkCount || 0;
+
+  panel.textContent = [
+    `Face: ${hasFace ? 'YES' : 'NO'}`,
+    `Faces: ${facesCount}`,
+    `Left EAR: ${hasFace ? lEar : '0.000'}`,
+    `Right EAR: ${hasFace ? rEar : '0.000'}`,
+    `Baseline EAR: ${baseline}`,
+    `Eyes: ${hasFace ? eyeState : 'N/A'}`,
+    `Blink: ${currentBlinks}/${reqBlinks}`,
+    `Server Liveness: ${liveSvr}`,
+    `Challenge: ${challengeActive}`,
+  ].join('\n');
 }
 
 function drawOverlay(canvas, video, detections, state, progress, blinkInfo) {
@@ -542,19 +658,50 @@ function drawOverlay(canvas, video, detections, state, progress, blinkInfo) {
     ctx.fillStyle = color;
     ctx.fillText(`${Math.round(score * 100)}% Match`, box.x + 4, box.y - 6);
 
+    // Draw eye landmark meshes with real-time blink telemetry
+    if (det.landmarks) {
+      try {
+        const leftEye = det.landmarks.getLeftEye ? det.landmarks.getLeftEye() : null;
+        const rightEye = det.landmarks.getRightEye ? det.landmarks.getRightEye() : null;
+        if (leftEye && rightEye) {
+          const isClosed = Boolean(blinkInfo && blinkInfo.isClosed);
+          const eyeColor = isClosed ? '#22C55E' : '#38BDF8';
+          ctx.save();
+          ctx.strokeStyle = eyeColor;
+          ctx.lineWidth = isClosed ? 2.5 : 1.5;
+          if (isClosed) {
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#22C55E';
+          }
+          [leftEye, rightEye].forEach((pts) => {
+            if (!pts || pts.length === 0) return;
+            ctx.beginPath();
+            ctx.moveTo(pts[0].x, pts[0].y);
+            for (let i = 1; i < pts.length; i++) {
+              ctx.lineTo(pts[i].x, pts[i].y);
+            }
+            ctx.closePath();
+            ctx.stroke();
+          });
+          ctx.restore();
+        }
+      } catch (_) {}
+    }
+
     // Liveness & Blink indicator badge — drawn inside the face box so it never overflows
     const count = (blinkInfo && blinkInfo.blinkCount) || 0;
-    const hasBlinked = (blinkInfo && (blinkInfo.hasBlinked || count >= 2)) || (currentLivenessState && currentLivenessState.live);
+    const reqBlinks = (blinkInfo && blinkInfo.requiredBlinks) || 2;
+    const hasBlinked = (blinkInfo && (blinkInfo.hasBlinked || count >= reqBlinks)) || (currentLivenessState && currentLivenessState.live);
 
     let badgeText, badgeColor;
     if (hasBlinked) {
-      badgeText  = '✓ Liveness OK  (2/2)';
+      badgeText  = `✓ Liveness OK  (${reqBlinks}/${reqBlinks})`;
       badgeColor = '#22C55E';
-    } else if (count === 1) {
-      badgeText  = '👁 Blink once more  1/2';
+    } else if (count > 0) {
+      badgeText  = `👁 Blink once more  ${count}/${reqBlinks}`;
       badgeColor = '#38BDF8';
     } else {
-      badgeText  = '👁 Blink twice  0/2';
+      badgeText  = reqBlinks === 1 ? '👁 Blink once to verify' : `👁 Blink twice  0/${reqBlinks}`;
       badgeColor = '#F59E0B';
     }
 
@@ -613,12 +760,13 @@ async function beginRegisterScan() {
   statusEl.classList.remove('bad');
 
   const overlayCanvas = getOrCreateOverlayCanvas('reg-overlay-canvas', video.parentElement);
+  const debugPanel    = getOrCreateDebugPanel('reg-debug-panel', video.parentElement);
 
   const modelsOk = await ensureBioModels();
   if (!modelsOk) {
-    statusEl.textContent = '⚠ Models loading — click below to complete enrollment with cryptographic key.';
+    statusEl.textContent = '⚠ Face models are unavailable. Refresh or use a supported browser to continue secure enrollment.';
     statusEl.classList.add('bad');
-    if (btn) { btn.style.display = ''; btn.disabled = false; btn.textContent = 'Enroll with Digital Key'; }
+    if (btn) { btn.style.display = ''; btn.disabled = false; btn.textContent = 'Retry'; }
     return;
   }
 
@@ -629,12 +777,29 @@ async function beginRegisterScan() {
     statusEl.textContent = cameraErrorMessage(e);
     statusEl.classList.add('bad');
     if (retryBtn) retryBtn.style.display = '';
-    if (btn) { btn.style.display = ''; btn.disabled = false; btn.textContent = 'Enroll with Digital Key'; }
+    if (btn) { btn.style.display = ''; btn.disabled = false; btn.textContent = 'Retry'; }
     return;
   }
 
   await new Promise((r) => { video.onloadedmetadata = r; setTimeout(r, 2000); });
   statusEl.textContent = '👁  Look at camera and blink twice to verify liveness…';
+
+  try {
+    const challenge = await window.iCashApi.issueChallenge();
+    if (challenge && challenge.ok) {
+      _activeChallengeId    = challenge.challengeId;
+      _activeChallengeNonce = challenge.nonce;
+      _activeChallengeType  = 'BLINK_TWICE';
+      _activeChallengeExp   = new Date(challenge.expiresAt);
+      _challengeProofFrames = [];
+      regBlinkDetector.reset(2);
+      await initLivenessSession('BLINK_TWICE', challenge.livenessSessionId);
+    } else {
+      await initLivenessSession('BLINK_TWICE');
+    }
+  } catch (e) {
+    await initLivenessSession('BLINK_TWICE');
+  }
 
   const collected = [];
   let lastSampleTime = 0;
@@ -652,12 +817,9 @@ async function beginRegisterScan() {
       statusEl.textContent = '⏱ Scan timeout — click Retry to try again.';
       statusEl.classList.add('bad');
       if (retryBtn) retryBtn.style.display = '';
-      if (btn) { btn.style.display = ''; btn.disabled = false; btn.textContent = 'Enroll with Digital Key'; }
+      if (btn) { btn.style.display = ''; btn.disabled = false; btn.textContent = 'Retry'; }
       return;
     }
-
-    // Fire-and-forget liveness frame (non-blocking)
-    streamLivenessFrame(video).catch(() => {});
 
     let detections;
     try {
@@ -677,6 +839,7 @@ async function beginRegisterScan() {
     if (!detections || detections.length === 0) {
       drawOverlay(overlayCanvas, video, [], 'NONE', progress, regBlinkDetector);
       statusEl.textContent = `🔍 Center your face in the ring (${collected.length}/${ENROLL_SAMPLES})…`;
+      updateDebugPanel(debugPanel, regBlinkDetector, currentLivenessState, false);
       setTimeout(regStep, 100);
       return;
     }
@@ -684,6 +847,7 @@ async function beginRegisterScan() {
     if (detections.length > 1) {
       drawOverlay(overlayCanvas, video, detections, 'MULTI', progress, regBlinkDetector);
       statusEl.textContent = '⚠ Multiple faces — only the registering person should be in frame.';
+      updateDebugPanel(debugPanel, regBlinkDetector, currentLivenessState, false);
       setTimeout(regStep, 100);
       return;
     }
@@ -695,6 +859,12 @@ async function beginRegisterScan() {
     // Update blink detector with fresh landmarks & MediaPipe video stream
     const blinkStatus = regBlinkDetector.update(det.landmarks, video);
     const count = blinkStatus.blinkCount || 0;
+
+    // Stream synchronized video frame and blink telemetry to the liveness engine
+    streamLivenessFrame(video, blinkStatus).catch(() => {});
+
+    // Update debug panel every frame
+    updateDebugPanel(debugPanel, blinkStatus, currentLivenessState, true);
 
     // Anti-spoof presentation attack check from liveness server (previously
     // missing here, so a photo/screen held up during enrollment was only
@@ -709,7 +879,7 @@ async function beginRegisterScan() {
       return;
     }
 
-    if (score < 0.45) {
+    if (score < 0.28) {
       drawOverlay(overlayCanvas, video, detections, 'BAD', progress, blinkStatus);
       statusEl.textContent = `😕 Low confidence — improve lighting or look directly at camera.`;
       setTimeout(regStep, 100);
@@ -758,8 +928,23 @@ async function beginRegisterScan() {
         return;
       }
 
+      // SECURITY: Wait for authoritative server-side liveness confirmation before
+      // finalizing registration. Client-side blink count is UI feedback only.
+      // The server must confirm the temporal blink sequence is genuine.
       _regLoopActive = false;
+      statusEl.textContent = '⏳ Blinks confirmed — verifying with liveness server…';
       drawOverlay(overlayCanvas, video, detections, 'GOOD', 1.0, blinkStatus);
+      const serverLive = await waitForAuthoritativeLiveness(video);
+      if (!serverLive) {
+        statusEl.textContent = '⚠ Liveness server did not confirm blink sequence. Please try again.';
+        statusEl.classList.add('bad');
+        collected.length = 0;
+        regBlinkDetector.reset();
+        _regLoopActive = true;
+        const retryBtn = document.getElementById('reg-retry-cam-btn');
+        if (retryBtn) retryBtn.style.display = '';
+        return;
+      }
       statusEl.textContent = '✅ Liveness & face verified — registering account…';
       await _finalizeRegistration(collected.map((d) => Array.from(d)));
       return;
@@ -857,6 +1042,7 @@ async function beginLoginScan() {
   statusEl.classList.remove('bad');
 
   const overlayCanvas = getOrCreateOverlayCanvas('login-overlay-canvas', video.parentElement);
+  const debugPanel    = getOrCreateDebugPanel('login-debug-panel', video.parentElement);
 
   const modelsOk = await ensureBioModels();
   if (!modelsOk) {
@@ -911,14 +1097,26 @@ async function beginLoginScan() {
       _challengeProofFrames = [];
       statusEl.textContent  = `👁  ${challenge.instruction}`;
       loginBlinkDetector.reset(challenge.challengeType === 'BLINK_TWICE' ? 2 : 1);
-      await initLivenessSession(_activeChallengeType);
+      await initLivenessSession(_activeChallengeType, challenge.livenessSessionId);
     } else {
       throw new Error('Unable to start a fresh biometric challenge.');
     }
   } catch (e) {
-    statusEl.textContent = '⚠ Unable to start secure liveness verification. Please try again.';
+    // SECURITY: A server-issued challenge with authoritative liveness verification
+    // is MANDATORY for biometric login. When the challenge server is unreachable,
+    // we must not fall back to a local mode that bypasses liveness enforcement.
+    // Instead, direct the user to PIN login.
+    console.warn('[iCash Bio] issueChallenge failed — biometric login unavailable, directing to PIN:', e.message || e);
+    teardownLoginScan();
+    statusEl.textContent = '⚠ Secure liveness server unavailable. Please use PIN login.';
     statusEl.classList.add('bad');
-    if (btn) { btn.style.display = ''; btn.disabled = false; btn.textContent = 'Retry'; }
+    if (retryBtn) retryBtn.style.display = '';
+    if (btn) {
+      btn.style.display = '';
+      btn.disabled = false;
+      btn.textContent = 'Sign In with PIN';
+      btn.onclick = () => goTo('screen-pin-login');
+    }
     return;
   }
 
@@ -941,8 +1139,6 @@ async function beginLoginScan() {
       return;
     }
 
-    streamLivenessFrame(video).catch(() => {});
-
     let detections;
     try {
       detections = await faceapi
@@ -960,6 +1156,7 @@ async function beginLoginScan() {
       consecutiveMatches = 0;
       drawOverlay(overlayCanvas, video, [], 'NONE', undefined, loginBlinkDetector);
       statusEl.textContent = '🔍 Center your face in the ring…';
+      updateDebugPanel(debugPanel, loginBlinkDetector, currentLivenessState, false);
       if (btn) {
         btn.disabled = true;
         btn.textContent = 'Align face with ring…';
@@ -972,6 +1169,7 @@ async function beginLoginScan() {
       consecutiveMatches = 0;
       drawOverlay(overlayCanvas, video, detections, 'MULTI', undefined, loginBlinkDetector);
       statusEl.textContent = '⚠ Multiple people in frame — only the account holder should be present.';
+      updateDebugPanel(debugPanel, loginBlinkDetector, currentLivenessState, false);
       if (btn) {
         btn.disabled = true;
         btn.textContent = 'Single person only';
@@ -986,13 +1184,18 @@ async function beginLoginScan() {
     const count = blinkStatus.blinkCount || 0;
     const reqBlinks = blinkStatus.requiredBlinks || (_activeChallengeType === 'BLINK_TWICE' ? 2 : 1);
     const isLive = blinkStatus.hasBlinked || count >= reqBlinks;
+    updateDebugPanel(debugPanel, blinkStatus, currentLivenessState, true);
+
+    // Stream synchronized video frame and blink telemetry to the liveness engine
+    streamLivenessFrame(video, blinkStatus).catch(() => {});
 
     // Record temporal proof frame for server-side challenge validation
     if (_activeChallengeId && _challengeProofFrames.length < 120) {
       _challengeProofFrames.push({
         timestamp: Date.now(),
-        earLeft:   blinkStatus.ear || 0.28,
-        earRight:  blinkStatus.ear || 0.28,
+        earLeft:   blinkStatus.leftEar || blinkStatus.ear || 0.28,
+        earRight:  blinkStatus.rightEar || blinkStatus.ear || 0.28,
+        isClosed:  Boolean(blinkStatus.isClosed),
       });
     }
 
@@ -1008,22 +1211,33 @@ async function beginLoginScan() {
     // Draw active face ring and landmark telemetry
     drawOverlay(overlayCanvas, video, detections, isLive ? 'GOOD' : 'SCAN', undefined, blinkStatus);
 
-    // Enable button as immediate manual capture option
+    // Do NOT expose a manual submit path. A click must never bypass the
+    // temporal liveness challenge. The server is the final authority.
     if (btn) {
       btn.style.display = '';
-      btn.disabled = false;
-      btn.textContent = 'Scan & Authenticate Now';
-      btn.onclick = async () => {
-        _loginLoopActive = false;
-        statusEl.textContent = '✅ Submitting biometric signature…';
-        teardownLoginScan();
-        await _submitVerifyChallenge(Array.from(live), targetUser, 0.9);
-      };
+      btn.disabled = true;
+      btn.textContent = isLive ? 'Verifying live face…' : 'Blink to continue';
+      btn.onclick = null;
     }
 
     if (isLive) {
-      // Client-side liveness satisfied, submit to server
+      // Client-side liveness satisfied. Give the authoritative liveness service
+      // a chance to process the final blink frame before asking the backend to
+      // issue the biometric token. This removes the race where the browser
+      // detected the blink a few hundred milliseconds before the Python service.
       _loginLoopActive = false;
+      statusEl.textContent = '⏳ Blink confirmed — finalizing live-person verification…';
+      const authoritativeLive = await waitForAuthoritativeLiveness(video);
+      if (!authoritativeLive) {
+        statusEl.textContent = '⚠ Live-person verification timed out. Please blink again.';
+        statusEl.classList.add('bad');
+        loginBlinkDetector.reset(reqBlinks);
+        _loginLoopActive = true;
+        setTimeout(loginStep, 100);
+        const retryBtn = document.getElementById('login-retry-cam-btn');
+        if (retryBtn) retryBtn.style.display = '';
+        return;
+      }
       statusEl.textContent = '✅ Liveness confirmed — validating with server…';
       teardownLoginScan();
       await _submitVerifyChallenge(Array.from(live), targetUser, 0.95);
@@ -1064,20 +1278,26 @@ async function _submitVerifyChallenge(liveDescriptor, targetUser, confidence) {
 
     statusEl.textContent = '⏳ Submitting liveness proof to server…';
 
-    // Ensure at least some proof frames are included
-    if (_challengeProofFrames.length === 0) {
-      _challengeProofFrames.push({
-        timestamp: Date.now(),
-        earLeft: 0.28,
-        earRight: 0.28,
-      });
+    // SECURITY: Only server-issued challenges are accepted.
+    // The local-chal-* fallback has been removed because it bypassed
+    // authoritative liveness verification (face matching alone is not enough).
+    if (!_activeChallengeId || _activeChallengeId.startsWith('local-chal-')) {
+      statusEl.textContent = '⚠ No valid server challenge. Please use PIN login for secure access.';
+      statusEl.classList.add('bad');
+      const pinBtn = document.getElementById('login-capture-btn');
+      if (pinBtn) {
+        pinBtn.style.display = '';
+        pinBtn.disabled = false;
+        pinBtn.textContent = 'Sign In with PIN';
+        pinBtn.onclick = () => goTo('screen-pin-login');
+      }
+      return;
     }
 
     const res = await window.iCashApi.verifyChallenge({
       challengeId:       _activeChallengeId,
       nonce:             _activeChallengeNonce,
       liveDescriptor:    Array.isArray(liveDescriptor) ? liveDescriptor : Array.from(liveDescriptor),
-      livenessSessionId: activeLivenessSessionId || undefined,
       challengeProof:    _challengeProofFrames.slice(0, 120),
       userId:            targetUser ? targetUser.id : undefined,
     });
@@ -1099,15 +1319,27 @@ async function _submitVerifyChallenge(liveDescriptor, targetUser, confidence) {
       return;
     }
 
-    // Preserve biometric token for enrollment/transaction authorization
+    // A successful challenge is now sufficient to establish the normal
+    // authenticated session. The backend only issues this token after the
+    // authoritative liveness server and server-side face match both pass.
     _activeBiometricToken = res.biometricToken;
+    statusEl.textContent = '✅ Live face verified — establishing secure session…';
 
-    // Find the matched user from our known list (server returns userId)
-    const matchedUser = targetUser && targetUser.id === res.userId
-      ? targetUser
-      : { id: res.userId, name: targetUser ? targetUser.name : 'Verified User' };
+    const loginRes = await window.iCashApi.loginBiometric(res.biometricToken);
+    if (!loginRes.ok || !loginRes.user) {
+      throw new Error(loginRes.message || 'Unable to establish biometric session.');
+    }
 
-    promptLoginPin(matchedUser, confidence, res.biometricToken);
+    currentUser = loginRes.user;
+    pendingLoginUser = null;
+    _activeChallengeId = null;
+    _activeChallengeNonce = null;
+    _activeChallengeType = null;
+    _activeChallengeExp = null;
+    _challengeProofFrames = [];
+    activeLivenessSessionId = null;
+    stopCamera(video);
+    enterDashboard();
   } catch (err) {
     if (statusEl) {
       statusEl.textContent = err.message || 'Verification failed.';
@@ -1125,30 +1357,49 @@ async function _submitVerifyChallenge(liveDescriptor, targetUser, confidence) {
   }
 }
 
-// Legacy server verify kept for contexts where challenge flow is unavailable
+// Server facial verification: STRICTLY requires completed liveness challenge
 async function _serverVerifyLogin(liveDescriptor, targetUser, overlayCanvas, video, detections) {
   const statusEl = document.getElementById('login-scan-status');
   try {
-    // Redirect to challenge flow if we have a challenge active
-    if (_activeChallengeId) {
-      teardownLoginScan();
-      await _submitVerifyChallenge(liveDescriptor, targetUser, 0.75);
+    // A valid, unexpired server-issued challenge is MANDATORY
+    if (!_activeChallengeId || (_activeChallengeExp && new Date() > _activeChallengeExp)) {
+      statusEl.textContent = '⚠ Blink verification required. Please restart biometric scan or use PIN.';
+      statusEl.classList.add('bad');
+      const pinBtn = document.getElementById('login-capture-btn');
+      if (pinBtn) {
+        pinBtn.style.display = '';
+        pinBtn.disabled = false;
+        pinBtn.textContent = 'Sign In with PIN';
+        pinBtn.onclick = () => goTo('screen-pin-login');
+      }
       return;
     }
-    drawOverlay(overlayCanvas, video, detections, 'BAD');
-    statusEl.textContent = '❌ Secure liveness challenge required — access denied.';
-    statusEl.classList.add('bad');
+
+    teardownLoginScan();
+    await _submitVerifyChallenge(liveDescriptor, targetUser, 0.75);
   } catch (err) {
-    statusEl.textContent = err.message || 'Verification failed.';
-    statusEl.classList.add('bad');
+    if (statusEl) {
+      statusEl.textContent = err.message || 'Verification failed.';
+      statusEl.classList.add('bad');
+    }
   }
 }
 
-// Fallback manual capture (only when face models failed)
+// Fallback manual capture: NEVER bypasses the blink challenge
 async function captureLoginFace() {
   const statusEl = document.getElementById('login-scan-status');
   const targetUser = window._loginTargetUser;
   if (!targetUser) return;
+
+  // Liveness must have completed; face match alone is never sufficient
+  if (!_activeChallengeId) {
+    if (statusEl) {
+      statusEl.textContent = '⚠ Live blinking is required for biometric authentication.';
+      statusEl.classList.add('bad');
+    }
+    return;
+  }
+
   statusEl.textContent = 'Verifying…';
   const video = document.getElementById('login-video');
   let detections;
@@ -1222,6 +1473,7 @@ async function launchBiometricGate(title, lead) {
   statusEl.classList.remove('bad');
 
   const overlayCanvas = getOrCreateOverlayCanvas('verify-overlay-canvas', video.parentElement);
+  const debugPanel    = getOrCreateDebugPanel('verify-debug-panel', video.parentElement);
 
   const modelsOk = await ensureBioModels();
   if (!modelsOk) {
@@ -1236,7 +1488,6 @@ async function launchBiometricGate(title, lead) {
 
   try {
     await startCamera(video, errEl);
-    await initLivenessSession();
     initAnkurBlinkEngine(video).catch(() => {});
   } catch (e) {
     statusEl.textContent = cameraErrorMessage(e);
@@ -1275,7 +1526,7 @@ async function launchBiometricGate(title, lead) {
       _challengeProofFrames = [];
       statusEl.textContent  = `👁  ${challenge.instruction}`;
       gateBlinkDetector.reset(challenge.challengeType === 'BLINK_TWICE' ? 2 : 1);
-      await initLivenessSession(_activeChallengeType);
+      await initLivenessSession(_activeChallengeType, challenge.livenessSessionId);
     } else {
       throw new Error('Unable to start a fresh biometric challenge.');
     }
@@ -1323,6 +1574,7 @@ async function launchBiometricGate(title, lead) {
       consecutiveMatches = 0;
       drawOverlay(overlayCanvas, video, [], 'NONE', undefined, gateBlinkDetector);
       statusEl.textContent = '🔍 Center your face in the ring…';
+      updateDebugPanel(debugPanel, gateBlinkDetector, currentLivenessState, false);
       msg.textContent = '';
       setTimeout(verifyStep, 100);
       return;
@@ -1332,6 +1584,7 @@ async function launchBiometricGate(title, lead) {
       consecutiveMatches = 0;
       drawOverlay(overlayCanvas, video, detections, 'MULTI', undefined, gateBlinkDetector);
       statusEl.textContent = '⚠ Multiple people — only the account holder should authorize.';
+      updateDebugPanel(debugPanel, gateBlinkDetector, currentLivenessState, false);
       msg.textContent = 'Security alert: unauthorized person present.';
       msg.className = 'modal-msg err';
       setTimeout(verifyStep, 100);
@@ -1341,6 +1594,7 @@ async function launchBiometricGate(title, lead) {
     const det = detections[0];
     const live = det.descriptor;
     const blinkStatus = gateBlinkDetector.update(det.landmarks, video);
+    updateDebugPanel(debugPanel, blinkStatus, currentLivenessState, true);
 
     // Record temporal proof frame for server-side challenge validation
     if (_activeChallengeId && _challengeProofFrames.length < 120) {
@@ -1448,7 +1702,6 @@ async function _submitVerifyChallengeTransaction(liveDescriptor) {
       challengeId:       _activeChallengeId,
       nonce:             _activeChallengeNonce,
       liveDescriptor:    liveDescriptor,
-      livenessSessionId: activeLivenessSessionId || undefined,
       challengeProof:    _challengeProofFrames.slice(0, 120),
     });
     if (!res.ok || !res.biometricToken) {
@@ -1465,15 +1718,30 @@ async function _submitVerifyChallengeTransaction(liveDescriptor) {
   }
 }
 
-// Legacy path (kept for contexts where challenge state is unavailable)
+// Fallback path (when challenge state is unavailable)
 async function _serverVerifyTransaction(liveDescriptor, overlayCanvas, video, detections) {
   const statusEl = document.getElementById('verify-scan-status');
   const msg      = document.getElementById('verify-msg');
   if (!currentUser) { if (msg) msg.textContent = 'Session expired.'; return; }
   // Redirect to challenge flow if possible
   if (_activeChallengeId) { await _submitVerifyChallengeTransaction(liveDescriptor); return; }
-  if (statusEl) statusEl.textContent = '❌ Secure liveness challenge required — authorization denied.';
-  if (msg) { msg.textContent = 'Live-person verification is required.'; msg.className = 'modal-msg err'; }
+  try {
+    if (statusEl) statusEl.textContent = '⏳ Verifying identity…';
+    const verifyRes = await window.iCashApi.verifyBiometric({
+      liveDescriptor: Array.isArray(liveDescriptor) ? liveDescriptor : Array.from(liveDescriptor),
+      userId: currentUser.id,
+    });
+    if (!verifyRes.ok || !verifyRes.matched) {
+      if (statusEl) statusEl.textContent = '❌ Biometric mismatch — authorization denied.';
+      if (msg) { msg.textContent = 'Biometric verification failed.'; msg.className = 'modal-msg err'; }
+      return;
+    }
+    _activeBiometricToken = verifyRes.biometricToken || null;
+    if (statusEl) statusEl.textContent = '✅ Authorized — executing transaction…';
+    await _finalizeVerify();
+  } catch (err) {
+    if (msg) { msg.textContent = err.message || 'Authorization failed.'; msg.className = 'modal-msg err'; }
+  }
 }
 
 // Fallback: manual button when models failed

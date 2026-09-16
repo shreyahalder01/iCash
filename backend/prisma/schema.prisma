@@ -1,6 +1,7 @@
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 generator client {
@@ -257,6 +258,7 @@ model BiometricChallenge {
   user_id        String?                     // null until face match binds the challenge to a user
   ip_address     String?
   session_ref    String?                     // login session reference if caller is already authenticated
+  liveness_session_id String?                 // server-created one-time Flask liveness session bound to this challenge
   expires_at     DateTime
   used_at        DateTime?                   // set when consumed — prevents replay
   created_at     DateTime  @default(now())
@@ -264,6 +266,7 @@ model BiometricChallenge {
   @@index([nonce])
   @@index([user_id])
   @@index([expires_at])
+  @@index([liveness_session_id])
 }
 
 model BankAccount {

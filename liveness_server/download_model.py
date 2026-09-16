@@ -1,8 +1,13 @@
+# pyright: reportMissingImports=false
 import bz2
 import os
 import time
 import urllib.request
-import dlib
+
+try:
+    import dlib  # type: ignore[import-not-found, import-untyped]
+except ImportError:
+    dlib = None
 
 DAT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "shape_predictor_68_face_landmarks.dat"))
 BZ2_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "shape_predictor_68_face_landmarks.dat.bz2"))
@@ -49,9 +54,12 @@ def download_file():
             final_size = os.path.getsize(DAT_PATH)
             print(f"Decompressed successfully! File: {DAT_PATH} ({final_size / (1024*1024):.2f} MB)")
             
-            # Verify with dlib
-            predictor = dlib.shape_predictor(DAT_PATH)
-            print(f"SUCCESS: dlib shape predictor verified: {predictor}")
+            # Verify with dlib if available
+            if dlib is not None:
+                predictor = dlib.shape_predictor(DAT_PATH)
+                print(f"SUCCESS: dlib shape predictor verified: {predictor}")
+            else:
+                print("dlib is not installed; skipped predictor verification.")
             return True
         except Exception as e:
             print(f"\nFailed with error: {e}. Retrying next URL...")

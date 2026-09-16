@@ -16,6 +16,8 @@ services:
         value: twilio
       - key: BIOMETRIC_PROVIDER
         value: demo
+      - key: LIVENESS_SERVER_URL
+        value: https://icash-liveness.onrender.com
       - key: ALLOW_DEMO_TOPUP
         value: "false"
       - key: DATABASE_URL
@@ -24,6 +26,19 @@ services:
         generateValue: true
       - key: SESSION_SECRET
         generateValue: true
+      # Email OTP / verification delivery (set these secrets in Render).
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_SECURE
+        value: "false"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
 
   - type: web
     name: icash-liveness

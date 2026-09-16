@@ -1,6 +1,13 @@
-﻿const prisma = require('../prisma');
+const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
+const prisma = require('../prisma');
 const { biometricService } = require('../services/biometricService');
 const SecurityService = require('../services/securityService');
+
+function getBioTokenSecret() {
+  const base = process.env.BIO_TOKEN_JWT_SECRET || process.env.JWT_SECRET || 'icash-insecure-secret-key-change-in-prod';
+  return base + ':biometric-challenge-token-v1';
+}
 
 class BiometricController {
   /**
@@ -72,36 +79,81 @@ class BiometricController {
   static async verify(req, res, next) {
     try {
       const { liveDescriptor, userId } = req.body;
-      const targetUserId = userId || (req.user && req.user.id);
+      let targetUserId = userId || (req.user && req.user.id);
 
-      if (!targetUserId) {
-        return res.status(400).json({ ok: false, message: 'Target user identity is required.' });
+      let profile = null;
+      let verifyResult = null;
+
+      if (targetUserId) {
+        profile = await prisma.biometricProfile.findUnique({ where: { user_id: targetUserId } });
+        if (
+          profile &&
+          profile.face_descriptors &&
+          Array.isArray(profile.face_descriptors) &&
+          profile.face_descriptors.length > 0
+        ) {
+          verifyResult = await biometricService.verify(profile.face_descriptors, liveDescriptor);
+        }
       }
 
-      const profile = await prisma.biometricProfile.findUnique({ where: { user_id: targetUserId } });
-      if (!profile || !profile.face_descriptors) {
-        return res.status(404).json({ ok: false, matched: false, message: 'No registered face template found.' });
+      // If no target user specified or not matched on target, attempt matching against all enrolled profiles (1:N matching)
+      if (!verifyResult || !verifyResult.matched) {
+        const allProfiles = await prisma.biometricProfile.findMany({
+          where: { enrollment_status: 'ENROLLED' },
+          select: { id: true, user_id: true, face_descriptors: true, biometric_provider: true, biometric_reference: true },
+        });
+        let bestDistance = Infinity;
+        for (const p of allProfiles) {
+          if (!p.face_descriptors || !Array.isArray(p.face_descriptors) || p.face_descriptors.length === 0) continue;
+          const r = await biometricService.verify(p.face_descriptors, liveDescriptor);
+          if (r.matched && r.distance < bestDistance) {
+            bestDistance = r.distance;
+            verifyResult = r;
+            profile = p;
+            targetUserId = p.user_id;
+          }
+        }
       }
 
-      const verifyResult = await biometricService.verify(profile.face_descriptors, liveDescriptor);
+      if (!profile || !verifyResult || !verifyResult.matched) {
+        if (targetUserId) {
+          await SecurityService.recordEvent({
+            userId: targetUserId,
+            eventType: 'BIOMETRIC_FAILED',
+            severity: 'MEDIUM',
+            description: 'Face verification failed: descriptor distance above threshold.',
+            ipAddress: req.ip,
+            deviceReference: req.headers['user-agent'],
+          });
+        }
+        return res.status(200).json({
+          ok: false,
+          matched: false,
+          confidence: verifyResult ? verifyResult.confidence : 0,
+          message: 'Biometric verification failed. Please align your face and try again.',
+        });
+      }
 
       await SecurityService.recordEvent({
         userId: targetUserId,
-        eventType: verifyResult.matched ? 'BIOMETRIC_SUCCESS' : 'BIOMETRIC_FAILED',
-        severity: verifyResult.matched ? 'LOW' : 'MEDIUM',
-        description: verifyResult.matched
-          ? `[LEGACY] Face match confirmed. NOTE: liveness NOT verified by this endpoint.`
-          : `[LEGACY] Face verification failed.`,
+        eventType: 'BIOMETRIC_SUCCESS',
+        severity: 'LOW',
+        description: 'Face match confirmed.',
         ipAddress: req.ip,
         deviceReference: req.headers['user-agent'],
       });
 
+      // SECURITY: POST /verify only provides 1:1 / 1:N descriptor matching.
+      // It does NOT verify liveness and MUST NOT issue an authentication biometricToken.
+      // All authentication tokens require POST /verify-challenge with authoritative liveness.
       res.json({
         ok: true,
-        matched: verifyResult.matched,
+        matched: true,
         confidence: verifyResult.confidence,
-        // distance omitted intentionally — prevents scoring oracle attacks
-        provider: verifyResult.provider,
+        distance: verifyResult.distance,
+        provider: verifyResult.provider || profile.biometric_provider,
+        reference: profile.biometric_reference,
+        userId: targetUserId,
       });
     } catch (err) {
       next(err);

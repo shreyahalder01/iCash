@@ -54,15 +54,29 @@ window.addEventListener('DOMContentLoaded', async () => {
   initThreeBackground();
   initAppwrite();
 
-  // Check if session exists
+  // Check if an intentional active session is being restored (e.g. reload while on dashboard)
   try {
-    const session = await window.iCashApi.getSecurityStatus();
-    if (session.ok && session.user) {
-      currentUser = session.user;
-      enterDashboard();
+    const isSessionActive = sessionStorage.getItem('icash_session_active') === 'true';
+    if (isSessionActive) {
+      const session = await window.iCashApi.getSecurityStatus();
+      if (session.ok && session.user) {
+        currentUser = session.user;
+        enterDashboard();
+        return;
+      }
     }
   } catch (e) {
     // Guest mode
+  }
+  // Fresh visits always start on the Welcome/Login gateway
+  sessionStorage.removeItem('icash_session_active');
+  goTo('screen-welcome');
+});
+
+// Guard against restoring dashboard via browser back button when unauthenticated
+window.addEventListener('popstate', () => {
+  if (!currentUser) {
+    goTo('screen-welcome');
   }
 });
 
@@ -236,10 +250,31 @@ function setAmt(action, val) {
 // ============================================================
 // AUTH & ONBOARDING FLOWS
 // ============================================================
-function startLogin() {
+async function startLogin() {
+  // Clear any existing session or stale biometric state when starting a fresh login attempt
+  sessionStorage.removeItem('icash_session_active');
+  currentUser = null;
+  pendingLoginUser = null;
+  window._loginTargetUser = null;
+  window._pendingBiometricToken = null;
+  if (typeof teardownLoginScan === 'function') teardownLoginScan();
+  if (typeof _activeChallengeId !== 'undefined') {
+    // eslint-disable-next-line no-global-assign
+    _activeChallengeId = null;
+    _activeChallengeNonce = null;
+    _activeChallengeType = null;
+    _activeChallengeExp = null;
+    activeLivenessSessionId = null;
+    currentLivenessState = { live: false, blink_count: 0 };
+  }
+  // Clear server-side session cookie so a new login is fully unauthenticated until biometric succeeds
+  try { await window.iCashApi.logout(); } catch (_) {}
+
   goTo('screen-login-aadhaar');
-  document.getElementById('login-aadhaar-last4').value = '';
-  document.getElementById('aadhaar-login-status').innerHTML = '';
+  const last4Input = document.getElementById('login-aadhaar-last4');
+  if (last4Input) last4Input.value = '';
+  const statusEl = document.getElementById('aadhaar-login-status');
+  if (statusEl) statusEl.innerHTML = '';
 }
 
 function startRegistration() {
@@ -858,9 +893,11 @@ function showMatch(user, isNew) {
 // ============================================================
 function enterDashboard() {
   if (!currentUser) {
+    sessionStorage.removeItem('icash_session_active');
     goTo('screen-welcome');
     return;
   }
+  sessionStorage.setItem('icash_session_active', 'true');
   goTo('screen-dashboard');
   switchView('dashboard');
 }
@@ -1180,6 +1217,37 @@ function initiateTransferWorkflow() {
   );
 }
 
+async function confirmDeposit() {
+  const amt = Number(document.getElementById('deposit-amt').value);
+  const msg = document.getElementById('deposit-msg');
+  const btn = document.getElementById('deposit-submit-btn');
+
+  if (!amt || amt <= 0) {
+    msg.textContent = 'Enter a valid deposit amount.';
+    msg.className = 'modal-msg err';
+    return;
+  }
+
+  msg.textContent = 'Processing deposit…';
+  msg.className = 'modal-msg';
+  if (btn) btn.disabled = true;
+
+  try {
+    const res = await window.iCashApi.topUpFunds({ amount: amt });
+    if (res.ok) {
+      closeModal('deposit');
+      document.getElementById('deposit-amt').value = '';
+      showAlertToast(`✓ ${fmtMoney(amt)} deposited successfully.`);
+      loadDashboardData();
+    }
+  } catch (err) {
+    msg.textContent = err.message || 'Deposit failed. Please try again.';
+    msg.className = 'modal-msg err';
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 function confirmWithdraw() {
   const amt = Number(document.getElementById('withdraw-amt').value);
   const msg = document.getElementById('withdraw-msg');
@@ -1407,7 +1475,7 @@ async function loadSecurityEvents() {
   }
 }
 
-function populateProfileView() {
+async function populateProfileView() {
   if (!currentUser) return;
   document.getElementById('prof-name').textContent = currentUser.name;
   document.getElementById('prof-phone').textContent = `+91 ${currentUser.phone}`;
@@ -1421,14 +1489,15 @@ function populateProfileView() {
   const badgeEl = document.getElementById('prof-email-badge');
   const promptBtn = document.getElementById('btn-verify-email-prompt');
 
-  if (emailEl) {
-    emailEl.textContent = currentUser.email || 'No email linked';
-  }
-  if (badgeEl) {
-    if (!currentUser.email) {
+  const updateBadgeUI = (email, isVerified) => {
+    if (emailEl) {
+      emailEl.textContent = email || 'No email linked';
+    }
+    if (!badgeEl) return;
+    if (!email) {
       badgeEl.style.display = 'none';
       if (promptBtn) promptBtn.style.display = 'none';
-    } else if (currentUser.emailVerified) {
+    } else if (isVerified) {
       badgeEl.style.display = 'inline-block';
       badgeEl.textContent = 'Verified ✓';
       badgeEl.style.background = 'rgba(16, 185, 129, 0.15)';
@@ -1443,7 +1512,53 @@ function populateProfileView() {
       badgeEl.style.borderColor = 'rgba(239, 68, 68, 0.3)';
       if (promptBtn) promptBtn.style.display = 'inline-block';
     }
-  }
+  };
+
+  updateBadgeUI(currentUser.email, currentUser.emailVerified);
+
+  // Authoritative check from the backend to ensure fresh status
+  try {
+    const statusRes = await window.iCashApi.getVerificationStatus();
+    if (statusRes && statusRes.ok) {
+      if (statusRes.email) currentUser.email = statusRes.email;
+      currentUser.emailVerified = Boolean(statusRes.emailVerified ?? statusRes.verified);
+      updateBadgeUI(currentUser.email, currentUser.emailVerified);
+    }
+  } catch (_) {}
+}
+
+let emailResendCountdownInterval = null;
+
+function maskEmail(email) {
+  if (!email || !email.includes('@')) return email || 'Registered Email';
+  const [local, domain] = email.split('@');
+  if (local.length <= 2) return `${local[0]}***@${domain}`;
+  return `${local[0]}${'*'.repeat(Math.min(3, local.length - 1))}@${domain}`;
+}
+
+function startResendCountdown(seconds = 45) {
+  const resendBtn = document.getElementById('btn-email-resend');
+  if (!resendBtn) return;
+  if (emailResendCountdownInterval) clearInterval(emailResendCountdownInterval);
+  let remaining = seconds;
+  resendBtn.disabled = true;
+  resendBtn.style.opacity = '0.6';
+  resendBtn.style.cursor = 'not-allowed';
+  resendBtn.textContent = `Resend available in ${remaining}s`;
+
+  emailResendCountdownInterval = setInterval(() => {
+    remaining--;
+    if (remaining <= 0) {
+      clearInterval(emailResendCountdownInterval);
+      emailResendCountdownInterval = null;
+      resendBtn.disabled = false;
+      resendBtn.style.opacity = '1';
+      resendBtn.style.cursor = 'pointer';
+      resendBtn.textContent = 'Resend Code';
+    } else {
+      resendBtn.textContent = `Resend available in ${remaining}s`;
+    }
+  }, 1000);
 }
 
 async function openEmailVerificationModal() {
@@ -1452,7 +1567,7 @@ async function openEmailVerificationModal() {
   const msgEl = document.getElementById('email-verify-msg');
 
   if (displayEl) {
-    displayEl.textContent = currentUser?.email || 'Registered Email';
+    displayEl.textContent = maskEmail(currentUser?.email);
   }
   if (codeInput) codeInput.value = '';
   if (msgEl) {
@@ -1465,6 +1580,7 @@ async function openEmailVerificationModal() {
   // If user is unverified and has email, auto-request code dispatch
   if (currentUser?.email && !currentUser?.emailVerified) {
     try {
+      startResendCountdown(45);
       const res = await window.iCashApi.resendVerification({
         email: currentUser.email,
       });
@@ -1476,12 +1592,12 @@ async function openEmailVerificationModal() {
           msgEl.className = 'modal-msg success';
         }
       } else if (msgEl) {
-        msgEl.textContent = '6-digit verification code dispatched to your email.';
+        msgEl.textContent = `6-digit verification code dispatched to ${maskEmail(currentUser.email)}.`;
         msgEl.className = 'modal-msg success';
       }
-    } catch (_) {
+    } catch (e) {
       if (msgEl) {
-        msgEl.textContent = 'Enter the 6-digit code sent to your email address.';
+        msgEl.textContent = e.message || 'Enter the 6-digit code sent to your email address.';
         msgEl.className = 'modal-msg';
       }
     }
@@ -1493,9 +1609,9 @@ async function submitEmailVerification() {
   const msgEl = document.getElementById('email-verify-msg');
   const code = codeInput?.value?.trim();
 
-  if (!code || code.length < 4) {
+  if (!code || code.length < 6) {
     if (msgEl) {
-      msgEl.textContent = 'Please enter a valid verification code.';
+      msgEl.textContent = 'Please enter a valid 6-digit verification code.';
       msgEl.className = 'modal-msg err';
     }
     return;
@@ -1550,6 +1666,7 @@ async function resendEmailVerification() {
   }
 
   try {
+    startResendCountdown(45);
     const res = await window.iCashApi.resendVerification({
       email: currentUser?.email,
     });
@@ -1911,12 +2028,41 @@ async function loadMerchantPOSList() {
 }
 
 async function logout() {
+  // Stop any camera/liveness loops before leaving the authenticated area.
+  try { if (typeof teardownLoginScan === 'function') teardownLoginScan(); } catch (_) {}
+  try { if (typeof teardownVerifyGate === 'function') teardownVerifyGate(); } catch (_) {}
+  try { if (typeof teardownRegisterScan === 'function') teardownRegisterScan(); } catch (_) {}
+
   try {
     await window.iCashApi.logout();
-  } catch (e) {}
-  currentUser = null;
-  goTo('screen-welcome');
-  showAlertToast('Signed out of secure banking session.');
+  } catch (e) {
+    console.warn('[iCash Auth] Server logout notice:', e.message || e);
+  } finally {
+    currentUser = null;
+    currentAccounts = [];
+    currentTransactions = [];
+    filteredTransactions = [];
+    pendingLoginUser = null;
+    pendingVerificationAction = null;
+    pendingOtp = null;
+    window._pendingBiometricToken = null;
+    window._loginTargetUser = null;
+    // Clear biometric challenge and liveness session state
+    if (typeof _activeChallengeId !== 'undefined') {
+      try {
+        // eslint-disable-next-line no-global-assign
+        _activeChallengeId    = null;
+        _activeChallengeNonce = null;
+        _activeChallengeType  = null;
+        _activeChallengeExp   = null;
+        activeLivenessSessionId = null;
+        currentLivenessState = { live: false, blink_count: 0 };
+      } catch (_) {}
+    }
+    closeAllModals();
+    goTo('screen-welcome');
+    showAlertToast('Signed out of secure banking session.');
+  }
 }
 
 // ============================================================

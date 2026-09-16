@@ -1,8 +1,12 @@
 const path = require('path');
 try {
   const dotenv = require('dotenv');
-  dotenv.config({ path: path.join(__dirname, '..', '.env') });
-  dotenv.config();
+  const isTestEnv = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
+  dotenv.config({ path: path.join(__dirname, '..', '.env'), override: !isTestEnv });
+  dotenv.config({ override: !isTestEnv });
+  if (isTestEnv) {
+    process.env.NODE_ENV = 'test';
+  }
 } catch (e) {
   // dotenv optional in production where process.env is injected by host
 }
@@ -183,20 +187,37 @@ app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: false, limit: '100kb' }));
 app.use(generalApiLimiter);
 
-// Health check — used by frontend/api.js to auto-detect the API base URL and check DB health.
-app.get('/api/health', async (req, res) => {
-  let dbStatus = 'not_configured';
+let lastDbCheck = 0;
+let cachedDbStatus = 'connected';
+let dbCheckInProgress = false;
+
+async function refreshDbHealth() {
+  if (dbCheckInProgress) return;
+  dbCheckInProgress = true;
   try {
     const prisma = require('./prisma');
     await prisma.$queryRaw`SELECT 1`;
-    dbStatus = 'connected';
+    cachedDbStatus = 'connected';
   } catch (e) {
-    dbStatus = `unreachable (${e.code || e.message || 'error'})`;
+    cachedDbStatus = `unreachable (${e.code || e.message || 'error'})`;
+  } finally {
+    lastDbCheck = Date.now();
+    dbCheckInProgress = false;
+  }
+}
+
+// Initial background check on startup
+refreshDbHealth().catch(() => {});
+
+// Health check — used by frontend/api.js to auto-detect the API base URL and check DB health.
+app.get('/api/health', (req, res) => {
+  if (Date.now() - lastDbCheck > 30000) {
+    refreshDbHealth().catch(() => {});
   }
   res.json({
     ok: true,
     service: 'icash-backend',
-    database: dbStatus,
+    database: cachedDbStatus,
     time: new Date().toISOString(),
   });
 });
@@ -308,23 +329,55 @@ async function handler(contextOrReq, res, next) {
 Object.setPrototypeOf(handler, app);
 
 function autoSyncDatabase() {
+  if (process.env.AUTO_SYNC_DB !== 'true') {
+    return;
+  }
   const dbUrl = process.env.DATABASE_URL;
   if (!dbUrl || dbUrl.includes('localhost:5432')) {
-    console.log('ℹ️  Using default DATABASE_URL. For persistent cloud storage, provide your PostgreSQL URL.');
     return;
   }
   try {
-    const { execSync } = require('child_process');
-    console.log('🔄 Checking database schema with Prisma db push...');
+    const { exec } = require('child_process');
+    console.log('🔄 Checking database schema with Prisma db push (non-blocking)...');
     const prismaBin = path.join(__dirname, '..', '..', 'node_modules', '.bin', process.platform === 'win32' ? 'prisma.cmd' : 'prisma');
     const cmd = require('fs').existsSync(prismaBin)
       ? `"${prismaBin}" db push --schema=backend/prisma/schema.prisma --skip-generate`
       : 'npx --no-install prisma db push --schema=backend/prisma/schema.prisma --skip-generate';
-    execSync(cmd, { stdio: 'inherit', env: process.env });
-    console.log('✅ Database schema synchronized.');
+    exec(cmd, { env: process.env, timeout: 30000 }, (err) => {
+      if (err) {
+        console.warn('⚠️  Database schema sync note:', err.message);
+      } else {
+        console.log('✅ Database schema synchronized.');
+      }
+    });
   } catch (err) {
     console.warn('⚠️  Database schema sync note:', err.message);
   }
+}
+
+function ensureLivenessServerRunning() {
+  if (process.env.NODE_ENV === 'production') return;
+  const http = require('http');
+  const req = http.get('http://127.0.0.1:5001/health', () => {});
+  req.on('error', () => {
+    const pythonExe = process.platform === 'win32'
+      ? path.join(__dirname, '..', '..', '.venv', 'Scripts', 'python.exe')
+      : path.join(__dirname, '..', '..', '.venv', 'bin', 'python');
+    const fs = require('fs');
+    const cmd = fs.existsSync(pythonExe) ? pythonExe : 'python';
+    const appPath = path.join(__dirname, '..', '..', 'liveness_server', 'app.py');
+    try {
+      const { spawn } = require('child_process');
+      const p = spawn(cmd, [appPath], {
+        stdio: 'ignore',
+        detached: true,
+      });
+      p.unref();
+      console.log('[iCash] Started local Python liveness service on port 5001');
+    } catch (err) {
+      console.warn('[iCash] Could not auto-spawn liveness service:', err.message);
+    }
+  });
 }
 
 function startServer(port) {
@@ -338,6 +391,8 @@ function startServer(port) {
 
     // Auto sync schema if cloud database is configured
     setTimeout(autoSyncDatabase, 1500);
+    // Ensure liveness service is active in dev
+    setTimeout(ensureLivenessServerRunning, 1000);
   });
 
   server.on('error', (err) => {

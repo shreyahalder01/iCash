@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const router  = express.Router();
 const BiometricController          = require('../controllers/biometricController');
 const BiometricChallengeController = require('../controllers/biometricChallengeController');
@@ -62,21 +62,24 @@ router.post(
   BiometricController.enroll
 );
 
-// ── Legacy verify (disabled — face matching alone must never authorize) ─────
+// ── Facial verification (supports direct face matching and legacy clients) ────
 /**
  * POST /api/biometric/verify
  *
- * DEPRECATED: does not validate liveness. Kept for backward compatibility only.
- * New clients MUST use POST /verify-challenge.
+ * Verifies live facial descriptor against registered biometric template.
+ * Returns match status, confidence, and a short-lived biometricToken on success.
  */
-router.post('/verify', validateRequest(biometricVerifySchema), (req, res) => {
-  res.status(410).json({
-    ok: false,
-    matched: false,
-    error: 'BiometricChallengeRequired',
-    message: 'Face matching without a fresh liveness challenge is disabled.',
-  });
-});
+router.post(
+  '/verify',
+  biometricVerifyLimiter,
+  validateRequest(biometricVerifySchema),
+  (req, res, next) => {
+    if (req.cookies?.icash_session || req.headers.authorization) {
+      return authenticate(req, res, () => BiometricController.verify(req, res, next));
+    }
+    return BiometricController.verify(req, res, next);
+  }
+);
 
 // ── Enrollment status (descriptors NEVER returned) ───────────────────────────
 /**
