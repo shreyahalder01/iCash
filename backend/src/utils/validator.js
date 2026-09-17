@@ -62,13 +62,17 @@ const biometricVerifyChallengeSchema = z.object({
   nonce:            z.string().regex(/^[0-9a-f]{64}$/, 'Invalid nonce format.'),
   liveDescriptor:   faceDescriptor,
   userId:           z.string().uuid().optional(),
-  // Temporal proof: array of {timestamp, earLeft, earRight} captured during blink/head movement
+  // Temporal proof: array of {timestamp, earLeft/leftEAR, earRight/rightEAR, avgEAR, state}
   challengeProof: z.array(z.object({
-    timestamp:  z.number().int().positive(),
-    earLeft:    z.number().min(0).max(1),
-    earRight:   z.number().min(0).max(1),
-    yaw:        z.number().optional(), // head-pose yaw for head-turn challenges
-  })).min(1).max(120).optional(),
+    timestamp:  z.number().positive(),
+    earLeft:    z.number().min(0).max(1).optional(),
+    earRight:   z.number().min(0).max(1).optional(),
+    leftEAR:    z.number().min(0).max(1).optional(),
+    rightEAR:   z.number().min(0).max(1).optional(),
+    avgEAR:     z.number().min(0).max(1).optional(),
+    state:      z.string().optional(),
+    yaw:        z.number().optional(),
+  })).min(1).max(300).optional(),
 }).passthrough();
 
 const accountCreateSchema = z.object({

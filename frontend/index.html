@@ -379,9 +379,15 @@
               <div class="scan-status" id="reg-scan-status">Positioning face&hellip;</div>
             </div>
 
+            <div id="reg-blink-dots" style="display: flex; justify-content: center; gap: 10px; margin: 12px 0 6px;">
+              <span class="blink-dot" id="reg-dot-1" style="display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.4); transition: all 0.25s;"></span>
+              <span class="blink-dot" id="reg-dot-2" style="display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.4); transition: all 0.25s;"></span>
+            </div>
+            <div id="reg-blink-instruction" style="font-size: 13px; font-weight: 600; color: var(--primary); margin-bottom: 12px; min-height: 20px;">Align face within circle to enroll</div>
+
             <div class="thinking-trace" style="margin-bottom: 16px; justify-content: center">
               <span>✦</span>
-              <span>128D Neural Vector Embedding</span>
+              <span>128D Neural Vector Embedding &amp; Live Verification</span>
             </div>
 
             <div id="reg-cam-error" class="cam-fallback"></div>
@@ -459,9 +465,15 @@
               <div class="scan-status" id="login-scan-status">Positioning face&hellip;</div>
             </div>
 
+            <div id="login-blink-dots" style="display: flex; justify-content: center; gap: 10px; margin: 12px 0 6px;">
+              <span class="blink-dot" id="login-dot-1" style="display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.4); transition: all 0.25s;"></span>
+              <span class="blink-dot" id="login-dot-2" style="display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.4); transition: all 0.25s;"></span>
+            </div>
+            <div id="login-blink-instruction" style="font-size: 13px; font-weight: 600; color: var(--primary); margin-bottom: 12px; min-height: 20px;">Align face within circle to begin</div>
+
             <div class="thinking-trace" style="margin-bottom: 16px; justify-content: center">
               <span>✦</span>
-              <span>Vector Distance Verification Engine Active</span>
+              <span>Anti-Spoof Temporal Liveness Gate Active</span>
             </div>
 
             <div id="login-cam-error" class="cam-fallback"></div>
@@ -2400,8 +2412,6 @@
       integrity="sha384-M5nePoB6/w/a9JhtegEibSLGiJy/+QMZZMfvcxjWVCQW/HPwrQ7i21V/Px/8AyVA"
       crossorigin="anonymous"
     ></script>
-    <!-- Ankur Kedia blink-detection engine (bundled MediaPipe Facemesh + TF.js) -->
-    <script src="lib/blink-detection.js"></script>
     <script
       src="https://cdn.jsdelivr.net/npm/appwrite@17.0.0/dist/iife/sdk.min.js"
       crossorigin="anonymous"
