@@ -15,7 +15,8 @@ RUN npx prisma generate --schema=backend/prisma/schema.prisma
 # Copy all source files
 COPY . .
 
-# Build assets
+# Build assets (skip redundant Prisma generation since it was generated above)
+ENV PRISMA_GENERATE_SKIP=true
 RUN npm run build
 
 # Production runner stage

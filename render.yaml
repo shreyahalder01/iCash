@@ -18,9 +18,11 @@ services:
         value: demo
       - key: LIVENESS_SERVER_URL
         value: https://icash-liveness.onrender.com
-      - key: ALLOW_DEMO_TOPUP
-        value: "false"
+      - key: AUTO_SYNC_DB
+        value: "true"
       - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
         sync: false
       - key: JWT_SECRET
         generateValue: true

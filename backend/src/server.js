@@ -2,13 +2,19 @@ const path = require('path');
 try {
   const dotenv = require('dotenv');
   const isTestEnv = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
-  dotenv.config({ path: path.join(__dirname, '..', '.env'), override: !isTestEnv });
-  dotenv.config({ override: !isTestEnv });
+  // Load local env files without overriding environment variables already set by the deployment host
+  dotenv.config({ path: path.join(__dirname, '..', '.env') });
+  dotenv.config();
   if (isTestEnv) {
     process.env.NODE_ENV = 'test';
   }
 } catch (e) {
   // dotenv optional in production where process.env is injected by host
+}
+
+// Fallback: If DATABASE_URL is defined but DIRECT_URL is missing, default DIRECT_URL to DATABASE_URL
+if (process.env.DATABASE_URL && !process.env.DIRECT_URL) {
+  process.env.DIRECT_URL = process.env.DATABASE_URL;
 }
 
 const express = require('express');
@@ -190,6 +196,7 @@ app.use(generalApiLimiter);
 let lastDbCheck = 0;
 let cachedDbStatus = 'connected';
 let dbCheckInProgress = false;
+let dbLoggedWarning = false;
 
 async function refreshDbHealth() {
   if (dbCheckInProgress) return;
@@ -198,8 +205,26 @@ async function refreshDbHealth() {
     const prisma = require('./prisma');
     await prisma.$queryRaw`SELECT 1`;
     cachedDbStatus = 'connected';
+    dbLoggedWarning = false;
   } catch (e) {
     cachedDbStatus = `unreachable (${e.code || e.message || 'error'})`;
+    if (!dbLoggedWarning) {
+      dbLoggedWarning = true;
+      const rawUrl = process.env.DATABASE_URL || '';
+      const hostMatch = rawUrl.match(/@([^/:?]+)(?::(\d+))?/);
+      const host = hostMatch ? hostMatch[1] : 'unknown';
+      const port = hostMatch && hostMatch[2] ? hostMatch[2] : '5432';
+      console.warn(`\n⚠️  [Database Warning] Unable to reach PostgreSQL at \`${host}:${port}\`: ${e.message}`);
+      if (host.startsWith('dpg-') && !host.includes('.')) {
+        console.warn(`💡 Render Guidance:
+   Host "${host}" is a Render Internal Database hostname.
+   1. Internal hostnames ONLY work if your Web Service and Database are in the SAME Render region.
+   2. If they are in different regions, or if connecting externally, use Render's External Database URL
+      (e.g., postgresql://user:password@${host}.oregon-postgres.render.com/dbname?sslmode=require).
+   3. Or set your Render DATABASE_URL environment variable to your active Supabase connection string.`);
+      }
+      console.warn('');
+    }
   } finally {
     lastDbCheck = Date.now();
     dbCheckInProgress = false;

@@ -8,38 +8,42 @@ const distDir = path.join(rootDir, 'dist');
 const nextDir = path.join(rootDir, '.next');
 const buildDir = path.join(rootDir, 'build');
 
-console.log('[Build] 1. Generating Prisma Client...');
-try {
-  // Ensure DATABASE_URL is set so prisma generate succeeds even if not set in build environment
-  const buildEnv = {
-    ...process.env,
-    DATABASE_URL: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/icash?schema=public',
-  };
-
-  const prismaBin = path.join(rootDir, 'node_modules', '.bin', process.platform === 'win32' ? 'prisma.cmd' : 'prisma');
-  const cmd = fs.existsSync(prismaBin)
-    ? `"${prismaBin}" generate --schema=backend/prisma/schema.prisma`
-    : 'npx --no-install prisma generate --schema=backend/prisma/schema.prisma';
-
-  execSync(cmd, {
-    cwd: rootDir,
-    stdio: 'inherit',
-    env: buildEnv,
-  });
-} catch (err) {
-  console.warn('[Build] Warning: Prisma generation encountered an issue:', err.message);
-  // Try fallback in backend folder
+if (process.env.PRISMA_GENERATE_SKIP === 'true') {
+  console.log('[Build] 1. Skipping Prisma Client generation (already generated in build step)...');
+} else {
+  console.log('[Build] 1. Generating Prisma Client...');
   try {
-    const backendBin = path.join(rootDir, 'backend', 'node_modules', '.bin', process.platform === 'win32' ? 'prisma.cmd' : 'prisma');
-    if (fs.existsSync(backendBin)) {
-      execSync(`"${backendBin}" generate --schema=backend/prisma/schema.prisma`, {
-        cwd: rootDir,
-        stdio: 'inherit',
-        env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/icash?schema=public' }
-      });
+    // Ensure DATABASE_URL is set so prisma generate succeeds even if not set in build environment
+    const buildEnv = {
+      ...process.env,
+      DATABASE_URL: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/icash?schema=public',
+    };
+
+    const prismaBin = path.join(rootDir, 'node_modules', '.bin', process.platform === 'win32' ? 'prisma.cmd' : 'prisma');
+    const cmd = fs.existsSync(prismaBin)
+      ? `"${prismaBin}" generate --schema=backend/prisma/schema.prisma`
+      : 'npx --no-install prisma generate --schema=backend/prisma/schema.prisma';
+
+    execSync(cmd, {
+      cwd: rootDir,
+      stdio: 'inherit',
+      env: buildEnv,
+    });
+  } catch (err) {
+    console.warn('[Build] Warning: Prisma generation encountered an issue:', err.message);
+    // Try fallback in backend folder
+    try {
+      const backendBin = path.join(rootDir, 'backend', 'node_modules', '.bin', process.platform === 'win32' ? 'prisma.cmd' : 'prisma');
+      if (fs.existsSync(backendBin)) {
+        execSync(`"${backendBin}" generate --schema=backend/prisma/schema.prisma`, {
+          cwd: rootDir,
+          stdio: 'inherit',
+          env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/icash?schema=public' }
+        });
+      }
+    } catch (err2) {
+      // Non-fatal if schema was pre-generated
     }
-  } catch (err2) {
-    // Non-fatal if schema was pre-generated
   }
 }
 
