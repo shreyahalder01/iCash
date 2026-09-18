@@ -21,6 +21,8 @@
     "format": "prettier --write \"**/*.{js,css,html,json,md}\""
   },
   "dependencies": {
+    "@better-auth/core": "^1.7.5",
+    "@better-auth/infra": "^0.4.9",
     "@prisma/client": "^6.4.1",
     "@tensorflow-models/face-landmarks-detection": "^1.0.6",
     "@tensorflow/tfjs-backend-webgl": "^4.22.0",
@@ -28,6 +30,7 @@
     "@tensorflow/tfjs-core": "^4.22.0",
     "appwrite": "^26.2.0",
     "bcryptjs": "^3.0.2",
+    "better-auth": "^1.7.5",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
@@ -40,7 +43,7 @@
     "nodemailer": "^10.0.9",
     "prisma": "^6.4.1",
     "tesseract.js": "^6.0.1",
-    "zod": "^3.24.2"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "eslint": "^8.57.1",
@@ -53,6 +56,11 @@
   "jest": {
     "testEnvironment": "node",
     "testTimeout": 60000,
-    "testPathIgnorePatterns": ["/node_modules/", "/\\.next/", "/dist/", "/build/"]
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/\\.next/",
+      "/dist/",
+      "/build/"
+    ]
   }
 }

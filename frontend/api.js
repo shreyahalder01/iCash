@@ -122,16 +122,18 @@ async function request(endpoint, options = {}) {
   }
   const url = `${base}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
 
+  const activeToken = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('icash_session_token') : null;
   const isFormData = configBodyIsFormData(options.body);
   const headers = {
     ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+    ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
     ...(options.headers || {}),
   };
 
   const config = {
     ...options,
     headers,
-    credentials: 'include', // Rely exclusively on HTTP-only session cookie for auth
+    credentials: 'include', // Both HTTP-only cookie and Authorization header supported
   };
 
   if (config.body && typeof config.body === 'object' && !(config.body instanceof FormData)) {
@@ -179,19 +181,17 @@ async function request(endpoint, options = {}) {
     throw error;
   }
 
-  // Token is managed exclusively by the HTTP-only session cookie set by the server.
-  // Never store JWTs in localStorage — localStorage is XSS-accessible and bypasses
-  // the security guarantee of httpOnly cookies.
-
-  // Clear any stale legacy token that may have been stored by older versions
-  if (typeof localStorage !== 'undefined' && localStorage.getItem('icash_token')) {
-    localStorage.removeItem('icash_token');
+  // Persist session token in sessionStorage to guarantee seamless cross-origin and cross-port authentication
+  if (data && data.token && typeof sessionStorage !== 'undefined') {
+    sessionStorage.setItem('icash_session_token', data.token);
   }
 
   if (!response.ok) {
     if (response.status === 401) {
-      // Session expired — the HTTP-only cookie will be cleared by the server's Set-Cookie header.
-      // No localStorage token to clear.
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.removeItem('icash_session_token');
+        sessionStorage.removeItem('icash_session_active');
+      }
     }
     const errorMsg =
       data.message ||
@@ -216,7 +216,13 @@ const api = {
     request('/api/auth/login-biometric', { method: 'POST', body: { biometricToken } }),
   loginEmergencyPin: (data) =>
     request('/api/auth/login-emergency-pin', { method: 'POST', body: data }),
-  logout: () => request('/api/auth/logout', { method: 'POST' }),
+  logout: () => {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.removeItem('icash_session_token');
+      sessionStorage.removeItem('icash_session_active');
+    }
+    return request('/api/auth/logout', { method: 'POST' });
+  },
   getMe: () => request('/api/auth/me', { method: 'GET' }),
   refreshToken: () => request('/api/auth/refresh', { method: 'POST' }),
   // Delete own account (requires PIN confirmation)

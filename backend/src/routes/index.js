@@ -4,6 +4,17 @@
  */
 const express = require('express');
 
+let betterAuthHandler = null;
+try {
+  const { toNodeHandler } = require('better-auth/node');
+  const { auth } = require('../auth');
+  if (auth) {
+    betterAuthHandler = toNodeHandler(auth);
+  }
+} catch (e) {
+  console.warn('[BetterAuth] Initialization note:', e.message);
+}
+
 const authRoutes = require('./authRoutes');
 const otpRoutes = require('./otpRoutes');
 const biometricRoutes = require('./biometricRoutes');
@@ -29,6 +40,13 @@ const subscriptionRoutes = require('./subscriptionRoutes');
  * @param {import('express').Application} app
  */
 function registerRoutes(app) {
+  // Mount Better Auth node handler for dash plugin verification & sessions
+  if (betterAuthHandler) {
+    app.all('/api/auth/*', (req, res, next) => {
+      betterAuthHandler(req, res, next);
+    });
+  }
+
   // Compatibility base route for zahid-afridi/EmailVerfication
   app.use('/auth', authRoutes);
 

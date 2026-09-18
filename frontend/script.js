@@ -253,6 +253,7 @@ function setAmt(action, val) {
 async function startLogin() {
   // Clear any existing session or stale biometric state when starting a fresh login attempt
   sessionStorage.removeItem('icash_session_active');
+  sessionStorage.removeItem('icash_session_token');
   currentUser = null;
   pendingLoginUser = null;
   window._loginTargetUser = null;

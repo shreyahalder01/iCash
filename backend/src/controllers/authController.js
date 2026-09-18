@@ -12,6 +12,7 @@ class AuthController {
         success: true,
         message: 'Registration completed successfully.',
         user,
+        token,
         ...(process.env.NODE_ENV !== 'production' || process.env.ALLOW_DEV_OTP === 'true'
           ? { devCode: verificationCode, code: verificationCode }
           : {}),
@@ -39,7 +40,8 @@ class AuthController {
       }
       const { user, token } = await AuthService.loginWithBiometric(userId, req);
       res.cookie(COOKIE_NAME, token, getCookieOptions());
-      res.json({ ok: true, message: 'Biometric authentication successful.', user });
+      res.cookie('token', token, getCookieOptions());
+      res.json({ ok: true, message: 'Biometric authentication successful.', user, token });
     } catch (err) {
       next(err);
     }
@@ -50,10 +52,12 @@ class AuthController {
       const { userId, pin } = req.body;
       const { user, token, isDuress } = await AuthService.loginWithPin(userId, pin, req);
       res.cookie(COOKIE_NAME, token, getCookieOptions());
+      res.cookie('token', token, getCookieOptions());
       res.json({
         ok: true,
         message: isDuress ? 'Emergency access mode active.' : 'Authenticated successfully.',
         user,
+        token,
         isDuress,
       });
     } catch (err) {
