@@ -40,18 +40,18 @@ const subscriptionRoutes = require('./subscriptionRoutes');
  * @param {import('express').Application} app
  */
 function registerRoutes(app) {
+  // Compatibility base route for zahid-afridi/EmailVerfication
+  app.use('/auth', authRoutes);
+
+  // Core V1 Banking & Auth APIs (login, register, biometric, pin, etc.)
+  app.use('/api/auth', authRoutes);
+
   // Mount Better Auth node handler for dash plugin verification & sessions
   if (betterAuthHandler) {
     app.all('/api/auth/*', (req, res, next) => {
       betterAuthHandler(req, res, next);
     });
   }
-
-  // Compatibility base route for zahid-afridi/EmailVerfication
-  app.use('/auth', authRoutes);
-
-  // Core V1 Banking & Auth APIs
-  app.use('/api/auth', authRoutes);
   app.use('/api/otp', otpRoutes);
   app.use('/api/biometric', biometricRoutes);
   app.use('/api/accounts', accountRoutes);

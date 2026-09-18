@@ -3,11 +3,17 @@ const { prismaAdapter } = require('better-auth/adapters/prisma');
 const { dash } = require('@better-auth/infra');
 const prisma = require('./prisma');
 
+// Normalize baseURL so it is the root URL without trailing slash or /api/auth
+const rawUrl =
+  process.env.BETTER_AUTH_URL ||
+  process.env.RENDER_EXTERNAL_URL ||
+  'https://icash.onrender.com';
+
+const baseURL = rawUrl.trim().replace(/\/+$/, '').replace(/\/api\/auth$/, '');
+
 const auth = betterAuth({
-  baseURL:
-    process.env.BETTER_AUTH_URL ||
-    process.env.RENDER_EXTERNAL_URL ||
-    'https://icash.onrender.com',
+  baseURL,
+  basePath: '/api/auth',
   secret:
     process.env.BETTER_AUTH_SECRET ||
     process.env.BETTER_AUTH_API_KEY ||
@@ -16,23 +22,18 @@ const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
   }),
+  advanced: {
+    database: {
+      validateSchema: false,
+    },
+  },
   user: {
-    modelName: 'User',
     fields: {
       name: 'full_name',
       emailVerified: 'email_verified',
       createdAt: 'created_at',
       updatedAt: 'updated_at',
     },
-  },
-  session: {
-    modelName: 'Session',
-  },
-  account: {
-    modelName: 'Account',
-  },
-  verification: {
-    modelName: 'Verification',
   },
   plugins: [
     dash({
